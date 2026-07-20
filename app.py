@@ -6,8 +6,8 @@ import os
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-2024')
 
-SUPABASE_URL = os.environ.get('SUPABASE_URL', 'https://your-project.supabase.co')
-SUPABASE_KEY = os.environ.get('SUPABASE_KEY', 'your-anon-key')
+SUPABASE_URL = os.environ.get('SUPABASE_URL', 'https://lznqrkujlrcxcxizygzq.supabase.co')
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6bnFya3VqbHJjeGN4aXp5Z3pxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NjIwNjUsImV4cCI6MjEwMDEzODA2NX0.Jj_EW42NVMQk6zbEcNoY-IlrSe0tgW4zFiKoBSapiDA')
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
