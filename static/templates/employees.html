@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Employees</h1>
+
+{% if message %}
+<div class="message {{ message_type }}">{{ message }}</div>
+{% endif %}
+
+<h2>Add New Employee</h2>
+<form method="POST" action="/employees/add">
+    <div class="form-group">
+        <label>Employee ID</label>
+        <input type="text" name="employee_id" required placeholder="e.g., EMP001">
+    </div>
+    <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" name="full_name" required placeholder="e.g., John Doe">
+    </div>
+    <div class="form-group">
+        <label>Department (optional)</label>
+        <input type="text" name="department" placeholder="e.g., Sales">
+    </div>
+    <button type="submit">Add Employee</button>
+</form>
+
+<h2>All Employees ({{ employees|length }})</h2>
+{% if employees %}
+<table>
+    <tr>
+        <th>Employee ID</th>
+        <th>Full Name</th>
+        <th>Department</th>
+        <th>Added On</th>
+        <th>Action</th>
+    </tr>
+    {% for emp in employees %}
+    <tr>
+        <td>{{ emp.employee_id }}</td>
+        <td>{{ emp.full_name }}</td>
+        <td><span class="department-tag">{{ emp.department or '—' }}</span></td>
+        <td>{{ emp.created_at[:10] if emp.created_at else '—' }}</td>
+        <td>
+            <form method="POST" action="/employees/delete/{{ emp.employee_id }}" class="inline-form" onsubmit="return confirm('Delete this employee?');">
+                <button type="submit" class="btn-delete">Delete</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+<p>No employees added yet.</p>
+{% endif %}
+{% endblock %}
