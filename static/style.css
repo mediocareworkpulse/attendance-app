@@ -1,0 +1,171 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f5f5f5;
+    color: #222;
+    line-height: 1.6;
+}
+
+header {
+    background: #fff;
+    border-bottom: 1px solid #ccc;
+    padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header h2 {
+    font-size: 18px;
+    font-weight: normal;
+}
+
+nav a {
+    color: #222;
+    text-decoration: none;
+    margin-left: 20px;
+    font-size: 14px;
+}
+
+nav a:hover {
+    text-decoration: underline;
+}
+
+main {
+    padding: 30px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+h1 {
+    font-size: 22px;
+    font-weight: normal;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+h2 {
+    font-size: 18px;
+    font-weight: normal;
+    margin: 25px 0 15px 0;
+    color: #333;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    margin-top: 15px;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 10px 15px;
+    text-align: left;
+    font-size: 13px;
+}
+
+th {
+    background: #eee;
+    font-weight: bold;
+    color: #333;
+}
+
+button, .btn {
+    background: #2c3e50;
+    color: #fff;
+    border: none;
+    padding: 8px 20px;
+    cursor: pointer;
+    font-size: 13px;
+    text-decoration: none;
+    display: inline-block;
+}
+
+button:hover, .btn:hover {
+    background: #1a252f;
+}
+
+.btn-delete {
+    background: #c0392b;
+}
+
+.btn-delete:hover {
+    background: #962d22;
+}
+
+input, select {
+    border: 1px solid #ccc;
+    padding: 8px 12px;
+    font-size: 13px;
+    width: 250px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 13px;
+    color: #555;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+form.inline-form {
+    display: inline;
+}
+
+.message {
+    padding: 12px;
+    margin: 15px 0;
+    border-left: 3px solid #2c3e50;
+    background: #e8e8e8;
+    font-size: 14px;
+}
+
+.error {
+    border-left-color: #c0392b;
+    background: #fce4e4;
+}
+
+.success {
+    border-left-color: #27ae60;
+    background: #e8f5e9;
+}
+
+.stats {
+    display: flex;
+    gap: 30px;
+    margin-top: 30px;
+}
+
+.stat-box {
+    background: #fff;
+    padding: 25px;
+    border: 1px solid #ddd;
+    flex: 1;
+}
+
+.stat-box h3 {
+    font-weight: normal;
+    color: #555;
+    font-size: 14px;
+}
+
+.stat-box p {
+    font-size: 36px;
+    margin-top: 5px;
+}
+
+.department-tag {
+    background: #eee;
+    padding: 2px 8px;
+    font-size: 12px;
+    color: #555;
+}
