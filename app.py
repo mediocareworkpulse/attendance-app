@@ -15,37 +15,51 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 @app.route('/')
 def home():
     today = str(date.today())
-
-    employees = supabase.table('employees').select('*').execute()
-    total_employees = len(employees.data)
-
-    attendance_today = supabase.table('attendance').select('*').eq('date', today).execute()
-    today_count = len(attendance_today.data)
+    
+    try:
+        emp_result = supabase.table('employees').select('*').execute()
+        total_employees = len(emp_result.data) if emp_result.data else 0
+    except Exception as e:
+        return f"Database error: {str(e)}", 500
+    
+    try:
+        att_result = supabase.table('attendance').select('*').eq('date', today).execute()
+        today_count = len(att_result.data) if att_result.data else 0
+    except:
+        today_count = 0
+    
     absent_count = total_employees - today_count
-
+    
     today_records = []
-    for record in attendance_today.data:
-        emp = supabase.table('employees').select('full_name').eq('employee_id', record['employee_id']).execute()
-        name = emp.data[0]['full_name'] if emp.data else 'Unknown'
-        today_records.append({
-            'employee_id': record['employee_id'],
-            'full_name': name,
-            'check_in': record['check_in'],
-            'check_out': record['check_out'],
-            'status': record['status']
-        })
-
+    try:
+        for record in att_result.data:
+            emp = supabase.table('employees').select('full_name').eq('employee_id', record['employee_id']).execute()
+            name = emp.data[0]['full_name'] if emp.data else 'Unknown'
+            today_records.append({
+                'employee_id': record['employee_id'],
+                'full_name': name,
+                'check_in': record.get('check_in'),
+                'check_out': record.get('check_out'),
+                'status': record.get('status', 'present')
+            })
+    except:
+        pass
+    
     return render_template('index.html',
-                           total_employees=total_employees,
-                           today_count=today_count,
-                           absent_count=absent_count,
-                           today_records=today_records)
+                         total_employees=total_employees,
+                         today_count=today_count,
+                         absent_count=absent_count,
+                         today_records=today_records)
 
 
 @app.route('/employees')
-def employees():
-    result = supabase.table('employees').select('*').order('created_at', desc=True).execute()
-    return render_template('employees.html', employees=result.data)
+def employees_page():
+    try:
+        result = supabase.table('employees').select('*').order('created_at', desc=True).execute()
+        emp_list = result.data if result.data else []
+    except Exception as e:
+        return f"Database error: {str(e)}", 500
+    return render_template('employees.html', employees=emp_list)
 
 
 @app.route('/employees/add', methods=['POST'])
@@ -53,47 +67,46 @@ def add_employee():
     employee_id = request.form.get('employee_id', '').strip()
     full_name = request.form.get('full_name', '').strip()
     department = request.form.get('department', '').strip()
-
-    existing = supabase.table('employees').select('*').eq('employee_id', employee_id).execute()
-    if existing.data:
-        all_employees = supabase.table('employees').select('*').order('created_at', desc=True).execute()
-        return render_template('employees.html',
-                               employees=all_employees.data,
-                               message='Employee ID already exists!',
-                               message_type='error')
-
-    supabase.table('employees').insert({
-        'employee_id': employee_id,
-        'full_name': full_name,
-        'department': department
-    }).execute()
-
-    return redirect(url_for('employees'))
+    
+    try:
+        existing = supabase.table('employees').select('*').eq('employee_id', employee_id).execute()
+        if existing.data:
+            all_employees = supabase.table('employees').select('*').order('created_at', desc=True).execute()
+            return render_template('employees.html',
+                                 employees=all_employees.data,
+                                 message='Employee ID already exists!',
+                                 message_type='error')
+        
+        supabase.table('employees').insert({
+            'employee_id': employee_id,
+            'full_name': full_name,
+            'department': department
+        }).execute()
+    except Exception as e:
+        return f"Error adding employee: {str(e)}", 500
+    
+    return redirect(url_for('employees_page'))
 
 
 @app.route('/employees/delete/<employee_id>', methods=['POST'])
 def delete_employee(employee_id):
-    supabase.table('employees').delete().eq('employee_id', employee_id).execute()
-    return redirect(url_for('employees'))
+    try:
+        supabase.table('employees').delete().eq('employee_id', employee_id).execute()
+    except:
+        pass
+    return redirect(url_for('employees_page'))
 
 
 @app.route('/check-in')
 def check_in_page():
     today = str(date.today())
-    attendance_today = supabase.table('attendance').select('*').eq('date', today).execute()
-
-    today_records = []
-    for record in attendance_today.data:
-        emp = supabase.table('employees').select('full_name').eq('employee_id', record['employee_id']).execute()
-        name = emp.data[0]['full_name'] if emp.data else 'Unknown'
-        today_records.append({
-            'employee_id': record['employee_id'],
-            'full_name': name,
-            'check_in': record['check_in'],
-            'check_out': record['check_out'],
-            'status': record['status']
-        })
-
+    try:
+        attendance_today = supabase.table('attendance').select('*').eq('date', today).execute()
+        records = attendance_today.data if attendance_today.data else []
+    except:
+        records = []
+    
+    today_records = build_today_records(records)
     return render_template('check_in.html', today_records=today_records)
 
 
@@ -103,87 +116,82 @@ def process_attendance():
     action = request.form.get('action')
     today = str(date.today())
     now = datetime.now().strftime('%H:%M:%S')
-
-    emp_check = supabase.table('employees').select('*').eq('employee_id', employee_id).execute()
+    
+    try:
+        emp_check = supabase.table('employees').select('*').eq('employee_id', employee_id).execute()
+    except:
+        return "Database error", 500
+    
     if not emp_check.data:
-        attendance_today = supabase.table('attendance').select('*').eq('date', today).execute()
-        today_records = build_today_records(attendance_today.data)
         return render_template('check_in.html',
-                               today_records=today_records,
-                               message='Employee ID not found!',
-                               message_type='error')
-
+                             today_records=[],
+                             message='Employee ID not found!',
+                             message_type='error')
+    
     emp_name = emp_check.data[0]['full_name']
-
-    if action == 'check_in':
-        existing = supabase.table('attendance').select('*').eq('employee_id', employee_id).eq('date', today).execute()
-
-        if existing.data and existing.data[0].get('check_in'):
-            attendance_today = supabase.table('attendance').select('*').eq('date', today).execute()
-            today_records = build_today_records(attendance_today.data)
-            return render_template('check_in.html',
-                                   today_records=today_records,
-                                   message=f'{emp_name} already checked in at {existing.data[0]["check_in"]}',
-                                   message_type='error')
-
-        status = 'present'
-        if now > '09:00:00':
-            status = 'late'
-
-        if existing.data:
-            supabase.table('attendance').update({
-                'check_in': now,
-                'status': status
-            }).eq('employee_id', employee_id).eq('date', today).execute()
-        else:
-            supabase.table('attendance').insert({
-                'employee_id': employee_id,
-                'date': today,
-                'check_in': now,
-                'status': status
-            }).execute()
-
-        return redirect(url_for('check_in_page'))
-
-    elif action == 'check_out':
-        existing = supabase.table('attendance').select('*').eq('employee_id', employee_id).eq('date', today).execute()
-
-        if not existing.data or not existing.data[0].get('check_in'):
-            attendance_today = supabase.table('attendance').select('*').eq('date', today).execute()
-            today_records = build_today_records(attendance_today.data)
-            return render_template('check_in.html',
-                                   today_records=today_records,
-                                   message=f'{emp_name} has not checked in today!',
-                                   message_type='error')
-
-        if existing.data[0].get('check_out'):
-            attendance_today = supabase.table('attendance').select('*').eq('date', today).execute()
-            today_records = build_today_records(attendance_today.data)
-            return render_template('check_in.html',
-                                   today_records=today_records,
-                                   message=f'{emp_name} already checked out at {existing.data[0]["check_out"]}',
-                                   message_type='error')
-
-        supabase.table('attendance').update({
-            'check_out': now
-        }).eq('employee_id', employee_id).eq('date', today).execute()
-
-        return redirect(url_for('check_in_page'))
-
+    
+    try:
+        if action == 'check_in':
+            existing = supabase.table('attendance').select('*').eq('employee_id', employee_id).eq('date', today).execute()
+            
+            if existing.data and existing.data[0].get('check_in'):
+                return render_template('check_in.html',
+                                     today_records=build_today_records(get_today_attendance()),
+                                     message=f'{emp_name} already checked in at {existing.data[0]["check_in"]}',
+                                     message_type='error')
+            
+            status = 'late' if now > '09:00:00' else 'present'
+            
+            if existing.data:
+                supabase.table('attendance').update({'check_in': now, 'status': status}).eq('employee_id', employee_id).eq('date', today).execute()
+            else:
+                supabase.table('attendance').insert({'employee_id': employee_id, 'date': today, 'check_in': now, 'status': status}).execute()
+        
+        elif action == 'check_out':
+            existing = supabase.table('attendance').select('*').eq('employee_id', employee_id).eq('date', today).execute()
+            
+            if not existing.data or not existing.data[0].get('check_in'):
+                return render_template('check_in.html',
+                                     today_records=build_today_records(get_today_attendance()),
+                                     message=f'{emp_name} has not checked in today!',
+                                     message_type='error')
+            
+            if existing.data[0].get('check_out'):
+                return render_template('check_in.html',
+                                     today_records=build_today_records(get_today_attendance()),
+                                     message=f'{emp_name} already checked out at {existing.data[0]["check_out"]}',
+                                     message_type='error')
+            
+            supabase.table('attendance').update({'check_out': now}).eq('employee_id', employee_id).eq('date', today).execute()
+    except Exception as e:
+        return f"Error: {str(e)}", 500
+    
     return redirect(url_for('check_in_page'))
+
+
+def get_today_attendance():
+    today = str(date.today())
+    try:
+        result = supabase.table('attendance').select('*').eq('date', today).execute()
+        return result.data if result.data else []
+    except:
+        return []
 
 
 def build_today_records(records):
     today_records = []
     for record in records:
-        emp = supabase.table('employees').select('full_name').eq('employee_id', record['employee_id']).execute()
-        name = emp.data[0]['full_name'] if emp.data else 'Unknown'
+        try:
+            emp = supabase.table('employees').select('full_name').eq('employee_id', record['employee_id']).execute()
+            name = emp.data[0]['full_name'] if emp.data else 'Unknown'
+        except:
+            name = 'Unknown'
         today_records.append({
             'employee_id': record['employee_id'],
             'full_name': name,
-            'check_in': record['check_in'],
-            'check_out': record['check_out'],
-            'status': record['status']
+            'check_in': record.get('check_in'),
+            'check_out': record.get('check_out'),
+            'status': record.get('status', 'present')
         })
     return today_records
 
@@ -192,29 +200,30 @@ def build_today_records(records):
 def reports():
     from_date = request.args.get('from_date', str(date.today()))
     to_date = request.args.get('to_date', str(date.today()))
-
     records = None
-
+    
     if from_date and to_date:
-        result = supabase.table('attendance').select('*').gte('date', from_date).lte('date', to_date).order('date', desc=True).execute()
-
-        records = []
-        for record in result.data:
-            emp = supabase.table('employees').select('full_name').eq('employee_id', record['employee_id']).execute()
-            name = emp.data[0]['full_name'] if emp.data else 'Unknown'
-            records.append({
-                'date': record['date'],
-                'employee_id': record['employee_id'],
-                'full_name': name,
-                'check_in': record['check_in'],
-                'check_out': record['check_out'],
-                'status': record['status']
-            })
-
-    return render_template('reports.html',
-                           records=records,
-                           from_date=from_date,
-                           to_date=to_date)
+        try:
+            result = supabase.table('attendance').select('*').gte('date', from_date).lte('date', to_date).order('date', desc=True).execute()
+            records = []
+            for record in result.data:
+                try:
+                    emp = supabase.table('employees').select('full_name').eq('employee_id', record['employee_id']).execute()
+                    name = emp.data[0]['full_name'] if emp.data else 'Unknown'
+                except:
+                    name = 'Unknown'
+                records.append({
+                    'date': record['date'],
+                    'employee_id': record['employee_id'],
+                    'full_name': name,
+                    'check_in': record.get('check_in'),
+                    'check_out': record.get('check_out'),
+                    'status': record.get('status', 'present')
+                })
+        except:
+            records = []
+    
+    return render_template('reports.html', records=records, from_date=from_date, to_date=to_date)
 
 
 if __name__ == '__main__':
