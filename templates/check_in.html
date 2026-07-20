@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Check In / Check Out</h1>
+{% if message %}<div class="message {{ message_type }}">{{ message }}</div>{% endif %}
+<h2>Record Attendance</h2>
+<form method="POST" action="/check-in">
+    <div class="form-group"><label>Employee ID</label><input type="text" name="employee_id" required placeholder="Enter Employee ID" autofocus></div>
+    <div style="display: flex; gap: 10px;"><button type="submit" name="action" value="check_in">Check In</button><button type="submit" name="action" value="check_out">Check Out</button></div>
+</form>
+{% if today_records %}
+<h2>Today's Records</h2>
+<table>
+    <tr><th>Employee ID</th><th>Name</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
+    {% for record in today_records %}
+    <tr><td>{{ record.employee_id }}</td><td>{{ record.full_name }}</td><td>{{ record.check_in or '—' }}</td><td>{{ record.check_out or '—' }}</td><td>{{ record.status }}</td></tr>
+    {% endfor %}
+</table>
+{% endif %}
+{% endblock %}
