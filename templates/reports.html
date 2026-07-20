@@ -3,9 +3,10 @@
 <h1>Reports</h1>
 <h2>Select Date Range</h2>
 <form method="GET" action="/reports">
-    <div style="display: flex; gap: 20px; align-items: end;">
+    <div style="display: flex; gap: 20px; align-items: end; flex-wrap: wrap;">
         <div class="form-group"><label>From Date</label><input type="date" name="from_date" value="{{ from_date }}" required></div>
         <div class="form-group"><label>To Date</label><input type="date" name="to_date" value="{{ to_date }}" required></div>
+        <div class="form-group"><label>Branch</label><select name="branch"><option value="">All Branches</option>{% for b in branches %}<option value="{{ b }}" {% if current_branch==b %}selected{% endif %}>{{ b }}</option>{% endfor %}</select></div>
         <div class="form-group"><button type="submit">View Report</button></div>
     </div>
 </form>
@@ -13,9 +14,13 @@
 <h2>Attendance Records ({{ from_date }} to {{ to_date }})</h2>
 {% if records %}
 <table>
-    <tr><th>Date</th><th>Employee ID</th><th>Name</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
+    <tr><th>Date</th><th>Employee ID</th><th>Name</th><th>Branch</th><th>Check In</th><th>In Location</th><th>Check Out</th><th>Status</th></tr>
     {% for record in records %}
-    <tr><td>{{ record.date }}</td><td>{{ record.employee_id }}</td><td>{{ record.full_name }}</td><td>{{ record.check_in or '—' }}</td><td>{{ record.check_out or '—' }}</td><td>{{ record.status }}</td></tr>
+    <tr>
+        <td>{{ record.date }}</td><td>{{ record.employee_id }}</td><td>{{ record.full_name }}</td><td>{{ record.branch or '—' }}</td>
+        <td>{{ record.check_in or '—' }}</td><td style="font-size:11px;">{{ record.check_in_location or '—' }}</td>
+        <td>{{ record.check_out or '—' }}</td><td>{{ record.status }}</td>
+    </tr>
     {% endfor %}
 </table>
 <p style="margin-top: 10px; font-size: 13px; color: #555;">Total records: {{ records|length }}</p>
