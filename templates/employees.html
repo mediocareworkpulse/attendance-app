@@ -1,14 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Employees</h1>
+<h1>Employee Management</h1>
 {% if message %}<div class="message {{ message_type }}">{{ message }}</div>{% endif %}
 
 <h2>Add New Employee</h2>
 <form method="POST" action="/employees/add">
-    <div class="form-group"><label>Employee ID</label><input type="text" name="employee_id" required placeholder="e.g., EMP001"></div>
-    <div class="form-group"><label>Full Name</label><input type="text" name="full_name" required placeholder="e.g., John Doe"></div>
-    <div class="form-group"><label>Department</label><input type="text" name="department" placeholder="e.g., Sales"></div>
-    <div class="form-group"><label>Branch</label><select name="branch"><option value="">Select Branch</option>{% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select></div>
+    <div style="display:flex;gap:15px;flex-wrap:wrap;">
+        <div class="form-group"><label>Employee ID</label><input type="text" name="employee_id" required placeholder="e.g., EMP001"></div>
+        <div class="form-group"><label>Full Name</label><input type="text" name="full_name" required placeholder="e.g., John Doe"></div>
+        <div class="form-group"><label>Department</label><input type="text" name="department" placeholder="e.g., Sales"></div>
+        <div class="form-group"><label>Branch</label><select name="branch"><option value="">Select Branch</option>{% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select></div>
+    </div>
     <button type="submit">Add Employee</button>
 </form>
 
@@ -18,11 +20,43 @@
 </form>
 {% if employees %}
 <table>
-    <tr><th>Employee ID</th><th>Full Name</th><th>Department</th><th>Branch</th><th>Added On</th><th>Action</th></tr>
+    <tr><th>Employee ID</th><th>Full Name</th><th>Department</th><th>Branch</th><th>Added</th><th>Actions</th></tr>
     {% for emp in employees %}
-    <tr><td>{{ emp.employee_id }}</td><td>{{ emp.full_name }}</td><td><span class="department-tag">{{ emp.department or '—' }}</span></td><td>{{ emp.branch or '—' }}</td><td>{{ emp.created_at[:10] if emp.created_at else '—' }}</td><td>
-    <form method="POST" action="/employees/delete/{{ emp.employee_id }}" class="inline-form" onsubmit="return confirm('Delete this employee?');"><button type="submit" class="btn-delete">Delete</button></form></td></tr>
+    <tr>
+        <td><strong>{{ emp.employee_id }}</strong></td>
+        <td>{{ emp.full_name }}</td>
+        <td>{{ emp.department or '—' }}</td>
+        <td>{{ emp.branch or '—' }}</td>
+        <td>{{ emp.created_at[:10] if emp.created_at else '—' }}</td>
+        <td>
+            <button onclick="openEdit('{{ emp.employee_id }}','{{ emp.full_name }}','{{ emp.department or '' }}','{{ emp.branch or '' }}')" class="btn-edit">Edit</button>
+            <form method="POST" action="/employees/delete/{{ emp.employee_id }}" class="inline-form" onsubmit="return confirm('Delete {{ emp.full_name }}?');"><button type="submit" class="btn-delete">Delete</button></form>
+        </td>
+    </tr>
     {% endfor %}
 </table>
 {% else %}<p>No employees added yet.</p>{% endif %}
+
+<div id="editModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;">
+    <div style="background:#fff;max-width:450px;margin:80px auto;padding:25px;">
+        <h3>Edit Employee</h3>
+        <form method="POST" id="editForm">
+            <div class="form-group"><label>Full Name</label><input type="text" name="full_name" id="editName" required></div>
+            <div class="form-group"><label>Department</label><input type="text" name="department" id="editDept"></div>
+            <div class="form-group"><label>Branch</label><select name="branch" id="editBranch"><option value="">Select Branch</option>{% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select></div>
+            <div style="display:flex;gap:10px;"><button type="submit">Save Changes</button><button type="button" onclick="closeEdit()" style="background:#999;">Cancel</button></div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openEdit(id,name,dept,branch){
+    document.getElementById('editForm').action='/employees/edit/'+id;
+    document.getElementById('editName').value=name;
+    document.getElementById('editDept').value=dept;
+    document.getElementById('editBranch').value=branch;
+    document.getElementById('editModal').style.display='block';
+}
+function closeEdit(){document.getElementById('editModal').style.display='none';}
+</script>
 {% endblock %}
