@@ -1,14 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Clock In / Out</h1>
-<p style="color:#999;font-size:14px;margin-bottom:20px;">{{ today }}</p>
+<p style="color:#999;font-size:14px;margin-bottom:20px;">{{ today }} | Mediocare Pharmaceutical Ltd</p>
 
 {% if session.get('role') not in ['admin','ceo'] %}
 <div id="ls" style="padding:12px 16px;margin-bottom:20px;background:#fff;border:1px solid #e0e0e0;font-size:13px;border-radius:8px;">📍 Detecting location...</div>
 
 {% if user_status=='none' %}
 <div style="background:#fff;padding:30px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.04);text-align:center;">
-    <h3 style="margin-bottom:15px;font-weight:600;">Start Your Shift</h3>
+    <h3 style="margin-bottom:5px;font-weight:600;">Start Your Shift</h3>
+    <p style="color:#999;font-size:13px;margin-bottom:20px;">Mediocare Pharmaceutical Ltd</p>
     <form method="POST" action="/check-in" id="af">
         <input type="hidden" name="lat" id="lat"><input type="hidden" name="lng" id="lng"><input type="hidden" name="location" id="loc">
         <button type="submit" name="action" value="check_in" style="background:#27ae60;font-size:18px;padding:16px 50px;border-radius:12px;">✅ Clock In</button>
@@ -16,14 +17,18 @@
 </div>
 {% elif user_status=='checked_in' %}
 <div style="background:#fff;padding:30px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.04);text-align:center;">
-    <h3 style="margin-bottom:15px;font-weight:600;">End Your Shift</h3>
+    <h3 style="margin-bottom:5px;font-weight:600;">End Your Shift</h3>
+    <p style="color:#999;font-size:13px;margin-bottom:20px;">Mediocare Pharmaceutical Ltd</p>
     <form method="POST" action="/check-in" id="af">
         <input type="hidden" name="lat" id="lat"><input type="hidden" name="lng" id="lng"><input type="hidden" name="location" id="loc">
         <button type="submit" name="action" value="check_out" style="background:#e74c3c;font-size:18px;padding:16px 50px;border-radius:12px;">🚪 Clock Out</button>
     </form>
 </div>
 {% else %}
-<div style="background:#d4f5e0;padding:20px;border-radius:8px;color:#1e7e34;font-weight:600;text-align:center;">✅ Shift complete for today. Great work!</div>
+<div style="background:#d4f5e0;padding:25px;border-radius:12px;text-align:center;">
+    <h3 style="color:#1e7e34;margin:0;">✅ Shift Complete</h3>
+    <p style="color:#1e7e34;margin-top:8px;font-weight:500;">Thank you for your dedication at Mediocare Pharmaceutical Ltd!</p>
+</div>
 {% endif %}
 {% endif %}
 
