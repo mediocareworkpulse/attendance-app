@@ -1,38 +1,54 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Sales Management</h1>
-<p style="color:#999;font-size:14px;margin-bottom:25px;">Date: <strong>{{ today }}</strong> | Mediocare Pharmaceutical Ltd</p>
+<p style="color:#999;font-size:14px;margin-bottom:20px;">{{ company }} | {{ today }}</p>
 
-{% if request.args.get('success') %}
-<div class="message success">✅ Sale submitted successfully! Thank you for your contribution to Mediocare Pharmaceutical Ltd.</div>
-{% endif %}
+{% if success_msg %}<div class="message success">✅ Sale submitted successfully! Thank you for your contribution.</div>{% endif %}
 
 <h2>Submit Sale</h2>
 <form method="POST">
     <div style="display:flex;gap:15px;align-items:end;flex-wrap:wrap;">
-        <div class="form-group"><label>Amount (Ksh)</label><input type="number" name="amount" step="0.01" required placeholder="0.00"></div>
-        <div class="form-group"><label>Notes</label><input type="text" name="notes" placeholder="Optional note"></div>
+        <div class="form-group"><label>M-Pesa Sales (Ksh)</label><input type="number" name="mpesa_sales" step="0.01" value="0" required></div>
+        <div class="form-group"><label>Cash Sales (Ksh)</label><input type="number" name="cash_sales" step="0.01" value="0" required></div>
+        <div class="form-group"><label>Sale Type</label><select name="sales_type"><option value="individual">Individual Sale</option>{% if session.get('role')=='manager' %}<option value="branch_total">Branch Total</option>{% endif %}</select></div>
+        <div class="form-group"><label>Notes</label><input type="text" name="notes" placeholder="Optional"></div>
         <div class="form-group"><button type="submit">Submit Sale</button></div>
     </div>
+    <p style="font-size:12px;color:#888;margin-top:5px;">Total = M-Pesa + Cash (calculated automatically)</p>
 </form>
 
 {% if sales %}
-<h2>Today's Sales</h2>
+<h2>Individual Sales</h2>
 <table>
-    <tr><th>Name</th><th>Branch</th><th>Amount (Ksh)</th><th>Notes</th></tr>
+    <tr><th>Date</th><th>Name</th><th>Branch</th><th>M-Pesa</th><th>Cash</th><th>Total</th><th>Type</th></tr>
     {% for s in sales %}
-    <tr>
-        <td><strong>{{ s.full_name }}</strong></td>
-        <td>{{ s.branch or '—' }}</td>
-        <td>Ksh {{ "%.2f"|format(s.amount|float) }}</td>
-        <td>{{ s.notes or '—' }}</td>
-    </tr>
+    <tr><td>{{ s.date }}</td><td><strong>{{ s.full_name }}</strong></td><td>{{ s.branch or '—' }}</td><td>{{ "%.2f"|format(s.mpesa_sales|float) }}</td><td>{{ "%.2f"|format(s.cash_sales|float) }}</td><td><strong>{{ "%.2f"|format(s.total_sales|float) }}</strong></td><td>{{ s.sales_type }}</td></tr>
     {% endfor %}
 </table>
-<p style="margin-top:15px;font-weight:700;font-size:16px;">
-    💰 Total Sales: Ksh {{ "%.2f"|format(sales|sum(attribute='amount')) }}
-</p>
-{% else %}
-<p style="color:#999;margin-top:20px;">No sales recorded today.</p>
+<div style="margin-top:15px;background:#fff;padding:15px;border-radius:8px;display:flex;gap:30px;">
+    <p><strong>Total M-Pesa:</strong> Ksh {{ "%.2f"|format(total_mpesa) }}</p>
+    <p><strong>Total Cash:</strong> Ksh {{ "%.2f"|format(total_cash) }}</p>
+    <p style="font-size:18px;"><strong>Grand Total:</strong> Ksh {{ "%.2f"|format(total_all) }}</p>
+</div>
+{% else %}<p style="color:#999;margin-top:20px;">No sales recorded.</p>{% endif %}
+
+{% if branch_sales %}
+<h2>Branch Totals Submitted</h2>
+<table>
+    <tr><th>Date</th><th>Branch</th><th>M-Pesa</th><th>Cash</th><th>Total</th><th>By</th></tr>
+    {% for s in branch_sales %}
+    <tr><td>{{ s.date }}</td><td><strong>{{ s.branch }}</strong></td><td>{{ "%.2f"|format(s.mpesa_sales|float) }}</td><td>{{ "%.2f"|format(s.cash_sales|float) }}</td><td><strong>{{ "%.2f"|format(s.total_sales|float) }}</strong></td><td>{{ s.submitted_by }}</td></tr>
+    {% endfor %}
+</table>
+{% endif %}
+
+{% if branch_totals %}
+<h2>Branch Summary</h2>
+<table>
+    <tr><th>Branch</th><th>M-Pesa</th><th>Cash</th><th>Total</th></tr>
+    {% for br, vals in branch_totals.items() %}
+    <tr><td><strong>{{ br }}</strong></td><td>{{ "%.2f"|format(vals.mpesa) }}</td><td>{{ "%.2f"|format(vals.cash) }}</td><td><strong>{{ "%.2f"|format(vals.total) }}</strong></td></tr>
+    {% endfor %}
+</table>
 {% endif %}
 {% endblock %}
