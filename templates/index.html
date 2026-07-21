@@ -1,27 +1,50 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Dashboard</h1>
-<p style="color:#888;margin-bottom:25px;">Welcome, <strong>{{ session.get('user') }}</strong> | <span class="badge badge-info">{{ session.get('role')|upper }}</span> | Branch: {{ session.get('branch') or 'N/A' }}</p>
+<p style="color:#999;font-size:14px;margin-bottom:25px;">
+    Welcome back, <strong style="color:#1a1a2e;">{{ session.get('user') }}</strong>
+    <span style="margin-left:10px;"><span class="badge badge-info">{{ session.get('role')|upper }}</span></span>
+    {% if session.get('branch') %}<span style="margin-left:8px;color:#888;">· {{ session.get('branch') }}</span>{% endif %}
+</p>
+
 <div class="stats">
     <div class="stat-box"><h3>Team Members</h3><p>{{ total_employees }}</p></div>
     <div class="stat-box"><h3>Present Today</h3><p>{{ present_count }}</p></div>
     <div class="stat-box"><h3>Arrived Late</h3><p>{{ late_count }}</p></div>
-    <div class="stat-box"><h3>Days Worked (Month)</h3><p>{{ days_worked }}</p></div>
+    <div class="stat-box"><h3>Sales Today</h3><p style="font-size:28px;font-weight:700;">{{ "%.0f"|format(total_sales) }}</p></div>
 </div>
-<div class="stats" style="margin-top:15px;">
-    <div class="stat-box"><h3>Sales Today</h3><p style="font-size:28px;">{{ "%.2f"|format(total_sales) }}</p></div>
-    {% if branch_total > 0 %}<div class="stat-box"><h3>Branch Sales</h3><p style="font-size:28px;">{{ "%.2f"|format(branch_total) }}</p></div>{% endif %}
-</div>
-{% if session.get('role') not in ['admin','ceo'] %}
-<div style="margin-top:20px;display:flex;gap:15px;">
-    {% if not user_checked_in %}<a href="/check-in" style="background:#27ae60;color:#fff;padding:12px 25px;text-decoration:none;border-radius:4px;font-weight:600;">Check In Now</a>
-    {% elif user_checked_in and not user_checked_out %}<a href="/check-in" style="background:#c0392b;color:#fff;padding:12px 25px;text-decoration:none;border-radius:4px;font-weight:600;">Check Out Now</a>
-    {% else %}<span style="padding:12px 25px;background:#e8f5e9;color:#155724;border-radius:4px;font-weight:600;">Completed for today</span>{% endif %}
+
+{% if session.get('role') in ['admin','ceo'] and pending_count > 0 %}
+<div style="margin-top:20px;background:#fef0ef;padding:14px 18px;border-radius:8px;border-left:4px solid #e74c3c;">
+    <strong>{{ pending_count }}</strong> employee(s) pending approval — <a href="/approvals" style="color:#c0392b;font-weight:700;">Review now</a>
 </div>
 {% endif %}
+
+{% if session.get('role') not in ['admin','ceo'] %}
+<div style="margin-top:25px;display:flex;gap:12px;">
+    {% if not user_checked_in %}
+    <a href="/check-in" class="btn" style="background:#27ae60;font-size:15px;padding:14px 30px;">✅ Clock In</a>
+    {% elif not user_checked_out %}
+    <a href="/check-in" class="btn" style="background:#e74c3c;font-size:15px;padding:14px 30px;">🚪 Clock Out</a>
+    {% else %}
+    <span style="background:#d4f5e0;color:#1e7e34;padding:14px 24px;border-radius:8px;font-weight:700;">✅ Shift Complete</span>
+    {% endif %}
+</div>
+{% endif %}
+
 {% if recent_records %}
-<h2>Recent Attendance</h2>
-<table><tr><th>Name</th><th>Department</th><th>Branch</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
-{% for r in recent_records %}<tr><td><strong>{{ r.full_name }}</strong></td><td>{{ r.department }}</td><td>{{ r.branch }}</td><td>{{ r.check_in }}</td><td>{{ r.check_out }}</td><td><span class="badge {{ r.status_class }}">{{ r.status_label }}</span></td></tr>{% endfor %}</table>
+<h2>Today's Attendance</h2>
+<table>
+    <tr><th>Name</th><th>Department</th><th>Clock In</th><th>Clock Out</th><th>Status</th></tr>
+    {% for r in recent_records %}
+    <tr>
+        <td><strong>{{ r.full_name }}</strong></td>
+        <td>{{ r.department }}</td>
+        <td>{{ r.check_in }}</td>
+        <td>{{ r.check_out }}</td>
+        <td><span class="badge {% if r.status=='present' %}badge-success{% elif r.status=='late' %}badge-warning{% else %}badge-danger{% endif %}">{{ r.label }}</span></td>
+    </tr>
+    {% endfor %}
+</table>
 {% endif %}
 {% endblock %}
