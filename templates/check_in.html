@@ -19,4 +19,12 @@
 {% else %}<div style="background:#e8f5e9;padding:20px;border-radius:4px;color:#155724;">Shift complete for today.</div>{% endif %}
 {% endif %}
 {% if records %}
-<h2>Records (
+<h2>Records (Today)</h2>
+<table><tr><th>Name</th><th>Department</th><th>Branch</th><th>Check In</th><th>Location</th><th>Check Out</th><th>Status</th></tr>
+{% for r in records %}<tr><td><strong>{{ r.full_name }}</strong></td><td>{{ r.department }}</td><td>{{ r.branch }}</td><td>{{ r.check_in }}</td><td style="font-size:11px;">{{ r.check_in_location[:50] if r.check_in_location!='—' else '—' }}</td><td>{{ r.check_out }}</td><td><span class="badge {{ r.status_class }}">{{ r.status_label }}</span></td></tr>{% endfor %}</table>
+{% endif %}
+<script>
+var d=document.getElementById('ls'),la=document.getElementById('lat'),lo=document.getElementById('lng'),lc=document.getElementById('loc');
+if(d&&navigator.geolocation){navigator.geolocation.getCurrentPosition(function(p){la.value=p.coords.latitude;lo.value=p.coords.longitude;fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+p.coords.latitude+'&lon='+p.coords.longitude).then(function(r){return r.json()}).then(function(data){lc.value=data.display_name||p.coords.latitude+','+p.coords.longitude;d.innerHTML='Location captured';d.style.background='#e8f5e9'}).catch(function(){lc.value=p.coords.latitude+','+p.coords.longitude;d.innerHTML='Location captured';d.style.background='#e8f5e9'})},function(){d.innerHTML='Location unavailable';d.style.background='#fff3cd'})}
+</script>
+{% endblock %}
