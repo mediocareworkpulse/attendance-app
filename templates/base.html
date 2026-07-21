@@ -15,7 +15,7 @@
             <a href="/check-in">Check In/Out</a>
             <a href="/attendance-history">Attendance</a>
             <a href="/sales">Sales</a>
-            {% if session.get('role') in ['admin','ceo'] %}<a href="/employees">Employees</a><a href="/branches">Branches</a>{% endif %}
+            {% if session.get('role') in ['admin','ceo'] %}<a href="/approvals" style="color:#c0392b;">Approvals</a><a href="/employees">Employees</a><a href="/branches">Branches</a>{% endif %}
             {% if session.get('role') in ['admin','ceo','manager'] %}<a href="/reports">Reports</a>{% endif %}
             <a href="/profile">Profile</a>
             <a href="/logout" style="color:#c0392b;">Logout</a>
