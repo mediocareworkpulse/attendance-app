@@ -1,38 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Branches</h1>
-<p style="color:#999;font-size:13px;margin-bottom:25px;">Mediocare Pharmaceutical Ltd — Manage office locations</p>
-
+<p style="color:#999;font-size:13px;margin-bottom:25px;">{{ company }} — Manage office locations</p>
 <h2>Add Branch</h2>
-<form method="POST" action="/branches/add">
-    <div style="display:flex;gap:15px;align-items:end;flex-wrap:wrap;">
-        <div class="form-group"><label>Branch Name</label><input type="text" name="name" required placeholder="e.g. Nairobi Branch"></div>
-        <div class="form-group"><button type="submit">Add Branch</button></div>
-    </div>
-</form>
-
+<form method="POST" action="/branches/add"><div style="display:flex;gap:15px;align-items:end"><div class="form-group"><label>Branch Name</label><input type="text" name="name" required></div><div class="form-group"><button type="submit">Add Branch</button></div></div></form>
 <h2>All Branches ({{ branches|length }})</h2>
-{% if branches %}
-<table>
-    <tr><th>#</th><th>Branch Name</th><th>Created</th><th>Action</th></tr>
-    {% for b in branches %}
-    <tr>
-        <td>{{ loop.index }}</td>
-        <td><strong>{{ b.name }}</strong></td>
-        <td>{{ b.created_at[:10] if b.created_at else '—' }}</td>
-        <td>
-            <form method="POST" action="/branches/delete/{{ b.id }}" style="display:inline;" onsubmit="return confirm('Delete {{ b.name }}?')">
-                <button type="submit" class="btn-delete">Remove</button>
-            </form>
-        </td>
-    </tr>
-    {% endfor %}
-</table>
-{% else %}
-<div style="text-align:center;padding:40px;color:#999;">
-    <p style="font-size:40px;margin-bottom:10px;">🏢</p>
-    <p>No branches yet.</p>
-    <p style="font-size:12px;">Add your first branch above.</p>
-</div>
-{% endif %}
+{% if branches %}<table><tr><th>#</th><th>Name</th><th>Created</th><th>Action</th></tr>
+{% for b in branches %}<tr><td>{{ loop.index }}</td><td><strong>{{ b.name }}</strong></td><td>{{ b.created_at[:10] if b.created_at else '—' }}</td><td>
+<form method="POST" action="/branches/delete/{{ b.id }}" style="display:inline" onsubmit="return confirm('Delete {{ b.name }}?')"><button type="submit" class="btn-delete">Remove</button></form></td></tr>{% endfor %}</table>
+{% else %}<p style="text-align:center;padding:40px;color:#999;">No branches yet.</p>{% endif %}
 {% endblock %}
