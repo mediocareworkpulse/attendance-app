@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">Leave Approvals</h1>
+<p class="page-subtitle">{{ company }} — As {{ role }}</p>
+
+{% if pending %}
+<div class="table-container">
+<table>
+    <tr><th>Employee</th><th>Date</th><th>Reason</th><th>Status</th><th>Action</th></tr>
+    {% for lv in pending %}
+    <tr>
+        <td class="td-name">{{ lv.full_name }}</td>
+        <td>{{ lv.leave_date }}</td>
+        <td>{{ lv.reason or '—' }}</td>
+        <td><span class="badge badge-warning">{{ lv.status }}</span></td>
+        <td>
+            <form method="POST" action="/approve-leaves/{{ lv.id }}/approve" style="display:inline;">
+                <button type="submit" class="btn btn-sm" style="background:#27ae60;">Approve</button>
+            </form>
+            <form method="POST" action="/approve-leaves/{{ lv.id }}/reject" style="display:inline;">
+                <button type="submit" class="btn-danger btn-sm">Reject</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+</div>
+{% else %}
+<p style="text-align:center;padding:30px;color:#999;">No pending approvals.</p>
+{% endif %}
+{% endblock %}
