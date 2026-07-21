@@ -8,8 +8,8 @@
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:linear-gradient(135deg,#0d3b66 0%,#1a5c8a 50%,#2a7faa 100%);padding:15px}
         .box{background:#fff;padding:35px 30px;width:500px;max-width:100%;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.3)}
-        h2{font-size:22px;font-weight:700;color:#0d3b66;margin-bottom:5px;text-align:center}
-        .sub{color:#999;font-size:13px;margin-bottom:25px;text-align:center}
+        .box h2{font-size:22px;font-weight:700;color:#0d3b66;margin-bottom:5px;text-align:center}
+        .box .sub{color:#999;font-size:13px;margin-bottom:25px;text-align:center}
         .err{padding:12px 15px;background:#fef0ef;border-left:4px solid #e74c3c;color:#c0392b;margin-bottom:15px;font-size:13px;border-radius:6px;font-weight:500}
         .suc{padding:15px;background:#edfaf2;border-left:4px solid #27ae60;color:#1e7e34;margin-bottom:15px;font-size:14px;border-radius:6px;font-weight:600;text-align:center}
         label{display:block;margin-bottom:4px;font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.3px}
@@ -32,10 +32,30 @@
         {% if error %}<div class="err">{{ error }}</div>{% endif %}
         {% if success %}<div class="suc">✅ {{ success }}</div>{% endif %}
         <form method="POST">
-            <label>Full Name</label><input type="text" name="full_name" required placeholder="Your full name">
-            <label>Phone Number</label><input type="tel" name="phone" required placeholder="e.g. 0712345678">
-            <label>Department</label><select name="department" required><option value="">Select Department</option>{% for d in departments %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select>
-            <label>Branch</label><select name="branch"><option value="">Select Branch</option>{% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select>
+            <label>Full Name</label>
+            <input type="text" name="full_name" required placeholder="Your full name">
+
+            <label>Phone Number</label>
+            <input type="tel" name="phone" required placeholder="e.g. 0712345678">
+
+            <label>Department</label>
+            <select name="department" required>
+                <option value="">Select Department</option>
+                {% for d in departments %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+            </select>
+
+            <label>Branch</label>
+            <select name="branch">
+                <option value="">Select Branch</option>
+                {% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+            </select>
+
+            <label>Role / Position</label>
+            <select name="role" required>
+                <option value="">Select Role</option>
+                {% for r in roles %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+            </select>
+
             <label>Password</label>
             <div class="input-group">
                 <input type="password" name="password" id="signupPw" required placeholder="Create a password">
@@ -46,7 +66,12 @@
         <p class="link">Already have an account? <a href="/login">Sign In</a></p>
     </div>
     <script>
-        function togglePw(){var p=document.getElementById('signupPw');var b=event.target;if(p.type==='password'){p.type='text';b.textContent='🙈'}else{p.type='password';b.textContent='👁️'}}
+        function togglePw(){
+            var p=document.getElementById('signupPw');
+            var b=event.target;
+            if(p.type==='password'){p.type='text';b.textContent='🙈'}
+            else{p.type='password';b.textContent='👁️'}
+        }
     </script>
 </body>
 </html>
