@@ -1,10 +1,46 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Manage Branches</h1>
-<h2>Add Branch</h2>
-<form method="POST" action="/branches/add"><div style="display:flex;gap:15px;align-items:end;"><div class="form-group"><label>Branch Name</label><input type="text" name="name" required></div><div class="form-group"><label>Address</label><input type="text" name="address"></div><div class="form-group"><button type="submit">Add Branch</button></div></div></form>
-<h2>All Branches ({{ branches|length }})</h2>
-{% if branches %}<table><tr><th>#</th><th>Name</th><th>Address</th><th>Created</th><th>Actions</th></tr>
-{% for b in branches %}<tr><td>{{ loop.index }}</td><td>{{ b.name }}</td><td>{{ b.address or '—' }}</td><td>{{ b.created_at[:10] if b.created_at else '—' }}</td><td>
-<form method="POST" action="/branches/delete/{{ b.id }}" style="display:inline;" onsubmit="return confirm('Delete branch {{ b.name }}?')"><button type="submit" class="btn-delete">Delete</button></form></td></tr>{% endfor %}</table>{% else %}<p>No branches.</p>{% endif %}
+<h1>Team Management</h1>
+<p style="color:#999;font-size:13px;margin-bottom:25px;">Mediocare Pharmaceutical Ltd — Manage your team members</p>
+
+{% if message %}<div class="message {{ message_type }}">{{ message }}</div>{% endif %}
+
+<h2>Add Team Member</h2>
+<form method="POST" action="/employees/add">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;align-items:end;">
+        <div class="form-group"><label>Full Name</label><input type="text" name="full_name" required placeholder="e.g. John Doe"></div>
+        <div class="form-group"><label>Department</label><select name="department" required><option value="">Select Department</option>{% for d in departments %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label>Branch</label><select name="branch"><option value="">Select Branch</option>{% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label>Role</label><select name="role">{% for r in roles %}<option value="{{ r }}">{{ r|upper }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label>Password</label><input type="text" name="password" value="1234"></div>
+        <div class="form-group"><button type="submit">Add Team Member</button></div>
+    </div>
+</form>
+
+<h2>All Team Members ({{ employees|length }})</h2>
+{% if employees %}
+<table>
+    <tr><th>#</th><th>Name</th><th>Department</th><th>Branch</th><th>Role</th><th>Action</th></tr>
+    {% for e in employees %}
+    <tr>
+        <td>{{ loop.index }}</td>
+        <td><strong>{{ e.full_name }}</strong></td>
+        <td>{{ e.department }}</td>
+        <td>{{ e.branch or '—' }}</td>
+        <td><span class="badge badge-info">{{ e.role|upper }}</span></td>
+        <td>
+            <form method="POST" action="/employees/delete/{{ e.id }}" style="display:inline;" onsubmit="return confirm('Delete {{ e.full_name }}?')">
+                <button type="submit" class="btn-delete">Remove</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+<div style="text-align:center;padding:40px;color:#999;">
+    <p style="font-size:40px;margin-bottom:10px;">👥</p>
+    <p>No team members yet.</p>
+    <p style="font-size:12px;">Add your first team member above.</p>
+</div>
+{% endif %}
 {% endblock %}
