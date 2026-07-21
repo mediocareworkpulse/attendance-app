@@ -1,19 +1,40 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Mediocare Pharmaceutical Ltd</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mediocare Pharmaceutical Ltd</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
 </head>
 <body>
-{% if session.get('user') %}
-<header><h2>💊 Mediocare Pharmaceutical Ltd</h2>
-<nav>
-    <a href="/">Dashboard</a><a href="/check-in">Clock In/Out</a><a href="/attendance-history">Attendance</a><a href="/sales">Sales</a>
-    {% if session.get('role') in ['admin','ceo'] %}<a href="/approvals" style="color:#e74c3c;">Approvals</a><a href="/employees">Team</a><a href="/branches">Branches</a>{% endif %}
-    {% if session.get('role') in ['admin','ceo','manager'] %}<a href="/reports">Reports</a>{% endif %}
-    <a href="/profile">Profile</a><a href="/logout" style="color:#e74c3c;font-weight:600;">Logout</a>
-</nav></header>
-{% endif %}
-<main>{% block content %}{% endblock %}</main>
+    {% if session.get('user') %}
+    <header>
+        <h2>💊 Mediocare</h2>
+        <button class="menu-toggle" onclick="toggleMenu()" aria-label="Menu">☰</button>
+        <nav id="mainNav">
+            <a href="/">Dashboard</a>
+            <a href="/check-in">Clock In/Out</a>
+            <a href="/attendance-history">Attendance</a>
+            <a href="/sales">Sales</a>
+            {% if session.get('role') in ['admin','ceo'] %}
+            <a href="/approvals" class="nav-alert">Approvals</a>
+            <a href="/employees">Team</a>
+            <a href="/branches">Branches</a>
+            {% endif %}
+            {% if session.get('role') in ['admin','ceo','manager'] or session.get('department') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant'] %}
+            <a href="/reports">Reports</a>
+            {% endif %}
+            <a href="/profile">Profile</a>
+            <a href="/logout" class="nav-logout">Logout</a>
+        </nav>
+    </header>
+    {% endif %}
+    <main>{% block content %}{% endblock %}</main>
+    <script>
+        function toggleMenu(){document.getElementById('mainNav').classList.toggle('show');}
+        document.addEventListener('click',function(e){if(!e.target.closest('header')){document.getElementById('mainNav').classList.remove('show');}});
+    </script>
 </body>
 </html>
