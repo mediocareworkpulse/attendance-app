@@ -1,30 +1,18 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Reports</h1>
-<h2>Select Date Range</h2>
-<form method="GET" action="/reports">
-    <div style="display: flex; gap: 20px; align-items: end; flex-wrap: wrap;">
-        <div class="form-group"><label>From Date</label><input type="date" name="from_date" value="{{ from_date }}" required></div>
-        <div class="form-group"><label>To Date</label><input type="date" name="to_date" value="{{ to_date }}" required></div>
-        <div class="form-group"><label>Department</label><select name="department"><option value="">All Departments</option>{% for d in departments %}<option value="{{ d }}" {% if current_department==d %}selected{% endif %}>{{ d }}</option>{% endfor %}</select></div>
-        <div class="form-group"><button type="submit">View Report</button></div>
-    </div>
+<form method="GET" style="margin-bottom:20px;display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+    <div class="form-group"><label>From</label><input type="date" name="from_date" value="{{ from_date }}"></div>
+    <div class="form-group"><label>To</label><input type="date" name="to_date" value="{{ to_date }}"></div>
+    <div class="form-group"><label>Type</label><select name="type"><option value="attendance" {% if report_type=='attendance' %}selected{% endif %}>Attendance</option><option value="sales" {% if report_type=='sales' %}selected{% endif %}>Sales</option></select></div>
+    <div class="form-group"><button type="submit">View</button></div>
 </form>
-{% if records is not none %}
-<h2>Attendance Records ({{ from_date }} to {{ to_date }})</h2>
-{% if records %}
-<table>
-    <tr><th>Date</th><th>Name</th><th>Department</th><th>Check In</th><th>Location</th><th>Check Out</th><th>Status</th></tr>
-    {% for record in records %}
-    <tr>
-        <td>{{ record.date }}</td><td><strong>{{ record.full_name }}</strong></td><td>{{ record.department }}</td>
-        <td>{{ record.check_in or '—' }}</td><td style="font-size:11px;">{{ record.check_in_location or '—' }}</td>
-        <td>{{ record.check_out or '—' }}</td>
-        <td><span class="{{ record.status_class }}">{{ record.status_label }}</span></td>
-    </tr>
-    {% endfor %}
-</table>
-<p style="margin-top:10px;font-size:13px;color:#888;">Total records: {{ records|length }}</p>
-{% else %}<p>No records found for this period.</p>{% endif %}
+{% if report_type=='attendance' and attendance_records %}
+<p style="font-weight:600;">Total Records: {{ attendance_records|length }}</p>
+<table><tr><th>Date</th><th>Name</th><th>Department</th><th>Branch</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
+{% for r in attendance_records %}<tr><td>{{ r.date }}</td><td><strong>{{ r.full_name }}</strong></td><td>{{ r.department }}</td><td>{{ r.branch }}</td><td>{{ r.check_in }}</td><td>{{ r.check_out }}</td><td><span class="badge {{ r.status_class }}">{{ r.status_label }}</span></td></tr>{% endfor %}</table>
+{% elif report_type=='sales' %}
+{% if sales_records %}<h2>Individual Sales</h2><table><tr><th>Date</th><th>Name</th><th>Branch</th><th>Amount</th><th>Type</th></tr>{% for s in sales_records %}<tr><td>{{ s.date }}</td><td>{{ s.full_name }}</td><td>{{ s.branch }}</td><td>{{ "%.2f"|format(s.amount) }}</td><td>{{ s.sales_type }}</td></tr>{% endfor %}</table><p style="font-weight:600;">Total: {{ "%.2f"|format(total_sales_amount) }}</p>{% endif %}
+{% if branch_sales_records %}<h2>Branch Totals</h2><table><tr><th>Date</th><th>Branch</th><th>Amount</th><th>Submitted By</th></tr>{% for s in branch_sales_records %}<tr><td>{{ s.date }}</td><td>{{ s.branch }}</td><td>{{ "%.2f"|format(s.total_amount) }}</td><td>{{ s.submitted_by }}</td></tr>{% endfor %}</table><p style="font-weight:600;">Total: {{ "%.2f"|format(total_branch_amount) }}</p>{% endif %}
 {% endif %}
 {% endblock %}
