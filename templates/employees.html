@@ -1,23 +1,44 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Team Management</h1>
-<p style="color:#999;font-size:13px;margin-bottom:25px;">{{ company }} — Add and manage team members</p>
-{% if message %}<div class="message {{ message_type }}">{{ message }}</div>{% endif %}
+<h1 class="page-title">Team Management</h1>
+<p class="page-subtitle">{{ company }} — Add and manage team members</p>
+
+{% if message %}<div class="alert alert-error">{{ message }}</div>{% endif %}
+
 <h2>Add Team Member</h2>
+<div class="form-card">
 <form method="POST" action="/employees/add">
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;align-items:end;">
+    <div class="form-grid">
         <div class="form-group"><label>Full Name</label><input type="text" name="full_name" required></div>
         <div class="form-group"><label>Department</label><select name="department" required><option value="">Select</option>{% for d in departments %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
         <div class="form-group"><label>Branch</label><select name="branch"><option value="">Select</option>{% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select></div>
-        <div class="form-group"><label>Role</label><select name="role">{% for r in roles %}<option value="{{ r }}">{{ r|upper }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label>Role</label><select name="role">{% for r in roles %}<option value="{{ r }}">{{ r }}</option>{% endfor %}</select></div>
         <div class="form-group"><label>Password</label><input type="text" name="password" value="1234"></div>
-        <div class="form-group"><button type="submit">Add Member</button></div>
+        <div class="form-group"><button type="submit" class="btn">➕ Add Member</button></div>
     </div>
 </form>
-<h2>Team Members ({{ employees|length }})</h2>
+</div>
+
+<h2>Team Members <span class="count">{{ employees|length }}</span></h2>
 {% if employees %}
-<table><tr><th>#</th><th>Name</th><th>Department</th><th>Branch</th><th>Role</th><th>Action</th></tr>
-{% for e in employees %}<tr><td>{{ loop.index }}</td><td><strong>{{ e.full_name }}</strong></td><td><span class="department-tag">{{ e.department }}</span></td><td>{{ e.branch or '—' }}</td><td><span class="badge badge-info">{{ e.role|upper }}</span></td><td>
-<form method="POST" action="/employees/delete/{{ e.id }}" style="display:inline" onsubmit="return confirm('Remove {{ e.full_name }}?')"><button type="submit" class="btn-delete">Remove</button></form></td></tr>{% endfor %}</table>
-{% else %}<p style="text-align:center;padding:40px;color:#999;">No team members yet.</p>{% endif %}
+<div class="table-container">
+<table>
+    <tr><th>#</th><th>Name</th><th>Department</th><th>Branch</th><th>Role</th><th>Action</th></tr>
+    {% for e in employees %}
+    <tr>
+        <td>{{ loop.index }}</td>
+        <td class="td-name">{{ e.full_name }}</td>
+        <td><span class="department-tag">{{ e.department }}</span></td>
+        <td>{{ e.branch or '—' }}</td>
+        <td><span class="badge badge-info">{{ e.role }}</span></td>
+        <td>
+            <form method="POST" action="/employees/delete/{{ e.id }}" style="display:inline;" onsubmit="return confirm('Remove {{ e.full_name }}?')">
+                <button type="submit" class="btn-danger btn-sm">Remove</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+</div>
+{% else %}<p style="text-align:center;padding:30px;color:#999;">No team members yet.</p>{% endif %}
 {% endblock %}
