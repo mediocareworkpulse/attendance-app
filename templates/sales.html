@@ -1,12 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Sales Management</h1>
-<p style="color:#999;font-size:14px;margin-bottom:25px;">Date: <strong>{{ today }}</strong></p>
+<p style="color:#999;font-size:14px;margin-bottom:25px;">Date: <strong>{{ today }}</strong> | Mediocare Pharmaceutical Ltd</p>
+
+{% if request.args.get('success') %}
+<div class="message success">✅ Sale submitted successfully! Thank you for your contribution to Mediocare Pharmaceutical Ltd.</div>
+{% endif %}
 
 <h2>Submit Sale</h2>
 <form method="POST">
     <div style="display:flex;gap:15px;align-items:end;flex-wrap:wrap;">
-        <div class="form-group"><label>Amount</label><input type="number" name="amount" step="0.01" required placeholder="0.00"></div>
+        <div class="form-group"><label>Amount (Ksh)</label><input type="number" name="amount" step="0.01" required placeholder="0.00"></div>
         <div class="form-group"><label>Notes</label><input type="text" name="notes" placeholder="Optional note"></div>
         <div class="form-group"><button type="submit">Submit Sale</button></div>
     </div>
@@ -15,18 +19,18 @@
 {% if sales %}
 <h2>Today's Sales</h2>
 <table>
-    <tr><th>Name</th><th>Branch</th><th>Amount</th><th>Notes</th></tr>
+    <tr><th>Name</th><th>Branch</th><th>Amount (Ksh)</th><th>Notes</th></tr>
     {% for s in sales %}
     <tr>
         <td><strong>{{ s.full_name }}</strong></td>
         <td>{{ s.branch or '—' }}</td>
-        <td>{{ "%.2f"|format(s.amount|float) }}</td>
+        <td>Ksh {{ "%.2f"|format(s.amount|float) }}</td>
         <td>{{ s.notes or '—' }}</td>
     </tr>
     {% endfor %}
 </table>
-<p style="margin-top:12px;font-weight:700;">
-    Total: {{ "%.2f"|format(sales|sum(attribute='amount')) }}
+<p style="margin-top:15px;font-weight:700;font-size:16px;">
+    💰 Total Sales: Ksh {{ "%.2f"|format(sales|sum(attribute='amount')) }}
 </p>
 {% else %}
 <p style="color:#999;margin-top:20px;">No sales recorded today.</p>
