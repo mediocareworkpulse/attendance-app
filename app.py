@@ -4,7 +4,7 @@ from supabase import create_client
 from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = 'attendance-secret-key-2024'
+app.secret_key = 'mediocare-attendance-secret-2024'
 
 SUPABASE_URL = 'https://lznqrkujlrcxcxizygzq.supabase.co'
 SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6bnFya3VqbHJjeGN4aXp5Z3pxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NjIwNjUsImV4cCI6MjEwMDEzODA2NX0.Jj_EW42NVMQk6zbEcNoY-IlrSe0tgW4zFiKoBSapiDA'
@@ -15,6 +15,8 @@ DEPARTMENTS = ['Staff','Branch Manager','Assistant Branch Manager','Stock Contro
 ROLES = ['staff','manager','admin','ceo']
 NO_CHECKIN_ROLES = ['admin','ceo']
 FULL_ACCESS_ROLES = ['admin','ceo']
+
+COMPANY_NAME = 'Mediocare Pharmaceutical Ltd'
 
 def login_required(f):
     @wraps(f)
@@ -32,18 +34,15 @@ def admin_required(f):
 
 def get_branches():
     r = supabase.table('branches').select('*').order('name').execute()
-    data = r.data if hasattr(r, 'data') else []
+    data = r.data if hasattr(r,'data') else []
     return [b['name'] for b in data]
 
 def safe_data(r):
-    """Safely get data from Supabase response or dict"""
-    if hasattr(r, 'data'):
-        return r.data if r.data else []
-    if isinstance(r, dict):
-        return r.get('data', [])
+    if hasattr(r,'data'): return r.data if r.data else []
+    if isinstance(r,dict): return r.get('data',[])
     return []
 
-# ─── LOGIN ──────────────────────────────
+# ─── LOGIN ───────────────────────────────────────────
 @app.route('/login', methods=['GET','POST'])
 def login():
     if request.method == 'POST':
@@ -70,7 +69,7 @@ def logout():
     session.clear()
     return redirect('/login')
 
-# ─── SIGNUP ─────────────────────────────
+# ─── SIGNUP ──────────────────────────────────────────
 @app.route('/signup', methods=['GET','POST'])
 def signup():
     if request.method == 'POST':
@@ -88,10 +87,11 @@ def signup():
             'full_name':name,'phone':phone,'password':pw,
             'department':dept,'branch':branch,'role':'staff','status':'pending'
         }).execute()
-        return render_template('signup.html', branches=get_branches(), departments=DEPARTMENTS, success='Registered! Wait for admin approval.')
+        return render_template('signup.html', branches=get_branches(), departments=DEPARTMENTS,
+            success='Registration submitted successfully! Welcome to {} — Your account will be reviewed shortly.'.format(COMPANY_NAME))
     return render_template('signup.html', branches=get_branches(), departments=DEPARTMENTS)
 
-# ─── DASHBOARD ──────────────────────────
+# ─── DASHBOARD ───────────────────────────────────────
 @app.route('/')
 @login_required
 def home():
@@ -156,10 +156,11 @@ def home():
         user_checked_out=uco,
         pending_count=pending,
         days_worked=0,
-        today=today
+        today=today,
+        company=COMPANY_NAME
     )
 
-# ─── APPROVALS ──────────────────────────
+# ─── APPROVALS ───────────────────────────────────────
 @app.route('/approvals')
 @login_required
 @admin_required
@@ -181,7 +182,7 @@ def reject(eid):
     supabase.table('employees').delete().eq('id',eid).execute()
     return redirect('/approvals')
 
-# ─── EMPLOYEES ──────────────────────────
+# ─── EMPLOYEES ───────────────────────────────────────
 @app.route('/employees')
 @login_required
 @admin_required
@@ -220,7 +221,7 @@ def delete_employee(eid):
     supabase.table('employees').delete().eq('id',eid).execute()
     return redirect('/employees')
 
-# ─── BRANCHES ───────────────────────────
+# ─── BRANCHES ────────────────────────────────────────
 @app.route('/branches')
 @login_required
 @admin_required
@@ -244,7 +245,7 @@ def delete_branch(bid):
     supabase.table('branches').delete().eq('id',bid).execute()
     return redirect('/branches')
 
-# ─── CHECK IN/OUT ───────────────────────
+# ─── CHECK IN/OUT ────────────────────────────────────
 @app.route('/check-in')
 @login_required
 def check_in_page():
@@ -276,7 +277,7 @@ def check_in_page():
         if myd:
             if myd[0].get('check_out'): us = 'completed'
             elif myd[0].get('check_in'): us = 'checked_in'
-    return render_template('check_in.html', records=records, user_status=us, today=today)
+    return render_template('check_in.html', records=records, user_status=us, today=today, company=COMPANY_NAME)
 
 @app.route('/check-in', methods=['POST'])
 @login_required
@@ -297,7 +298,7 @@ def process_attendance():
     ex = supabase.table('attendance').select('*').eq('full_name',un).eq('date',today).execute()
     exd = safe_data(ex)
     if action == 'check_in':
-        if exd and exd[0].get('check_in'): return redirect('/check-in')
+        if exd and exd[0].get('check_in'): return redirect('/check-in?success=1')
         status = 'late' if now > '09:00:00' else 'present'
         d = {'check_in':now,'status':status,'check_in_lat':lat,'check_in_lng':lng,'check_in_location':loc}
         if exd:
@@ -305,12 +306,14 @@ def process_attendance():
         else:
             d.update({'full_name':un,'department':dept,'branch':branch,'date':today})
             supabase.table('attendance').insert(d).execute()
+        return redirect('/check-in?success=1')
     elif action == 'check_out':
         if exd and exd[0].get('check_in') and not exd[0].get('check_out'):
             supabase.table('attendance').update({'check_out':now}).eq('full_name',un).eq('date',today).execute()
+            return redirect('/check-in?success=2')
     return redirect('/check-in')
 
-# ─── ATTENDANCE HISTORY ─────────────────
+# ─── ATTENDANCE HISTORY ──────────────────────────────
 @app.route('/attendance-history')
 @login_required
 def attendance_history():
@@ -338,9 +341,9 @@ def attendance_history():
             'status':st,
             'label':{'present':'Present','late':'Arrived Late'}.get(st,st)
         })
-    return render_template('attendance_history.html', records=records, period=period, today=str(today))
+    return render_template('attendance_history.html', records=records, period=period, today=str(today), company=COMPANY_NAME)
 
-# ─── SALES ──────────────────────────────
+# ─── SALES ───────────────────────────────────────────
 @app.route('/sales', methods=['GET','POST'])
 @login_required
 def sales_page():
@@ -348,6 +351,7 @@ def sales_page():
     un = session.get('user')
     ub = session.get('branch','')
     today = str(date.today())
+    success_msg = request.args.get('success','')
     if request.method == 'POST':
         try:
             amt = float(request.form.get('amount','0'))
@@ -361,25 +365,26 @@ def sales_page():
                         'amount':amt,'notes':request.form.get('notes','')
                     }).execute()
         except: pass
-        return redirect('/sales')
+        return redirect('/sales?success=1')
     if role in FULL_ACCESS_ROLES:
         sr = supabase.table('sales').select('*').eq('date',today).execute()
     elif role == 'manager':
         sr = supabase.table('sales').select('*').eq('date',today).eq('branch',ub).execute()
     else:
         sr = supabase.table('sales').select('*').eq('date',today).eq('full_name',un).execute()
-    return render_template('sales.html', sales=safe_data(sr), today=today)
+    return render_template('sales.html', sales=safe_data(sr), today=today, success_msg=success_msg, company=COMPANY_NAME)
 
-# ─── PROFILE ────────────────────────────
+# ─── PROFILE ─────────────────────────────────────────
 @app.route('/profile', methods=['GET','POST'])
 @login_required
 def profile():
     un = session.get('user')
+    success_msg = ''
     if request.method == 'POST':
         np = request.form.get('new_password','').strip()
         if np:
             supabase.table('employees').update({'password':np}).eq('full_name',un).execute()
-        return redirect('/profile')
+            success_msg = 'Password updated successfully!'
     emp = supabase.table('employees').select('*').eq('full_name',un).execute()
     ed = safe_data(emp)
     ed = ed[0] if ed else {}
@@ -389,9 +394,9 @@ def profile():
     dp = len(set(a['date'] for a in safe_data(ma) if a.get('check_in')))
     my = supabase.table('sales').select('*').eq('full_name',un).gte('date',str(ms)).lte('date',str(today)).execute()
     tms = sum(float(s.get('amount',0)) for s in safe_data(my))
-    return render_template('profile.html', employee=ed, days_present=dp, total_my_sales=tms)
+    return render_template('profile.html', employee=ed, days_present=dp, total_my_sales=tms, success_msg=success_msg, company=COMPANY_NAME)
 
-# ─── REPORTS ────────────────────────────
+# ─── REPORTS ─────────────────────────────────────────
 @app.route('/reports')
 @login_required
 def reports():
@@ -410,7 +415,7 @@ def reports():
             'status':st,
             'label':{'present':'Present','late':'Arrived Late'}.get(st,st)
         })
-    return render_template('reports.html', records=records, from_date=fd, to_date=td)
+    return render_template('reports.html', records=records, from_date=fd, to_date=td, company=COMPANY_NAME)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
