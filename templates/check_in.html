@@ -20,9 +20,10 @@
 </div>
 {% elif user_status=='checked_in' %}
 <div class="checkin-container">
-    <div style="font-size:48px;margin-bottom:12px;">🌆</div>
-    <div class="checkin-title">Ending Your Shift?</div>
-    <div class="checkin-subtitle">Tap below to clock out for the day</div>
+    <div style="font-size:48px;margin-bottom:12px;">⏳</div>
+    <div class="checkin-title">You're Clocked In</div>
+    <div class="checkin-subtitle" id="timer-display">Calculating...</div>
+    <div id="remaining-display" style="font-size:14px;color:#666;margin-bottom:20px;"></div>
     <form method="POST" action="/check-in" id="af">
         <input type="hidden" name="lat" id="lat"><input type="hidden" name="lng" id="lng"><input type="hidden" name="location" id="loc">
         <button type="submit" name="action" value="check_out" class="checkin-btn btn-check-out">🚪 Check Out Now</button>
@@ -56,7 +57,56 @@
 {% endif %}
 
 <script>
+// Fast location capture (no reverse geocode)
 var d=document.getElementById('ls-text'),la=document.getElementById('lat'),lo=document.getElementById('lng'),lc=document.getElementById('loc');
-if(d&&navigator.geolocation){navigator.geolocation.getCurrentPosition(function(p){la.value=p.coords.latitude;lo.value=p.coords.longitude;lc.value=p.coords.latitude+','+p.coords.longitude;d.textContent='Location captured successfully';d.parentElement.style.background='#d4f5e0';d.parentElement.style.color='#1e7e34'},function(){d.textContent='Location unavailable — continuing without GPS';d.parentElement.style.background='#fff3d6';d.parentElement.style.color='#b45309'})}
+if(d&&navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(function(p){
+        la.value=p.coords.latitude; lo.value=p.coords.longitude; lc.value=p.coords.latitude+','+p.coords.longitude;
+        d.textContent='Location captured'; d.parentElement.style.background='#d4f5e0'; d.parentElement.style.color='#1e7e34';
+    },function(){
+        d.textContent='Location unavailable'; d.parentElement.style.background='#fff3d6'; d.parentElement.style.color='#b45309';
+    },{timeout:5000,enableHighAccuracy:false});
+} else if(d){ d.textContent='Location not supported'; }
+
+// Live timer for checked-in users
+{% if user_status=='checked_in' and check_in_time %}
+(function(){
+    var checkInTime = "{{ check_in_time }}"; // HH:MM:SS
+    var parts = checkInTime.split(':');
+    var checkInDate = new Date();
+    checkInDate.setHours(parseInt(parts[0]),parseInt(parts[1]),parseInt(parts[2]),0);
+    
+    {% if branch_info and branch_info.shift_end %}
+    var shiftEndStr = "{{ branch_info.shift_end }}";
+    var eparts = shiftEndStr.split(':');
+    var shiftEnd = new Date();
+    shiftEnd.setHours(parseInt(eparts[0]),parseInt(eparts[1]),0,0);
+    {% else %}
+    var shiftEnd = null;
+    {% endif %}
+    
+    function updateTimer(){
+        var now = new Date();
+        var diff = now - checkInDate;
+        var hours = Math.floor(diff/3600000);
+        var minutes = Math.floor((diff%3600000)/60000);
+        var seconds = Math.floor((diff%60000)/1000);
+        document.getElementById('timer-display').textContent = '🕒 Worked: '+hours+'h '+minutes+'m '+seconds+'s';
+        
+        if(shiftEnd){
+            var remaining = shiftEnd - now;
+            if(remaining > 0){
+                var rh = Math.floor(remaining/3600000);
+                var rm = Math.floor((remaining%3600000)/60000);
+                document.getElementById('remaining-display').textContent = '⏰ Remaining: '+rh+'h '+rm+'m until shift end';
+            } else {
+                document.getElementById('remaining-display').textContent = '✅ Shift end time reached. You can check out.';
+            }
+        }
+    }
+    updateTimer();
+    setInterval(updateTimer,10000);
+})();
+{% endif %}
 </script>
 {% endblock %}
