@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">My Leave Requests</h1>
+<p class="page-subtitle">{{ company }}</p>
+{% if success_msg %}<div class="alert alert-success">✅ Leave request submitted successfully!</div>{% endif %}
+
+<h2>Request Leave</h2>
+<div class="form-card">
+<form method="POST">
+    <div class="form-grid">
+        <div class="form-group"><label>Date</label><input type="date" name="leave_date" required></div>
+        <div class="form-group"><label>Reason</label><input type="text" name="reason" placeholder="Reason for leave"></div>
+        <div class="form-group"><button type="submit" class="btn">➕ Submit Request</button></div>
+    </div>
+</form>
+</div>
+
+<h2>My Leaves <span class="count">{{ leaves|length }}</span></h2>
+{% if leaves %}
+<div class="table-container">
+<table>
+    <tr><th>Date</th><th>Reason</th><th>Status</th><th>Approved By</th></tr>
+    {% for lv in leaves %}
+    <tr>
+        <td>{{ lv.leave_date }}</td>
+        <td>{{ lv.reason or '—' }}</td>
+        <td><span class="badge {% if lv.status=='approved_final' %}badge-success{% elif lv.status=='rejected' %}badge-danger{% else %}badge-warning{% endif %}">{{ lv.status }}</span></td>
+        <td>{{ lv.approved_by or '—' }}</td>
+    </tr>
+    {% endfor %}
+</table>
+</div>
+{% else %}<p style="text-align:center;padding:30px;color:#999;">No leave requests yet.</p>{% endif %}
+{% endblock %}
