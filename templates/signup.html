@@ -1,9 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Sign Up</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WorkPulse — Register</title>
     <style>
-        *{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#eef1f5}.box{background:#fff;padding:35px;width:460px;border-radius:6px;box-shadow:0 4px 30px rgba(0,0,0,.08)}h2{text-align:center;color:#2c3e50;margin-bottom:5px}.sub{text-align:center;color:#999;font-size:13px;margin-bottom:20px}.err{padding:10px;background:#fce4e4;border-left:4px solid #c0392b;color:#721c24;margin-bottom:15px;font-size:13px}.suc{padding:10px;background:#e8f5e9;border-left:4px solid #27ae60;color:#155724;margin-bottom:15px;font-size:13px}label{display:block;margin-bottom:3px;font-size:12px;font-weight:600;color:#555}input,select{width:100%;border:1px solid #ccc;padding:10px;font-size:14px;border-radius:3px;margin-bottom:10px}button{width:100%;padding:12px;background:#2c3e50;color:#fff;border:none;font-size:15px;font-weight:600;border-radius:3px;cursor:pointer}button:hover{background:#1a252f}.link{text-align:center;margin-top:12px;font-size:13px}.link a{color:#2c3e50;text-decoration:none;font-weight:600}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);padding:20px}
+        .box{background:#fff;padding:40px;width:480px;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.3)}
+        h2{font-size:24px;font-weight:700;color:#1a1a2e;margin-bottom:5px}
+        .sub{color:#999;font-size:13px;margin-bottom:25px}
+        .err{padding:12px 15px;background:#fef0ef;border-left:4px solid #e74c3c;color:#c0392b;margin-bottom:15px;font-size:13px;border-radius:6px;font-weight:500}
+        .suc{padding:12px 15px;background:#edfaf2;border-left:4px solid #27ae60;color:#1e7e34;margin-bottom:15px;font-size:13px;border-radius:6px;font-weight:500}
+        label{display:block;margin-bottom:4px;font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.3px}
+        input,select{width:100%;border:1.5px solid #e0e0e0;padding:11px 14px;font-size:14px;border-radius:8px;margin-bottom:14px;transition:border-color .2s}
+        input:focus,select:focus{outline:none;border-color:#1a1a2e}
+        button{width:100%;padding:14px;background:#1a1a2e;color:#fff;border:none;font-size:15px;font-weight:700;border-radius:8px;cursor:pointer;letter-spacing:.3px;transition:all .2s}
+        button:hover{background:#2d2d4e;transform:translateY(-1px);box-shadow:0 8px 20px rgba(0,0,0,.15)}
+        .link{text-align:center;margin-top:18px;font-size:13px;color:#999}
+        .link a{color:#1a1a2e;text-decoration:none;font-weight:700}
     </style>
 </head>
 <body>
@@ -13,11 +28,11 @@
         {% if error %}<div class="err">{{ error }}</div>{% endif %}
         {% if success %}<div class="suc">{{ success }}</div>{% endif %}
         <form method="POST">
-            <label>Full Name</label><input type="text" name="full_name" required>
-            <label>Phone Number</label><input type="text" name="phone" required>
-            <label>Department</label><select name="department" required><option value="">Select</option>{% for d in departments %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select>
-            <label>Branch</label><select name="branch"><option value="">Select</option>{% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select>
-            <label>Password</label><input type="password" name="password" required>
+            <label>Full Name</label><input type="text" name="full_name" required placeholder="Your full name">
+            <label>Phone Number</label><input type="text" name="phone" required placeholder="e.g. 0712345678">
+            <label>Department</label><select name="department" required><option value="">Select Department</option>{% for d in departments %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select>
+            <label>Branch</label><select name="branch"><option value="">Select Branch</option>{% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select>
+            <label>Password</label><input type="password" name="password" required placeholder="Create a password">
             <button type="submit">Register</button>
         </form>
         <p class="link">Already have an account? <a href="/login">Sign In</a></p>
