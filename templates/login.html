@@ -3,35 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WorkPulse — Sign In</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+    <title>Mediocare Pharmaceutical Ltd — Sign In</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💊</text></svg>">
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)}
-        .container{display:flex;width:800px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 25px 80px rgba(0,0,0,.3)}
-        .left{flex:1;background:linear-gradient(135deg,#1a1a2e,#16213e);padding:50px 40px;display:flex;flex-direction:column;justify-content:center;color:#fff}
-        .left h1{font-size:32px;font-weight:800;letter-spacing:-1px;margin-bottom:10px}
-        .left p{color:#aab;font-size:14px;line-height:1.6}
+        body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:linear-gradient(135deg,#0d3b66 0%,#1a5c8a 50%,#2a7faa 100%)}
+        .container{display:flex;width:850px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 25px 80px rgba(0,0,0,.3)}
+        .left{flex:1;background:linear-gradient(135deg,#0d3b66,#1a5c8a);padding:50px 40px;display:flex;flex-direction:column;justify-content:center;color:#fff}
+        .left .logo{font-size:40px;margin-bottom:15px}
+        .left h1{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-bottom:8px}
+        .left .tagline{color:#8ecae6;font-size:14px;line-height:1.6}
         .right{flex:1;padding:50px 40px}
-        .right h2{font-size:24px;font-weight:700;color:#1a1a2e;margin-bottom:5px}
+        .right h2{font-size:22px;font-weight:700;color:#0d3b66;margin-bottom:5px}
         .right .sub{color:#999;font-size:13px;margin-bottom:30px}
         .err{padding:12px 15px;background:#fef0ef;border-left:4px solid #e74c3c;color:#c0392b;margin-bottom:20px;font-size:13px;border-radius:6px;font-weight:500}
         label{display:block;margin-bottom:5px;font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.5px}
         input{width:100%;border:1.5px solid #e0e0e0;padding:13px 15px;font-size:14px;border-radius:8px;margin-bottom:18px;transition:border-color .2s}
-        input:focus{outline:none;border-color:#1a1a2e}
-        button{width:100%;padding:14px;background:#1a1a2e;color:#fff;border:none;font-size:15px;font-weight:700;border-radius:8px;cursor:pointer;letter-spacing:.3px;transition:all .2s}
-        button:hover{background:#2d2d4e;transform:translateY(-1px);box-shadow:0 8px 20px rgba(0,0,0,.15)}
+        input:focus{outline:none;border-color:#0d3b66}
+        button{width:100%;padding:14px;background:#0d3b66;color:#fff;border:none;font-size:15px;font-weight:700;border-radius:8px;cursor:pointer;letter-spacing:.3px;transition:all .2s}
+        button:hover{background:#0f4c7a;transform:translateY(-1px);box-shadow:0 8px 20px rgba(0,0,0,.15)}
         .link{text-align:center;margin-top:20px;font-size:13px;color:#999}
-        .link a{color:#1a1a2e;text-decoration:none;font-weight:700}
-        .link a:hover{text-decoration:underline}
+        .link a{color:#0d3b66;text-decoration:none;font-weight:700}
         @media(max-width:768px){.container{flex-direction:column;width:95%}.left{padding:30px}.right{padding:30px}}
     </style>
 </head>
 <body>
     <div class="container">
         <div class="left">
-            <h1>WorkPulse</h1>
-            <p>Attendance & Sales Management System. Track your team, record sales, and manage your workforce efficiently.</p>
+            <div class="logo">💊</div>
+            <h1>Mediocare Pharmaceutical Ltd</h1>
+            <p class="tagline">Attendance & Sales Management System. Excellence in pharmaceutical distribution.</p>
         </div>
         <div class="right">
             <h2>Welcome Back</h2>
