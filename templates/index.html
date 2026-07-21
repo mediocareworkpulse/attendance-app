@@ -2,9 +2,10 @@
 {% block content %}
 <h1>Dashboard</h1>
 <p style="color:#999;font-size:14px;margin-bottom:25px;">
-    Welcome back, <strong style="color:#1a1a2e;">{{ session.get('user') }}</strong>
+    Welcome back, <strong style="color:#0d3b66;">{{ session.get('user') }}</strong>
     <span style="margin-left:10px;"><span class="badge badge-info">{{ session.get('role')|upper }}</span></span>
     {% if session.get('branch') %}<span style="margin-left:8px;color:#888;">· {{ session.get('branch') }}</span>{% endif %}
+    <span style="margin-left:10px;color:#aaa;">| Mediocare Pharmaceutical Ltd</span>
 </p>
 
 <div class="stats">
@@ -27,7 +28,7 @@
     {% elif not user_checked_out %}
     <a href="/check-in" class="btn" style="background:#e74c3c;font-size:15px;padding:14px 30px;">🚪 Clock Out</a>
     {% else %}
-    <span style="background:#d4f5e0;color:#1e7e34;padding:14px 24px;border-radius:8px;font-weight:700;">✅ Shift Complete</span>
+    <span style="background:#d4f5e0;color:#1e7e34;padding:14px 24px;border-radius:8px;font-weight:700;">✅ Shift Complete — Great work at Mediocare!</span>
     {% endif %}
 </div>
 {% endif %}
