@@ -29,4 +29,12 @@
 
 {% if records %}
 <h2>Today's Records</h2>
-<table><tr><th>Name</th><th>Department</th><th>Check In</th><th>Check Out</th
+<table><tr><th>Name</th><th>Department</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
+{% for r in records %}<tr><td><strong>{{ r.full_name }}</strong></td><td>{{ r.department }}</td><td>{{ r.check_in }}</td><td>{{ r.check_out }}</td><td><span class="badge {% if r.status=='present' %}badge-success{% else %}badge-warning{% endif %}">{{ r.label }}</span></td></tr>{% endfor %}</table>
+{% endif %}
+
+<script>
+var d=document.getElementById('ls'),la=document.getElementById('lat'),lo=document.getElementById('lng'),lc=document.getElementById('loc');
+if(d&&navigator.geolocation){navigator.geolocation.getCurrentPosition(function(p){la.value=p.coords.latitude;lo.value=p.coords.longitude;lc.value=p.coords.latitude+','+p.coords.longitude;d.innerHTML='✅ Location captured';d.style.background='#d4f5e0';d.style.color='#1e7e34'},function(){d.innerHTML='⚠️ Location unavailable';d.style.background='#fff3d6';d.style.color='#b45309'})}
+</script>
+{% endblock %}
