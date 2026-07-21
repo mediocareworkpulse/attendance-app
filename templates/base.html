@@ -6,16 +6,19 @@
     <title>Mediocare Pharmaceutical Ltd</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
 </head>
 <body>
     {% if session.get('user') %}
     <header>
-        <h2>💊 Mediocare</h2>
-        <button class="menu-toggle" onclick="toggleMenu()" aria-label="Menu">☰</button>
+        <div class="brand">
+            <span class="brand-icon">💊</span>
+            <span class="brand-text">Mediocare</span>
+            <span class="brand-sub">Pharmaceutical Ltd</span>
+        </div>
+        <button class="menu-toggle" onclick="toggleMenu()">☰</button>
         <nav id="mainNav">
             <a href="/">Dashboard</a>
-            <a href="/check-in">Clock In/Out</a>
+            <a href="/check-in">Check In/Out</a>
             <a href="/attendance-history">Attendance</a>
             <a href="/sales">Sales</a>
             {% if session.get('role') in ['admin','ceo'] %}
