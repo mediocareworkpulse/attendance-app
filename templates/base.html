@@ -11,26 +11,28 @@
     {% if session.get('user') %}
     <header>
         <div class="brand">
-            <span class="brand-icon">💊</span>
-            <span class="brand-text">Mediocare</span>
-            <span class="brand-sub">Pharmaceutical Ltd</span>
+            <div class="brand-icon">💊</div>
+            <div class="brand-info">
+                <span class="brand-name">Mediocare</span>
+                <span class="brand-sub">Pharmaceutical Ltd</span>
+            </div>
         </div>
         <button class="menu-toggle" onclick="toggleMenu()">☰</button>
         <nav id="mainNav">
-            <a href="/">Dashboard</a>
-            <a href="/check-in">Check In/Out</a>
-            <a href="/attendance-history">Attendance</a>
-            <a href="/sales">Sales</a>
+            <a href="/">📊 Dashboard</a>
+            <a href="/check-in">✅ Check In/Out</a>
+            <a href="/attendance-history">📅 Attendance</a>
+            <a href="/sales">💰 Sales</a>
             {% if session.get('role') in ['admin','ceo'] %}
-            <a href="/approvals" class="nav-alert">Approvals</a>
-            <a href="/employees">Team</a>
-            <a href="/branches">Branches</a>
+            <a href="/approvals" class="nav-alert">🔔 Approvals</a>
+            <a href="/employees">👥 Team</a>
+            <a href="/branches">🏢 Branches</a>
             {% endif %}
             {% if session.get('role') in ['admin','ceo','manager'] or session.get('department') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant'] %}
-            <a href="/reports">Reports</a>
+            <a href="/reports">📋 Reports</a>
             {% endif %}
-            <a href="/profile">Profile</a>
-            <a href="/logout" class="nav-logout">Logout</a>
+            <a href="/profile">👤 Profile</a>
+            <a href="/logout" class="nav-logout">🚪 Logout</a>
         </nav>
     </header>
     {% endif %}
