@@ -1,67 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Check In / Check Out</h1>
-{% if message %}<div class="message {{ message_type }}">{{ message }}</div>{% endif %}
-
-<div id="location-status" style="padding:10px 15px;margin-bottom:15px;background:#fff;border:1px solid #ddd;font-size:13px;border-radius:3px;">
-    Detecting location...
+<p style="color:#888;">Date: <strong>{{ today }}</strong></p>
+{% if session.get('role') not in ['admin','ceo'] %}
+<div id="ls" style="padding:10px 15px;margin:15px 0;background:#fff;border:1px solid #ddd;border-radius:4px;font-size:13px;">Detecting location...</div>
+{% if user_status=='none' %}
+<div style="background:#fff;padding:25px;border:1px solid #ddd;border-radius:4px;margin-bottom:20px;">
+    <h3 style="margin-top:0;">Clock In</h3>
+    <form method="POST" action="/check-in" id="af"><input type="hidden" name="lat" id="lat"><input type="hidden" name="lng" id="lng"><input type="hidden" name="location" id="loc">
+        <button type="submit" name="action" value="check_in" style="background:#27ae60;font-size:16px;padding:14px 35px;">Check In</button></form>
 </div>
-
-<h2>Record Attendance</h2>
-<form method="POST" action="/check-in" id="attendance-form">
-    <input type="hidden" name="lat" id="lat">
-    <input type="hidden" name="lng" id="lng">
-    <input type="hidden" name="location" id="location">
-    <div class="form-group"><label>Employee Name</label><input type="text" name="full_name" required placeholder="Enter full name" autofocus style="font-size:16px;padding:12px;"></div>
-    <div style="display: flex; gap: 10px;">
-        <button type="submit" name="action" value="check_in" style="font-size:15px;padding:12px 30px;">Check In</button>
-        <button type="submit" name="action" value="check_out" style="font-size:15px;padding:12px 30px;background:#555;">Check Out</button>
-    </div>
-</form>
-
-{% if today_records %}
-<h2>Today's Records</h2>
-<table>
-    <tr><th>Name</th><th>Department</th><th>Check In</th><th>Location</th><th>Check Out</th><th>Status</th></tr>
-    {% for record in today_records %}
-    <tr>
-        <td><strong>{{ record.full_name }}</strong></td>
-        <td>{{ record.department }}</td>
-        <td>{{ record.check_in or '—' }}</td>
-        <td style="font-size:11px;">{{ record.check_in_location or '—' }}</td>
-        <td>{{ record.check_out or '—' }}</td>
-        <td><span class="{{ record.status_class }}">{{ record.status_label }}</span></td>
-    </tr>
-    {% endfor %}
-</table>
+{% elif user_status=='checked_in' %}
+<div style="background:#fff;padding:25px;border:1px solid #ddd;border-radius:4px;margin-bottom:20px;">
+    <h3 style="margin-top:0;">Clock Out</h3>
+    <form method="POST" action="/check-in" id="af"><input type="hidden" name="lat" id="lat"><input type="hidden" name="lng" id="lng"><input type="hidden" name="location" id="loc">
+        <button type="submit" name="action" value="check_out" style="background:#c0392b;font-size:16px;padding:14px 35px;">Check Out</button></form>
+</div>
+{% else %}<div style="background:#e8f5e9;padding:20px;border-radius:4px;color:#155724;">Shift complete for today.</div>{% endif %}
 {% endif %}
-
-<script>
-const statusDiv = document.getElementById('location-status');
-const latInput = document.getElementById('lat');
-const lngInput = document.getElementById('lng');
-const locInput = document.getElementById('location');
-function getLocation(){
-    if(navigator.geolocation){
-        statusDiv.textContent='Getting your location...';
-        navigator.geolocation.getCurrentPosition(function(pos){
-            latInput.value=pos.coords.latitude;lngInput.value=pos.coords.longitude;
-            fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+pos.coords.latitude+'&lon='+pos.coords.longitude)
-            .then(r=>r.json()).then(data=>{
-                locInput.value=data.display_name||pos.coords.latitude+','+pos.coords.longitude;
-                statusDiv.innerHTML='Location captured successfully';
-                statusDiv.style.background='#e8f5e9';
-            }).catch(()=>{
-                locInput.value=pos.coords.latitude+','+pos.coords.longitude;
-                statusDiv.innerHTML='Location captured (coordinates)';
-                statusDiv.style.background='#e8f5e9';
-            });
-        },function(err){
-            statusDiv.textContent='Location unavailable – check-in will proceed without location';
-            statusDiv.style.background='#fff3cd';
-        });
-    }
-}
-getLocation();
-</script>
-{% endblock %}
+{% if records %}
+<h2>Records (
