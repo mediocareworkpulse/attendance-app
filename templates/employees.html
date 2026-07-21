@@ -1,42 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Employee Management</h1>
-{% if message %}<div class="message {{ message_type }}">{{ message }}</div>{% endif %}
-<h2>Add Employee</h2>
-<form method="POST" action="/employees/add">
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;align-items:end;">
-        <div class="form-group"><label>Full Name</label><input type="text" name="full_name" required></div>
-        <div class="form-group"><label>Department</label><select name="department" required><option value="">Select</option>{% for d in departments %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
-        <div class="form-group"><label>Branch</label><select name="branch"><option value="">Select</option>{% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select></div>
-        <div class="form-group"><label>Role</label><select name="role">{% for r in roles %}<option value="{{ r }}">{{ r|upper }}</option>{% endfor %}</select></div>
-        <div class="form-group"><label>Password</label><input type="text" name="password" value="1234"></div>
-        <div class="form-group"><label>Email</label><input type="email" name="email" placeholder="Optional"></div>
-        <div class="form-group"><label>Phone</label><input type="text" name="phone" placeholder="Optional"></div>
-        <div class="form-group"><button type="submit">Add Employee</button></div>
-    </div>
-</form>
-<h2>All Employees ({{ employees|length }})</h2>
-<form method="GET" style="margin-bottom:15px;display:flex;gap:10px;">
-    <select name="department" onchange="this.form.submit()"><option value="">All Departments</option>{% for d in departments %}<option value="{{ d }}" {% if current_department==d %}selected{% endif %}>{{ d }}</option>{% endfor %}</select>
-    <select name="branch" onchange="this.form.submit()"><option value="">All Branches</option>{% for b in branches %}<option value="{{ b }}" {% if current_branch==b %}selected{% endif %}>{{ b }}</option>{% endfor %}</select>
-</form>
-{% if employees %}
-<table><tr><th>#</th><th>Name</th><th>Department</th><th>Branch</th><th>Role</th><th>Actions</th></tr>
-{% for emp in employees %}<tr><td>{{ loop.index }}</td><td><strong>{{ emp.full_name }}</strong></td><td>{{ emp.department }}</td><td>{{ emp.branch or '—' }}</td><td><span class="badge badge-info">{{ emp.role|upper }}</span></td><td>
-<button onclick="editEmp('{{ emp.id }}','{{ emp.full_name }}','{{ emp.department }}','{{ emp.branch or '' }}','{{ emp.role }}','{{ emp.get('password','1234') }}','{{ emp.get('email','') }}','{{ emp.get('phone','') }}')" class="btn-edit">Edit</button>
-<form method="POST" action="/employees/delete/{{ emp.id }}" style="display:inline;" onsubmit="return confirm('Delete {{ emp.full_name }}?')"><button type="submit" class="btn-delete">Delete</button></form></td></tr>{% endfor %}</table>
-{% else %}<p>No employees found.</p>{% endif %}
-<div id="em" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;"><div style="background:#fff;max-width:550px;margin:60px auto;padding:30px;border-radius:6px;"><h3>Edit Employee</h3>
-<form method="POST" id="ef"><div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
-<div class="form-group"><label>Full Name</label><input type="text" name="full_name" id="en" required></div>
-<div class="form-group"><label>Department</label><select name="department" id="ed">{% for d in departments %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
-<div class="form-group"><label>Branch</label><select name="branch" id="eb"><option value="">None</option>{% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select></div>
-<div class="form-group"><label>Role</label><select name="role" id="er">{% for r in roles %}<option value="{{ r }}">{{ r|upper }}</option>{% endfor %}</select></div>
-<div class="form-group"><label>Password</label><input type="text" name="password" id="ep"></div>
-<div class="form-group"><label>Email</label><input type="email" name="email" id="ee"></div>
-<div class="form-group"><label>Phone</label><input type="text" name="phone" id="eph"></div></div>
-<div style="margin-top:20px;display:flex;gap:10px;"><button type="submit">Save</button><button type="button" onclick="document.getElementById('em').style.display='none'" style="background:#999;">Cancel</button></div></form></div></div>
-<script>
-function editEmp(id,name,dept,branch,role,pass,email,phone){document.getElementById('ef').action='/employees/edit/'+id;document.getElementById('en').value=name;document.getElementById('ed').value=dept;document.getElementById('eb').value=branch;document.getElementById('er').value=role;document.getElementById('ep').value=pass;document.getElementById('ee').value=email;document.getElementById('eph').value=phone;document.getElementById('em').style.display='block';}
-</script>
+<h1>Manage Branches</h1>
+<h2>Add Branch</h2>
+<form method="POST" action="/branches/add"><div style="display:flex;gap:15px;align-items:end;"><div class="form-group"><label>Branch Name</label><input type="text" name="name" required></div><div class="form-group"><label>Address</label><input type="text" name="address"></div><div class="form-group"><button type="submit">Add Branch</button></div></div></form>
+<h2>All Branches ({{ branches|length }})</h2>
+{% if branches %}<table><tr><th>#</th><th>Name</th><th>Address</th><th>Created</th><th>Actions</th></tr>
+{% for b in branches %}<tr><td>{{ loop.index }}</td><td>{{ b.name }}</td><td>{{ b.address or '—' }}</td><td>{{ b.created_at[:10] if b.created_at else '—' }}</td><td>
+<form method="POST" action="/branches/delete/{{ b.id }}" style="display:inline;" onsubmit="return confirm('Delete branch {{ b.name }}?')"><button type="submit" class="btn-delete">Delete</button></form></td></tr>{% endfor %}</table>{% else %}<p>No branches.</p>{% endif %}
 {% endblock %}
