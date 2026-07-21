@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance System - Sign In</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#eef1f5}.box{background:#fff;padding:45px 40px;width:400px;border-radius:6px;box-shadow:0 4px 30px rgba(0,0,0,.08)}.box h2{text-align:center;color:#2c3e50;margin-bottom:5px;font-size:22px}.box .sub{text-align:center;color:#999;font-size:13px;margin-bottom:30px}.err{padding:12px;background:#fce4e4;border-left:4px solid #c0392b;color:#721c24;margin-bottom:20px;font-size:13px;border-radius:3px}label{display:block;margin-bottom:5px;font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.5px}input{width:100%;border:1px solid #ccc;padding:12px;font-size:14px;border-radius:3px;margin-bottom:15px}input:focus{outline:none;border-color:#2c3e50}button{width:100%;padding:13px;background:#2c3e50;color:#fff;border:none;font-size:15px;font-weight:600;border-radius:3px;cursor:pointer}button:hover{background:#1a252f}.note{text-align:center;margin-top:18px;font-size:12px;color:#aaa}
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>Attendance System</h2>
+        <p class="sub">Sign in to continue</p>
+        {% if error %}<div class="err">{{ error }}</div>{% endif %}
+        <form method="POST">
+            <label>Full Name</label>
+            <input type="text" name="full_name" required placeholder="Enter your full name" autofocus>
+            <label>Password</label>
+            <input type="password" name="password" required placeholder="Enter your password">
+            <button type="submit">Sign In</button>
+        </form>
+        <p class="note">Default password: 1234</p>
+    </div>
+</body>
+</html>
