@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WorkPulse — Attendance</title>
+    <title>Mediocare Pharmaceutical Ltd</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💊</text></svg>">
 </head>
 <body>
     {% if session.get('user') %}
     <header>
-        <h2>📋 WorkPulse</h2>
+        <h2>💊 Mediocare Pharmaceutical Ltd</h2>
         <nav>
             <a href="/">Dashboard</a>
             <a href="/check-in">Clock In/Out</a>
@@ -28,6 +29,15 @@
         </nav>
     </header>
     {% endif %}
-    <main>{% block content %}{% endblock %}</main>
+    <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="message {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
 </body>
 </html>
