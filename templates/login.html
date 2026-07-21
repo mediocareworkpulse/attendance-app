@@ -14,13 +14,12 @@
         <p class="sub">Sign in to continue</p>
         {% if error %}<div class="err">{{ error }}</div>{% endif %}
         <form method="POST">
-            <label>Full Name</label>
-            <input type="text" name="full_name" required placeholder="Enter your full name" autofocus>
-            <label>Password</label>
-            <input type="password" name="password" required placeholder="Enter your password">
+            <label>Full Name</label><input type="text" name="full_name" required placeholder="Enter your full name" autofocus>
+            <label>Password</label><input type="password" name="password" required placeholder="Enter your password">
             <button type="submit">Sign In</button>
         </form>
-        <p class="note">Default password: 1234</p>
+        <p class="note">Default admin password: admin123</p>
+        <p style="text-align:center;margin-top:15px;font-size:13px;">Don't have an account? <a href="/signup" style="color:#2c3e50;font-weight:600;text-decoration:none;">Sign Up</a></p>
     </div>
 </body>
 </html>
