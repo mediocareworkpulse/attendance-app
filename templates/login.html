@@ -1,52 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mediocare Pharmaceutical Ltd — Sign In</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💊</text></svg>">
     <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:linear-gradient(135deg,#0d3b66 0%,#1a5c8a 50%,#2a7faa 100%)}
-        .container{display:flex;width:850px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 25px 80px rgba(0,0,0,.3)}
-        .left{flex:1;background:linear-gradient(135deg,#0d3b66,#1a5c8a);padding:50px 40px;display:flex;flex-direction:column;justify-content:center;color:#fff}
-        .left .logo{font-size:40px;margin-bottom:15px}
-        .left h1{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-bottom:8px}
-        .left .tagline{color:#8ecae6;font-size:14px;line-height:1.6}
-        .right{flex:1;padding:50px 40px}
-        .right h2{font-size:22px;font-weight:700;color:#0d3b66;margin-bottom:5px}
-        .right .sub{color:#999;font-size:13px;margin-bottom:30px}
-        .err{padding:12px 15px;background:#fef0ef;border-left:4px solid #e74c3c;color:#c0392b;margin-bottom:20px;font-size:13px;border-radius:6px;font-weight:500}
-        label{display:block;margin-bottom:5px;font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.5px}
-        input{width:100%;border:1.5px solid #e0e0e0;padding:13px 15px;font-size:14px;border-radius:8px;margin-bottom:18px;transition:border-color .2s}
-        input:focus{outline:none;border-color:#0d3b66}
-        button{width:100%;padding:14px;background:#0d3b66;color:#fff;border:none;font-size:15px;font-weight:700;border-radius:8px;cursor:pointer;letter-spacing:.3px;transition:all .2s}
-        button:hover{background:#0f4c7a;transform:translateY(-1px);box-shadow:0 8px 20px rgba(0,0,0,.15)}
-        .link{text-align:center;margin-top:20px;font-size:13px;color:#999}
-        .link a{color:#0d3b66;text-decoration:none;font-weight:700}
-        @media(max-width:768px){.container{flex-direction:column;width:95%}.left{padding:30px}.right{padding:30px}}
+        *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:linear-gradient(135deg,#0d3b66 0%,#1a5c8a 50%,#2a7faa 100%)}.container{display:flex;width:850px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 25px 80px rgba(0,0,0,.3)}.left{flex:1;background:linear-gradient(135deg,#0d3b66,#1a5c8a);padding:50px 40px;display:flex;flex-direction:column;justify-content:center;color:#fff}.left .logo{font-size:40px;margin-bottom:15px}.left h1{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-bottom:8px}.left .tagline{color:#8ecae6;font-size:14px;line-height:1.6}.right{flex:1;padding:50px 40px}.right h2{font-size:22px;font-weight:700;color:#0d3b66;margin-bottom:5px}.right .sub{color:#999;font-size:13px;margin-bottom:30px}.err{padding:12px 15px;background:#fef0ef;border-left:4px solid #e74c3c;color:#c0392b;margin-bottom:20px;font-size:13px;border-radius:6px;font-weight:500}label{display:block;margin-bottom:5px;font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.5px}input{width:100%;border:1.5px solid #e0e0e0;padding:13px 15px;font-size:14px;border-radius:8px;margin-bottom:18px}input:focus{outline:none;border-color:#0d3b66}button{width:100%;padding:14px;background:#0d3b66;color:#fff;border:none;font-size:15px;font-weight:700;border-radius:8px;cursor:pointer;transition:all .2s}button:hover{background:#0f4c7a;transform:translateY(-1px);box-shadow:0 8px 20px rgba(0,0,0,.15)}.link{text-align:center;margin-top:20px;font-size:13px;color:#999}.link a{color:#0d3b66;text-decoration:none;font-weight:700}@media(max-width:768px){.container{flex-direction:column;width:95%}.left{padding:30px}.right{padding:30px}}
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="left">
-            <div class="logo">💊</div>
-            <h1>Mediocare Pharmaceutical Ltd</h1>
-            <p class="tagline">Attendance & Sales Management System. Excellence in pharmaceutical distribution.</p>
-        </div>
-        <div class="right">
-            <h2>Welcome Back</h2>
-            <p class="sub">Sign in to your account</p>
-            {% if error %}<div class="err">{{ error }}</div>{% endif %}
-            <form method="POST">
-                <label>Full Name</label>
-                <input type="text" name="full_name" required placeholder="Enter your full name" autofocus>
-                <label>Password</label>
-                <input type="password" name="password" required placeholder="Enter your password">
-                <button type="submit">Sign In</button>
-            </form>
-            <p class="link">Don't have an account? <a href="/signup">Create Account</a></p>
-        </div>
-    </div>
+<div class="container">
+<div class="left"><div class="logo">💊</div><h1>Mediocare Pharmaceutical Ltd</h1><p class="tagline">Attendance & Sales Management System. Excellence in pharmaceutical distribution.</p></div>
+<div class="right"><h2>Welcome Back</h2><p class="sub">Sign in to your account</p>
+{% if error %}<div class="err">{{ error }}</div>{% endif %}
+<form method="POST"><label>Full Name</label><input type="text" name="full_name" required placeholder="Enter your full name" autofocus><label>Password</label><input type="password" name="password" required placeholder="Enter your password"><button type="submit">Sign In</button></form>
+<p class="link">Don't have an account? <a href="/signup">Create Account</a></p></div></div>
 </body>
 </html>
