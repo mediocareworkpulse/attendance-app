@@ -2,13 +2,16 @@
 {% block content %}
 <h1 class="page-title">Leave Application</h1>
 <p class="page-subtitle">{{ company }}</p>
+
 {% if success_msg %}<div class="alert alert-success">✅ Leave request submitted successfully!</div>{% endif %}
 
-<h2>New Leave Request</h2>
+<!-- ─────────── NEW LEAVE REQUEST ─────────── -->
+<h2>📝 New Leave Request</h2>
 <div class="form-card">
 <form method="POST">
     <div class="form-grid">
-        <div class="form-group"><label>Type of Leave</label>
+        <div class="form-group">
+            <label>Type of Leave</label>
             <select name="leave_type" required>
                 <option value="Annual Leave">Annual Leave (Vacation)</option>
                 <option value="Sick Leave">Sick Leave</option>
@@ -21,37 +24,60 @@
         <div class="form-group"><label>Start Date</label><input type="date" name="leave_start" required></div>
         <div class="form-group"><label>End Date</label><input type="date" name="leave_end" required></div>
         <div class="form-group"><label>Total Working Days</label><input type="number" name="total_days" min="1" value="1" required></div>
-        <div class="form-group"><label>Remaining Leave Balance (if known)</label><input type="text" name="remaining_balance" placeholder="e.g., 24 days"></div>
+        <div class="form-group"><label>Remaining Leave Balance</label><input type="text" name="remaining_balance" placeholder="e.g., 24 days"></div>
     </div>
-    <div class="form-group" style="margin-top:10px;"><label>Reason for Leave</label>
-        <textarea name="reason" rows="3" style="width:100%;border:1.5px solid #dde1e6;border-radius:10px;padding:10px;font-size:13px;" placeholder="Explain the purpose of your leave..."></textarea>
+
+    <div class="form-group" style="margin-top:10px;">
+        <label>Reason for Leave</label>
+        <textarea name="reason" rows="3" style="width:100%; border:1.5px solid #dde1e6; border-radius:10px; padding:12px; font-size:13px;" placeholder="Explain the purpose of your leave…"></textarea>
     </div>
-    <div class="form-grid">
+
+    <div class="form-grid" style="margin-top:10px;">
         <div class="form-group"><label>Handover Notes</label><input type="text" name="handover_notes" placeholder="Tasks / projects to handover"></div>
         <div class="form-group"><label>Backup Person</label><input type="text" name="backup_person" placeholder="Colleague covering your duties"></div>
-        <div class="form-group"><label>Emergency Contact</label><input type="text" name="emergency_contact" placeholder="Phone number during leave"></div>
+        <div class="form-group"><label>Emergency Contact</label><input type="text" name="emergency_contact" placeholder="Phone number while away"></div>
     </div>
+
     <button type="submit" class="btn" style="margin-top:15px;">📝 Submit Leave Request</button>
 </form>
 </div>
 
-<h2>My Leave History <span class="count">{{ leaves|length }}</span></h2>
+<!-- ─────────── LEAVE HISTORY ─────────── -->
+<h2>📋 My Leave History <span class="count">{{ leaves|length }}</span></h2>
 {% if leaves %}
 <div class="table-container">
 <table>
-    <tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Approved By</th></tr>
+    <tr>
+        <th>Type</th>
+        <th>From</th>
+        <th>To</th>
+        <th>Days</th>
+        <th>Reason</th>
+        <th>Status</th>
+        <th>Approved By</th>
+        <th>Print</th>
+    </tr>
     {% for lv in leaves %}
     <tr>
         <td>{{ lv.leave_type or 'Annual Leave' }}</td>
         <td>{{ lv.leave_start or lv.leave_date }}</td>
         <td>{{ lv.leave_end or lv.leave_date }}</td>
         <td>{{ lv.total_days or 1 }}</td>
-        <td>{{ lv.reason[:50] if lv.reason else '—' }}</td>
-        <td><span class="badge {% if lv.status=='approved_final' %}badge-success{% elif lv.status=='rejected' %}badge-danger{% else %}badge-warning{% endif %}">{{ lv.status }}</span></td>
+        <td>{{ lv.reason[:40] if lv.reason else '—' }}</td>
+        <td>
+            <span class="badge {% if lv.status == 'approved_final' %}badge-success{% elif lv.status == 'rejected' %}badge-danger{% else %}badge-warning{% endif %}">
+                {{ lv.status }}
+            </span>
+        </td>
         <td>{{ lv.approved_by or '—' }}</td>
+        <td>
+            <a href="/leave-pdf/{{ lv.id }}" target="_blank" class="btn btn-sm" style="background:#2980b9; color:#fff;">📄 PDF</a>
+        </td>
     </tr>
     {% endfor %}
 </table>
 </div>
-{% else %}<p style="text-align:center;padding:30px;color:#999;">No leave requests yet.</p>{% endif %}
+{% else %}
+<p style="text-align:center; padding:30px; color:#999;">No leave requests yet.</p>
+{% endif %}
 {% endblock %}
