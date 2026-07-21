@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Sales Management</h1>
+<h2>Submit Sale ({{ today }})</h2>
+<form method="POST"><div style="display:flex;gap:15px;align-items:end;flex-wrap:wrap;"><div class="form-group"><label>Amount</label><input type="number" name="amount" step="0.01" required></div><div class="form-group"><label>Type</label><select name="sales_type"><option value="individual">Individual</option>{% if session.get('role')=='manager' %}<option value="branch_total">Branch Total</option>{% endif %}</select></div><div class="form-group"><label>Notes</label><input type="text" name="notes"></div><div class="form-group"><button type="submit">Submit</button></div></div></form>
+{% if sales %}
+<h2>Today's Sales</h2>
+<table><tr><th>Name</th><th>Branch</th><th>Amount</th><th>Type</th><th>Notes</th></tr>{% for s in sales %}<tr><td>{{ s.full_name }}</td><td>{{ s.branch }}</td><td>{{ "%.2f"|format(s.amount) }}</td><td>{{ s.sales_type }}</td><td>{{ s.notes or '—' }}</td></tr>{% endfor %}</table>
+<p style="font-weight:600;margin-top:10px;">My Total: {{ "%.2f"|format(my_total) }}</p>
+{% if branch_totals %}<h3>Branch Totals</h3>{% for br,tot in branch_totals.items() %}<p><strong>{{ br }}:</strong> {{ "%.2f"|format(tot) }}</p>{% endfor %}{% endif %}
+{% endif %}
+{% if history %}<h2>Recent (7 Days)</h2><table><tr><th>Date</th><th>Name</th><th>Amount</th><th>Type</th></tr>{% for s in history %}<tr><td>{{ s.date }}</td><td>{{ s.full_name }}</td><td>{{ "%.2f"|format(s.amount) }}</td><td>{{ s.sales_type }}</td></tr>{% endfor %}</table>{% endif %}
+{% endblock %}
