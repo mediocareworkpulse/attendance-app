@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Leave Application – {{ lv.full_name }}</title>
+    <style>
+        @media print {
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .no-print { display: none !important; }
+        }
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 30px; color: #222; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: #0d3b66; font-size: 24px; margin-bottom: 5px; }
+        .header .sub { color: #666; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ccc; padding: 10px 14px; text-align: left; font-size: 13px; }
+        th { background: #f5f5f5; font-weight: 600; width: 30%; }
+        .section-title { background: #0d3b66; color: #fff; padding: 8px 14px; font-weight: 700; margin: 25px 0 10px; border-radius: 4px; font-size: 14px; }
+        .signature-box { margin-top: 30px; display: flex; justify-content: space-between; }
+        .sig-line { border-top: 1px solid #000; width: 45%; padding-top: 10px; font-size: 13px; }
+        .btn { background: #0d3b66; color: #fff; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; text-decoration: none; display: inline-block; margin: 20px 0; }
+        .btn:hover { background: #0f4c7a; }
+        .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 80px; color: rgba(0,0,0,0.03); pointer-events: none; z-index: -1; }
+    </style>
+</head>
+<body>
+    <div class="watermark">{{ company }}</div>
+    <div class="no-print" style="text-align:right;">
+        <button class="btn" onclick="window.print()">🖨 Print / Save as PDF</button>
+    </div>
+
+    <div class="header">
+        <h1>{{ company }}</h1>
+        <p class="sub">Leave Application Form</p>
+    </div>
+
+    <div class="section-title">Employee Information</div>
+    <table>
+        <tr><th>Full Name</th><td>{{ lv.full_name }}</td></tr>
+        <tr><th>Department</th><td>{{ lv.department or '—' }}</td></tr>
+        <tr><th>Position / Role</th><td>{{ lv.position or lv.role }}</td></tr>
+        <tr><th>Date of Application</th><td>{{ lv.created_at[:10] if lv.created_at else '—' }}</td></tr>
+        <tr><th>Phone</th><td>{{ lv.phone or '—' }}</td></tr>
+        <tr><th>Email</th><td>{{ lv.email or '—' }}</td></tr>
+    </table>
+
+    <div class="section-title">Leave Details</div>
+    <table>
+        <tr><th>Type of Leave</th><td>{{ lv.leave_type or 'Annual Leave' }}</td></tr>
+        <tr><th>Start Date</th><td>{{ lv.leave_start or lv.leave_date }}</td></tr>
+        <tr><th>End Date</th><td>{{ lv.leave_end or lv.leave_date }}</td></tr>
+        <tr><th>Total Working Days</th><td>{{ lv.total_days or 1 }}</td></tr>
+        <tr><th>Remaining Balance</th><td>{{ lv.remaining_balance or '—' }}</td></tr>
+        <tr><th>Reason</th><td>{{ lv.reason }}</td></tr>
+    </table>
+
+    <div class="section-title">Handover & Backup</div>
+    <table>
+        <tr><th>Handover Notes</th><td>{{ lv.handover_notes or '—' }}</td></tr>
+        <tr><th>Backup Person</th><td>{{ lv.backup_person or '—' }}</td></tr>
+        <tr><th>Emergency Contact</th><td>{{ lv.emergency_contact or '—' }}</td></tr>
+    </table>
+
+    <div class="section-title">Approval Status</div>
+    <table>
+        <tr><th>Current Status</th><td><strong>{{ lv.status }}</strong></td></tr>
+        <tr><th>Approved By</th><td>{{ lv.approved_by or '—' }}</td></tr>
+    </table>
+
+    <div class="signature-box">
+        <div class="sig-line">Employee Signature</div>
+        <div class="sig-line">Supervisor / HR Signature</div>
+    </div>
+
+    <p style="text-align:center;margin-top:30px;font-size:12px;color:#999;">Generated on {{ lv.created_at }} – {{ company }}</p>
+</body>
+</html>
