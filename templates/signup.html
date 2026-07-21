@@ -3,30 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WorkPulse — Register</title>
+    <title>Mediocare Pharmaceutical Ltd — Register</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);padding:20px}
-        .box{background:#fff;padding:40px;width:480px;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.3)}
-        h2{font-size:24px;font-weight:700;color:#1a1a2e;margin-bottom:5px}
+        body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:linear-gradient(135deg,#0d3b66 0%,#1a5c8a 50%,#2a7faa 100%);padding:20px}
+        .box{background:#fff;padding:40px;width:500px;border-radius:16px;box-shadow:0 25px 80px rgba(0,0,0,.3)}
+        h2{font-size:22px;font-weight:700;color:#0d3b66;margin-bottom:5px}
         .sub{color:#999;font-size:13px;margin-bottom:25px}
         .err{padding:12px 15px;background:#fef0ef;border-left:4px solid #e74c3c;color:#c0392b;margin-bottom:15px;font-size:13px;border-radius:6px;font-weight:500}
-        .suc{padding:12px 15px;background:#edfaf2;border-left:4px solid #27ae60;color:#1e7e34;margin-bottom:15px;font-size:13px;border-radius:6px;font-weight:500}
+        .suc{padding:15px 18px;background:#edfaf2;border-left:4px solid #27ae60;color:#1e7e34;margin-bottom:15px;font-size:14px;border-radius:6px;font-weight:600;text-align:center}
         label{display:block;margin-bottom:4px;font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.3px}
         input,select{width:100%;border:1.5px solid #e0e0e0;padding:11px 14px;font-size:14px;border-radius:8px;margin-bottom:14px;transition:border-color .2s}
-        input:focus,select:focus{outline:none;border-color:#1a1a2e}
-        button{width:100%;padding:14px;background:#1a1a2e;color:#fff;border:none;font-size:15px;font-weight:700;border-radius:8px;cursor:pointer;letter-spacing:.3px;transition:all .2s}
-        button:hover{background:#2d2d4e;transform:translateY(-1px);box-shadow:0 8px 20px rgba(0,0,0,.15)}
+        input:focus,select:focus{outline:none;border-color:#0d3b66}
+        button{width:100%;padding:14px;background:#0d3b66;color:#fff;border:none;font-size:15px;font-weight:700;border-radius:8px;cursor:pointer;letter-spacing:.3px;transition:all .2s}
+        button:hover{background:#0f4c7a;transform:translateY(-1px);box-shadow:0 8px 20px rgba(0,0,0,.15)}
         .link{text-align:center;margin-top:18px;font-size:13px;color:#999}
-        .link a{color:#1a1a2e;text-decoration:none;font-weight:700}
+        .link a{color:#0d3b66;text-decoration:none;font-weight:700}
     </style>
 </head>
 <body>
     <div class="box">
-        <h2>Create Account</h2>
-        <p class="sub">Register and wait for admin approval</p>
+        <h2>💊 Mediocare Pharmaceutical Ltd</h2>
+        <p class="sub">Create your account — pending admin approval</p>
         {% if error %}<div class="err">{{ error }}</div>{% endif %}
-        {% if success %}<div class="suc">{{ success }}</div>{% endif %}
+        {% if success %}
+        <div class="suc">
+            ✅ {{ success }}<br>
+            <span style="font-weight:400;font-size:12px;">Welcome to Mediocare Pharmaceutical Ltd — Your account will be reviewed shortly.</span>
+        </div>
+        {% endif %}
         <form method="POST">
             <label>Full Name</label><input type="text" name="full_name" required placeholder="Your full name">
             <label>Phone Number</label><input type="text" name="phone" required placeholder="e.g. 0712345678">
