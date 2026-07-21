@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>My Profile</h1>
+<div style="background:#fff;padding:25px;border:1px solid #ddd;border-radius:4px;margin-bottom:20px;">
+    <p><strong>Name:</strong> {{ employee.full_name }}</p>
+    <p><strong>Department:</strong> {{ employee.department or '—' }}</p>
+    <p><strong>Branch:</strong> {{ employee.branch or '—' }}</p>
+    <p><strong>Role:</strong> <span class="badge badge-info">{{ employee.role|upper if employee.role else 'STAFF' }}</span></p>
+    <p><strong>Email:</strong> {{ employee.email or '—' }}</p>
+    <p><strong>Phone:</strong> {{ employee.phone or '—' }}</p>
+</div>
+<div class="stats"><div class="stat-box"><h3>Days Present (Month)</h3><p>{{ days_present }}</p></div><div class="stat-box"><h3>My Sales (Month)</h3><p style="font-size:28px;">{{ "%.2f"|format(total_my_sales) }}</p></div></div>
+<h2>Change Password</h2>
+<form method="POST"><div class="form-group"><label>New Password</label><input type="text" name="new_password" required></div><button type="submit">Update Password</button></form>
+{% endblock %}
