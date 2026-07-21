@@ -16,8 +16,13 @@ DEPARTMENTS = ['Staff','Store','Dispatch','Sales','Stock Control','Procurement',
 ROLES = ['staff','manager','admin','ceo']
 NO_CHECKIN_ROLES = ['admin','ceo']
 FULL_ACCESS_ROLES = ['admin','ceo']
-SALES_VIEW_ROLES = ['admin','ceo','manager','Stock Controller','Stock Assistant','Accountant','Accountant Assistant']
 COMPANY_NAME = 'Mediocare Pharmaceutical Ltd'
+
+# Roles that can SUBMIT sales
+SALES_SUBMIT_ROLES = ['staff','manager']
+
+# Roles that can VIEW all sales (but not submit)
+SALES_VIEW_ROLES = ['Stock Controller','Stock Assistant','Accountant','Accountant Assistant']
 
 def login_required(f):
     @wraps(f)
@@ -33,10 +38,11 @@ def admin_required(f):
         return f(*a,**k)
     return d
 
-def can_view_sales():
+def can_view_all():
+    """Check if user can view all data (admin, ceo, stock control, accounts)"""
     role = session.get('role','')
     dept = session.get('department','')
-    return role in ['admin','ceo','manager'] or dept in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant']
+    return role in FULL_ACCESS_ROLES or dept in SALES_VIEW_ROLES
 
 def get_branches():
     r = supabase.table('branches').select('*').order('name').execute()
@@ -48,7 +54,9 @@ def safe_data(r):
     if isinstance(r,dict): return r.get('data',[])
     return []
 
-# ─── LOGIN ───────────────────────────────────────────
+# ═══════════════════════════════════════════════════════
+# LOGIN
+# ═══════════════════════════════════════════════════════
 @app.route('/login', methods=['GET','POST'])
 def login():
     if request.method == 'POST':
@@ -75,7 +83,9 @@ def logout():
     session.clear()
     return redirect('/login')
 
-# ─── SIGNUP ──────────────────────────────────────────
+# ═══════════════════════════════════════════════════════
+# SIGNUP
+# ═══════════════════════════════════════════════════════
 @app.route('/signup', methods=['GET','POST'])
 def signup():
     if request.method == 'POST':
@@ -97,7 +107,9 @@ def signup():
             success='Registration submitted! Welcome to {} — Your account will be reviewed shortly.'.format(COMPANY_NAME))
     return render_template('signup.html', branches=get_branches(), departments=DEPARTMENTS)
 
-# ─── DASHBOARD ───────────────────────────────────────
+# ═══════════════════════════════════════════════════════
+# DASHBOARD
+# ═══════════════════════════════════════════════════════
 @app.route('/')
 @login_required
 def home():
@@ -106,7 +118,7 @@ def home():
     ub = session.get('branch','')
     un = session.get('user','')
 
-    if role in FULL_ACCESS_ROLES:
+    if can_view_all():
         emp_r = supabase.table('employees').select('*').eq('status','approved').execute()
         att_r = supabase.table('attendance').select('*').eq('date',today).execute()
         sales_r = supabase.table('sales').select('*').eq('date',today).execute()
@@ -114,10 +126,6 @@ def home():
         emp_r = supabase.table('employees').select('*').eq('branch',ub).eq('status','approved').execute()
         att_r = supabase.table('attendance').select('*').eq('date',today).eq('branch',ub).execute()
         sales_r = supabase.table('sales').select('*').eq('date',today).eq('branch',ub).execute()
-    elif can_view_sales():
-        emp_r = supabase.table('employees').select('*').eq('status','approved').execute()
-        att_r = supabase.table('attendance').select('*').eq('date',today).execute()
-        sales_r = supabase.table('sales').select('*').eq('date',today).execute()
     else:
         emp_r = None
         att_r = supabase.table('attendance').select('*').eq('date',today).eq('full_name',un).execute()
@@ -156,7 +164,9 @@ def home():
         total_sales=total_sales,recent_records=records,user_checked_in=uci,
         user_checked_out=uco,pending_count=pending,today=today,company=COMPANY_NAME)
 
-# ─── APPROVALS ───────────────────────────────────────
+# ═══════════════════════════════════════════════════════
+# APPROVALS
+# ═══════════════════════════════════════════════════════
 @app.route('/approvals')
 @login_required
 @admin_required
@@ -178,7 +188,9 @@ def reject(eid):
     supabase.table('employees').delete().eq('id',eid).execute()
     return redirect('/approvals')
 
-# ─── EMPLOYEES ───────────────────────────────────────
+# ═══════════════════════════════════════════════════════
+# EMPLOYEES
+# ═══════════════════════════════════════════════════════
 @app.route('/employees')
 @login_required
 @admin_required
@@ -217,7 +229,9 @@ def delete_employee(eid):
     supabase.table('employees').delete().eq('id',eid).execute()
     return redirect('/employees')
 
-# ─── BRANCHES ────────────────────────────────────────
+# ═══════════════════════════════════════════════════════
+# BRANCHES
+# ═══════════════════════════════════════════════════════
 @app.route('/branches')
 @login_required
 @admin_required
@@ -241,7 +255,9 @@ def delete_branch(bid):
     supabase.table('branches').delete().eq('id',bid).execute()
     return redirect('/branches')
 
-# ─── CHECK IN/OUT ────────────────────────────────────
+# ═══════════════════════════════════════════════════════
+# CHECK IN / OUT
+# ═══════════════════════════════════════════════════════
 @app.route('/check-in')
 @login_required
 def check_in_page():
@@ -249,7 +265,7 @@ def check_in_page():
     role = session.get('role')
     un = session.get('user')
     ub = session.get('branch','')
-    if role in FULL_ACCESS_ROLES or can_view_sales():
+    if can_view_all():
         r = supabase.table('attendance').select('*').eq('date',today).execute()
     elif role == 'manager':
         r = supabase.table('attendance').select('*').eq('date',today).eq('branch',ub).execute()
@@ -299,14 +315,16 @@ def process_attendance():
             return redirect('/check-in?success=2')
     return redirect('/check-in')
 
-# ─── ATTENDANCE HISTORY ──────────────────────────────
+# ═══════════════════════════════════════════════════════
+# ATTENDANCE HISTORY
+# ═══════════════════════════════════════════════════════
 @app.route('/attendance-history')
 @login_required
 def attendance_history():
     role = session.get('role'); un = session.get('user'); ub = session.get('branch','')
     period = request.args.get('period','month'); today = date.today()
     sd = str(today-timedelta(days=7)) if period=='week' else str(today.replace(day=1)); ed = str(today)
-    if role in FULL_ACCESS_ROLES or can_view_sales():
+    if can_view_all():
         r = supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).order('date',desc=True).execute()
     elif role == 'manager':
         r = supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).eq('branch',ub).order('date',desc=True).execute()
@@ -320,7 +338,9 @@ def attendance_history():
             'status':st,'label':{'present':'Present','late':'Arrived Late'}.get(st,st)})
     return render_template('attendance_history.html', records=records, period=period, today=str(today), company=COMPANY_NAME)
 
-# ─── SALES ───────────────────────────────────────────
+# ═══════════════════════════════════════════════════════
+# SALES
+# ═══════════════════════════════════════════════════════
 @app.route('/sales', methods=['GET','POST'])
 @login_required
 def sales_page():
@@ -329,9 +349,11 @@ def sales_page():
     ub = session.get('branch','')
     dept = session.get('department','')
     today = str(date.today())
-    period = request.args.get('period','today')
 
+    # POST: Only staff and manager can submit
     if request.method == 'POST':
+        if role not in SALES_SUBMIT_ROLES:
+            return redirect('/sales')
         try:
             mpesa = float(request.form.get('mpesa_sales','0') or 0)
             cash = float(request.form.get('cash_sales','0') or 0)
@@ -342,13 +364,11 @@ def sales_page():
             ed = safe_data(emp)
             if ed and total > 0:
                 if sales_type == 'branch_total' and role == 'manager':
-                    # Submit branch total
                     supabase.table('branch_sales').upsert({
                         'branch':ub,'date':today,'mpesa_sales':mpesa,'cash_sales':cash,
                         'total_sales':total,'submitted_by':un,'notes':notes
                     }).execute()
                 else:
-                    # Individual sale
                     supabase.table('sales').insert({
                         'full_name':un,'department':ed[0].get('department',''),
                         'branch':ed[0].get('branch',''),'date':today,
@@ -358,28 +378,20 @@ def sales_page():
         except: pass
         return redirect('/sales?success=1')
 
-    # Fetch sales based on role
-    if period == 'today':
-        sd = today; ed = today
-    elif period == 'week':
-        sd = str(date.today()-timedelta(days=7)); ed = today
-    else:
-        sd = str(date.today().replace(day=1)); ed = today
-
-    if role in FULL_ACCESS_ROLES or dept in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant']:
-        sales_r = supabase.table('sales').select('*').gte('date',sd).lte('date',ed).order('date',desc=True).execute()
-        branch_r = supabase.table('branch_sales').select('*').gte('date',sd).lte('date',ed).order('date',desc=True).execute()
+    # GET: Fetch sales based on role
+    if can_view_all():
+        sales_r = supabase.table('sales').select('*').eq('date',today).order('created_at',desc=True).execute()
+        branch_r = supabase.table('branch_sales').select('*').eq('date',today).order('created_at',desc=True).execute()
     elif role == 'manager':
-        sales_r = supabase.table('sales').select('*').gte('date',sd).lte('date',ed).eq('branch',ub).order('date',desc=True).execute()
-        branch_r = supabase.table('branch_sales').select('*').gte('date',sd).lte('date',ed).eq('branch',ub).order('date',desc=True).execute()
+        sales_r = supabase.table('sales').select('*').eq('date',today).eq('branch',ub).order('created_at',desc=True).execute()
+        branch_r = supabase.table('branch_sales').select('*').eq('date',today).eq('branch',ub).order('created_at',desc=True).execute()
     else:
-        sales_r = supabase.table('sales').select('*').gte('date',sd).lte('date',ed).eq('full_name',un).order('date',desc=True).execute()
-        branch_r = {'data':[]}
+        sales_r = supabase.table('sales').select('*').eq('date',today).eq('full_name',un).order('created_at',desc=True).execute()
+        branch_r = None
 
     sales_data = safe_data(sales_r)
-    branch_data = safe_data(branch_r)
+    branch_data = safe_data(branch_r) if branch_r else []
 
-    # Calculate totals
     total_mpesa = sum(float(s.get('mpesa_sales',0)) for s in sales_data)
     total_cash = sum(float(s.get('cash_sales',0)) for s in sales_data)
     total_all = total_mpesa + total_cash
@@ -395,10 +407,12 @@ def sales_page():
         sales=sales_data, branch_sales=branch_data,
         branch_totals=dict(branch_totals),
         total_mpesa=total_mpesa, total_cash=total_cash, total_all=total_all,
-        today=today, period=period, company=COMPANY_NAME,
+        today=today, company=COMPANY_NAME,
         success_msg=request.args.get('success',''))
 
-# ─── PROFILE ─────────────────────────────────────────
+# ═══════════════════════════════════════════════════════
+# PROFILE
+# ═══════════════════════════════════════════════════════
 @app.route('/profile', methods=['GET','POST'])
 @login_required
 def profile():
@@ -417,11 +431,14 @@ def profile():
     tms = sum(float(s.get('total_sales',0)) for s in safe_data(my))
     return render_template('profile.html', employee=ed, days_present=dp, total_my_sales=tms, success_msg=success_msg, company=COMPANY_NAME)
 
-# ─── REPORTS ─────────────────────────────────────────
+# ═══════════════════════════════════════════════════════
+# REPORTS
+# ═══════════════════════════════════════════════════════
 @app.route('/reports')
 @login_required
 def reports():
-    if not (session.get('role') in ['admin','ceo','manager'] or can_view_sales()): return redirect('/')
+    if not (session.get('role') in FULL_ACCESS_ROLES or session.get('role')=='manager' or can_view_all()):
+        return redirect('/')
     fd = request.args.get('from_date',str(date.today().replace(day=1)))
     td = request.args.get('to_date',str(date.today()))
     rt = request.args.get('type','attendance')
