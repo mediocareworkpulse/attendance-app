@@ -5,32 +5,31 @@
 
 <h2>Add New Employee</h2>
 <form method="POST" action="/employees/add">
-    <div style="display:flex;gap:15px;flex-wrap:wrap;">
-        <div class="form-group"><label>Employee ID</label><input type="text" name="employee_id" required placeholder="e.g., EMP001"></div>
+    <div style="display:flex;gap:15px;flex-wrap:wrap;align-items:end;">
         <div class="form-group"><label>Full Name</label><input type="text" name="full_name" required placeholder="e.g., John Doe"></div>
-        <div class="form-group"><label>Department</label><input type="text" name="department" placeholder="e.g., Sales"></div>
+        <div class="form-group"><label>Department</label><select name="department" required><option value="">Select Department</option>{% for d in departments %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
         <div class="form-group"><label>Branch</label><select name="branch"><option value="">Select Branch</option>{% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select></div>
+        <div class="form-group"><button type="submit">Add Employee</button></div>
     </div>
-    <button type="submit">Add Employee</button>
 </form>
 
 <h2>All Employees ({{ employees|length }})</h2>
 <form method="GET" style="margin-bottom:15px;">
-    <select name="branch" onchange="this.form.submit()"><option value="">All Branches</option>{% for b in branches %}<option value="{{ b }}" {% if current_branch==b %}selected{% endif %}>{{ b }}</option>{% endfor %}</select>
+    <select name="department" onchange="this.form.submit()"><option value="">All Departments</option>{% for d in departments %}<option value="{{ d }}" {% if current_department==d %}selected{% endif %}>{{ d }}</option>{% endfor %}</select>
 </form>
 {% if employees %}
 <table>
-    <tr><th>Employee ID</th><th>Full Name</th><th>Department</th><th>Branch</th><th>Added</th><th>Actions</th></tr>
+    <tr><th>#</th><th>Full Name</th><th>Department</th><th>Branch</th><th>Added</th><th>Actions</th></tr>
     {% for emp in employees %}
     <tr>
-        <td><strong>{{ emp.employee_id }}</strong></td>
-        <td>{{ emp.full_name }}</td>
+        <td>{{ loop.index }}</td>
+        <td><strong>{{ emp.full_name }}</strong></td>
         <td>{{ emp.department or '—' }}</td>
         <td>{{ emp.branch or '—' }}</td>
         <td>{{ emp.created_at[:10] if emp.created_at else '—' }}</td>
         <td>
-            <button onclick="openEdit('{{ emp.employee_id }}','{{ emp.full_name }}','{{ emp.department or '' }}','{{ emp.branch or '' }}')" class="btn-edit">Edit</button>
-            <form method="POST" action="/employees/delete/{{ emp.employee_id }}" class="inline-form" onsubmit="return confirm('Delete {{ emp.full_name }}?');"><button type="submit" class="btn-delete">Delete</button></form>
+            <button onclick="openEdit('{{ emp.id }}','{{ emp.full_name }}','{{ emp.department or '' }}','{{ emp.branch or '' }}')" class="btn-edit">Edit</button>
+            <form method="POST" action="/employees/delete/{{ emp.id }}" class="inline-form" onsubmit="return confirm('Delete {{ emp.full_name }}?');"><button type="submit" class="btn-delete">Delete</button></form>
         </td>
     </tr>
     {% endfor %}
@@ -38,11 +37,11 @@
 {% else %}<p>No employees added yet.</p>{% endif %}
 
 <div id="editModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;">
-    <div style="background:#fff;max-width:450px;margin:80px auto;padding:25px;">
+    <div style="background:#fff;max-width:450px;margin:80px auto;padding:25px;border-radius:5px;">
         <h3>Edit Employee</h3>
         <form method="POST" id="editForm">
             <div class="form-group"><label>Full Name</label><input type="text" name="full_name" id="editName" required></div>
-            <div class="form-group"><label>Department</label><input type="text" name="department" id="editDept"></div>
+            <div class="form-group"><label>Department</label><select name="department" id="editDept"><option value="">Select Department</option>{% for d in departments %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
             <div class="form-group"><label>Branch</label><select name="branch" id="editBranch"><option value="">Select Branch</option>{% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select></div>
             <div style="display:flex;gap:10px;"><button type="submit">Save Changes</button><button type="button" onclick="closeEdit()" style="background:#999;">Cancel</button></div>
         </form>
