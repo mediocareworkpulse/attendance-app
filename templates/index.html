@@ -1,28 +1,27 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Dashboard</h1>
-<p style="color:#888;margin-bottom:20px;">Attendance overview for today</p>
-
+<p style="color:#888;margin-bottom:25px;">Welcome, <strong>{{ session.get('user') }}</strong> | <span class="badge badge-info">{{ session.get('role')|upper }}</span> | Branch: {{ session.get('branch') or 'N/A' }}</p>
 <div class="stats">
-    <div class="stat-box"><h3>Total Employees</h3><p>{{ total_employees }}</p></div>
-    <div class="stat-box"><h3>Checked In Today</h3><p>{{ today_count }}</p></div>
-    <div class="stat-box"><h3>Not Checked In</h3><p>{{ absent_count }}</p></div>
+    <div class="stat-box"><h3>Team Members</h3><p>{{ total_employees }}</p></div>
+    <div class="stat-box"><h3>Present Today</h3><p>{{ present_count }}</p></div>
+    <div class="stat-box"><h3>Arrived Late</h3><p>{{ late_count }}</p></div>
+    <div class="stat-box"><h3>Days Worked (Month)</h3><p>{{ days_worked }}</p></div>
 </div>
-
-{% if today_records %}
-<h2>Today's Attendance</h2>
-<table>
-    <tr><th>Name</th><th>Department</th><th>Check In</th><th>Check Out</th><th>Location</th><th>Status</th></tr>
-    {% for record in today_records %}
-    <tr>
-        <td><strong>{{ record.full_name }}</strong></td>
-        <td>{{ record.department }}</td>
-        <td>{{ record.check_in or '—' }}</td>
-        <td>{{ record.check_out or '—' }}</td>
-        <td style="font-size:11px;">{{ record.check_in_location or '—' }}</td>
-        <td><span class="{{ record.status_class }}">{{ record.status_label }}</span></td>
-    </tr>
-    {% endfor %}
-</table>
+<div class="stats" style="margin-top:15px;">
+    <div class="stat-box"><h3>Sales Today</h3><p style="font-size:28px;">{{ "%.2f"|format(total_sales) }}</p></div>
+    {% if branch_total > 0 %}<div class="stat-box"><h3>Branch Sales</h3><p style="font-size:28px;">{{ "%.2f"|format(branch_total) }}</p></div>{% endif %}
+</div>
+{% if session.get('role') not in ['admin','ceo'] %}
+<div style="margin-top:20px;display:flex;gap:15px;">
+    {% if not user_checked_in %}<a href="/check-in" style="background:#27ae60;color:#fff;padding:12px 25px;text-decoration:none;border-radius:4px;font-weight:600;">Check In Now</a>
+    {% elif user_checked_in and not user_checked_out %}<a href="/check-in" style="background:#c0392b;color:#fff;padding:12px 25px;text-decoration:none;border-radius:4px;font-weight:600;">Check Out Now</a>
+    {% else %}<span style="padding:12px 25px;background:#e8f5e9;color:#155724;border-radius:4px;font-weight:600;">Completed for today</span>{% endif %}
+</div>
+{% endif %}
+{% if recent_records %}
+<h2>Recent Attendance</h2>
+<table><tr><th>Name</th><th>Department</th><th>Branch</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
+{% for r in recent_records %}<tr><td><strong>{{ r.full_name }}</strong></td><td>{{ r.department }}</td><td>{{ r.branch }}</td><td>{{ r.check_in }}</td><td>{{ r.check_out }}</td><td><span class="badge {{ r.status_class }}">{{ r.status_label }}</span></td></tr>{% endfor %}</table>
 {% endif %}
 {% endblock %}
