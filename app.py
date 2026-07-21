@@ -12,11 +12,9 @@ SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 DEPARTMENTS = ['Staff','Store','Dispatch','Sales','Stock Control','Procurement','Accounts Office','Operations','Branch Management']
-
-ROLES = ['Staff','Manager','Assistant Manager','Supervisor','Accountant','Cashier','Store Keeper','Dispatcher','Sales Person','Driver','IT Support','HR Officer','CEO']
-
-NO_CHECKIN_ROLES = ['CEO','HR Officer']
-FULL_ACCESS_ROLES = ['CEO','HR Officer','Manager']
+ROLES = ['staff','manager','admin','ceo']
+NO_CHECKIN_ROLES = ['admin','ceo']
+FULL_ACCESS_ROLES = ['admin','ceo']
 COMPANY_NAME = 'Mediocare Pharmaceutical Ltd'
 
 def login_required(f):
@@ -58,7 +56,7 @@ def login():
                 if status and status != 'approved':
                     return render_template('login.html', error='Account pending approval.')
                 session['user'] = emp['full_name']
-                session['role'] = emp.get('role','Staff')
+                session['role'] = emp.get('role','staff')
                 session['department'] = emp.get('department','')
                 session['branch'] = emp.get('branch','')
                 return redirect('/')
@@ -86,7 +84,7 @@ def signup():
             return render_template('signup.html', branches=get_branches(), departments=DEPARTMENTS, error='Name already exists.')
         supabase.table('employees').insert({
             'full_name':name,'phone':phone,'password':pw,
-            'department':dept,'branch':branch,'role':'Staff','status':'pending'
+            'department':dept,'branch':branch,'role':'staff','status':'pending'
         }).execute()
         return render_template('signup.html', branches=get_branches(), departments=DEPARTMENTS,
             success='Registration submitted! Welcome to {} — Your account will be reviewed shortly.'.format(COMPANY_NAME))
@@ -97,7 +95,7 @@ def signup():
 @login_required
 def home():
     today = str(date.today())
-    role = session.get('role','Staff')
+    role = session.get('role','staff')
     ub = session.get('branch','')
     un = session.get('user','')
 
@@ -105,7 +103,7 @@ def home():
         emp_r = supabase.table('employees').select('*').eq('status','approved').execute()
         att_r = supabase.table('attendance').select('*').eq('date',today).execute()
         sales_r = supabase.table('sales').select('*').eq('date',today).execute()
-    elif role == 'Manager':
+    elif role == 'manager':
         emp_r = supabase.table('employees').select('*').eq('branch',ub).eq('status','approved').execute()
         att_r = supabase.table('attendance').select('*').eq('date',today).eq('branch',ub).execute()
         sales_r = supabase.table('sales').select('*').eq('date',today).eq('branch',ub).execute()
@@ -175,7 +173,7 @@ def reject(eid):
 @admin_required
 def employees_page():
     r = supabase.table('employees').select('*').eq('status','approved').order('full_name').execute()
-    return render_template('employees.html', employees=safe_data(r), branches=get_branches(), departments=DEPARTMENTS, roles=ROLES)
+    return render_template('employees.html', employees=safe_data(r), branches=get_branches(), departments=DEPARTMENTS, roles=ROLES, company=COMPANY_NAME)
 
 @app.route('/employees/add', methods=['POST'])
 @login_required
@@ -185,7 +183,7 @@ def add_employee():
         'full_name':request.form.get('full_name','').strip(),
         'department':request.form.get('department','').strip(),
         'branch':request.form.get('branch','').strip(),
-        'role':request.form.get('role','Staff').strip(),
+        'role':request.form.get('role','staff').strip(),
         'password':request.form.get('password','1234').strip(),
         'status':'approved'
     }
@@ -214,7 +212,7 @@ def delete_employee(eid):
 @admin_required
 def branches_page():
     r = supabase.table('branches').select('*').order('name').execute()
-    return render_template('branches.html', branches=safe_data(r))
+    return render_template('branches.html', branches=safe_data(r), company=COMPANY_NAME)
 
 @app.route('/branches/add', methods=['POST'])
 @login_required
@@ -242,7 +240,7 @@ def check_in_page():
     ub = session.get('branch','')
     if role in FULL_ACCESS_ROLES:
         r = supabase.table('attendance').select('*').eq('date',today).execute()
-    elif role == 'Manager':
+    elif role == 'manager':
         r = supabase.table('attendance').select('*').eq('date',today).eq('branch',ub).execute()
     else:
         r = supabase.table('attendance').select('*').eq('date',today).eq('full_name',un).execute()
@@ -299,7 +297,7 @@ def attendance_history():
     sd = str(today-timedelta(days=7)) if period=='week' else str(today.replace(day=1)); ed = str(today)
     if role in FULL_ACCESS_ROLES:
         r = supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).order('date',desc=True).execute()
-    elif role == 'Manager':
+    elif role == 'manager':
         r = supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).eq('branch',ub).order('date',desc=True).execute()
     else:
         r = supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).eq('full_name',un).order('date',desc=True).execute()
@@ -332,7 +330,7 @@ def sales_page():
         except: pass
         return redirect('/sales?success=1')
     if role in FULL_ACCESS_ROLES: sr = supabase.table('sales').select('*').eq('date',today).execute()
-    elif role == 'Manager': sr = supabase.table('sales').select('*').eq('date',today).eq('branch',ub).execute()
+    elif role == 'manager': sr = supabase.table('sales').select('*').eq('date',today).eq('branch',ub).execute()
     else: sr = supabase.table('sales').select('*').eq('date',today).eq('full_name',un).execute()
     return render_template('sales.html', sales=safe_data(sr), today=today, success_msg=success_msg, company=COMPANY_NAME)
 
@@ -359,7 +357,7 @@ def profile():
 @app.route('/reports')
 @login_required
 def reports():
-    if session.get('role') not in FULL_ACCESS_ROLES + ['Manager']: return redirect('/')
+    if session.get('role') not in ['admin','ceo','manager']: return redirect('/')
     fd = request.args.get('from_date',str(date.today().replace(day=1)))
     td = request.args.get('to_date',str(date.today()))
     att = supabase.table('attendance').select('*').gte('date',fd).lte('date',td).order('date',desc=True).execute()
