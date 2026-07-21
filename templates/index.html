@@ -1,40 +1,68 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Dashboard</h1>
-<p style="color:#999;font-size:14px;margin-bottom:25px;">
-    Welcome, <strong style="color:#0d3b66;">{{ session.get('user') }}</strong>
-    <span class="badge badge-info" style="margin-left:8px;">{{ session.get('role')|upper }}</span>
-    {% if session.get('branch') %}<span style="margin-left:8px;color:#888;">· {{ session.get('branch') }}</span>{% endif %}
-</p>
+<h1 class="page-title">Dashboard</h1>
+<div class="welcome-text">
+    <span class="welcome-name">👋 Welcome, {{ session.get('user') }}</span>
+    <span class="welcome-badge">{{ session.get('role')|upper }}</span>
+    {% if session.get('branch') %}<span class="welcome-branch">📍 {{ session.get('branch') }}</span>{% endif %}
+</div>
 
 <div class="stats">
-    <div class="stat-box"><h3>Team Members</h3><p>{{ total_employees }}</p></div>
-    <div class="stat-box"><h3>Present Today</h3><p>{{ present_count }}</p></div>
-    <div class="stat-box"><h3>Arrived Late</h3><p>{{ late_count }}</p></div>
-    <div class="stat-box"><h3>Sales Today</h3><p style="font-size:24px;">Ksh {{ "%.0f"|format(total_sales) }}</p></div>
+    <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-label">Team Members</div>
+        <div class="stat-value">{{ total_employees }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">✅</div>
+        <div class="stat-label">Present Today</div>
+        <div class="stat-value">{{ present_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">⏰</div>
+        <div class="stat-label">Arrived Late</div>
+        <div class="stat-value">{{ late_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">💰</div>
+        <div class="stat-label">Sales Today</div>
+        <div class="stat-value" style="font-size:24px;">Ksh {{ "%.0f"|format(total_sales) }}</div>
+    </div>
 </div>
 
 {% if session.get('role') in ['admin','ceo'] and pending_count > 0 %}
-<div style="margin-top:20px;background:#fef0ef;padding:14px 18px;border-radius:8px;border-left:4px solid #e74c3c;font-weight:600;">
-    ⚠️ {{ pending_count }} pending approval(s) — <a href="/approvals" style="color:#c0392b;">Review now</a>
+<div class="alert alert-pending">
+    ⚠️ {{ pending_count }} employee(s) pending approval — <a href="/approvals" style="color:#c0392b;font-weight:700;">Review Now</a>
 </div>
 {% endif %}
 
 {% if session.get('role') not in ['admin','ceo'] %}
-<div style="margin-top:25px;display:flex;gap:12px;flex-wrap:wrap;">
+<div style="margin-top:20px;">
     {% if not user_checked_in %}
-    <a href="/check-in" class="btn-checkin">✅ Check In</a>
+    <a href="/check-in" class="checkin-btn btn-check-in">✅ Check In Now</a>
     {% elif not user_checked_out %}
-    <a href="/check-in" class="btn-checkout">🚪 Check Out</a>
+    <a href="/check-in" class="checkin-btn btn-check-out">🚪 Check Out Now</a>
     {% else %}
-    <span style="background:#d4f5e0;color:#1e7e34;padding:14px 24px;border-radius:10px;font-weight:700;font-size:14px;">✅ Shift Complete</span>
+    <div class="btn-done">✅ Shift Complete — Great work!</div>
     {% endif %}
 </div>
 {% endif %}
 
 {% if recent_records %}
-<h2>Today's Attendance</h2>
-<table><tr><th>Name</th><th>Department</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
-{% for r in recent_records %}<tr><td><strong>{{ r.full_name }}</strong></td><td>{{ r.department }}</td><td>{{ r.check_in }}</td><td>{{ r.check_out }}</td><td><span class="badge {% if r.status=='present' %}badge-success{% elif r.status=='late' %}badge-warning{% else %}badge-danger{% endif %}">{{ r.label }}</span></td></tr>{% endfor %}</table>
+<h2>Today's Attendance <span class="count">{{ recent_records|length }}</span></h2>
+<div class="table-container">
+<table>
+    <tr><th>Name</th><th>Department</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
+    {% for r in recent_records %}
+    <tr>
+        <td class="td-name">{{ r.full_name }}</td>
+        <td>{{ r.department }}</td>
+        <td>{{ r.check_in }}</td>
+        <td>{{ r.check_out }}</td>
+        <td><span class="badge {% if r.status=='present' %}badge-success{% elif r.status=='late' %}badge-warning{% else %}badge-danger{% endif %}">{{ r.label }}</span></td>
+    </tr>
+    {% endfor %}
+</table>
+</div>
 {% endif %}
 {% endblock %}
