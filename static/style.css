@@ -6,8 +6,17 @@ header{background:linear-gradient(135deg,#0d3b66 0%,#14527a 100%);padding:0 28px
 .brand{display:flex;align-items:center;gap:12px}
 .brand-icon{background:rgba(255,255,255,.15);width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px}
 .brand-info{display:flex;flex-direction:column}
-.brand-name{font-size:17px;font-weight:700;color:#fff;letter-spacing:-.3px;line-height:1.2}
-.brand-sub{font-size:11px;color:rgba(255,255,255,.7);font-weight:400;letter-spacing:.5px;text-transform:uppercase}
+.brand-name{
+    font-size:20px;
+    font-weight:800;
+    background:linear-gradient(135deg,#ffffff 0%,#c8e6ff 100%);
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+    background-clip:text;
+    letter-spacing:-.5px;
+    line-height:1.2;
+}
+.brand-sub{font-size:10px;color:rgba(255,255,255,.7);font-weight:500;letter-spacing:1px;text-transform:uppercase}
 .menu-toggle{display:none;background:rgba(255,255,255,.1);border:none;font-size:22px;cursor:pointer;color:#fff;padding:8px 12px;border-radius:8px;width:auto;box-shadow:none}
 nav{display:flex;gap:4px;align-items:center}
 nav a{color:rgba(255,255,255,.85);text-decoration:none;padding:8px 14px;font-size:13px;font-weight:500;border-radius:8px;transition:all .2s;white-space:nowrap}
@@ -96,7 +105,7 @@ label{display:block;margin-bottom:5px;font-size:11px;font-weight:700;color:#556;
 @media(max-width:768px){
     header{height:auto;min-height:60px;padding:12px 16px;flex-wrap:wrap}
     .brand-icon{width:36px;height:36px;font-size:18px}
-    .brand-name{font-size:14px}
+    .brand-name{font-size:16px}
     .brand-sub{font-size:10px}
     .menu-toggle{display:block}
     nav{display:none;width:100%;flex-direction:column;padding:8px 0;gap:2px;margin-top:8px}
