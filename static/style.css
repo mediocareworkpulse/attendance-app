@@ -1,41 +1,10 @@
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f0f2f5;color:#1a1a2e;line-height:1.6}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f2f5;color:#1a1a2e;line-height:1.6}
 header{background:#fff;border-bottom:1px solid #e0e0e0;padding:0 30px;display:flex;justify-content:space-between;align-items:center;height:60px;box-shadow:0 1px 3px rgba(0,0,0,.04);position:sticky;top:0;z-index:100}
-header h2{font-size:16px;font-weight:700;color:#0d3b66;letter-spacing:-.3px}
+header h2{font-size:16px;font-weight:700;color:#0d3b66}
 nav{display:flex;gap:5px}
 nav a{color:#555;text-decoration:none;padding:8px 14px;font-size:13px;font-weight:500;border-radius:6px;transition:all .15s}
 nav a:hover{background:#f0f2f5;color:#0d3b66}
 main{padding:30px;max-width:1100px;margin:0 auto}
-h1{font-size:24px;font-weight:700;color:#0d3b66;margin-bottom:8px;letter-spacing:-.5px}
-h2{font-size:16px;font-weight:600;color:#333;margin:28px 0 15px;padding-bottom:10px;border-bottom:2px solid #e8eaed}
-table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);margin-top:10px}
-th{background:#f8f9fb;font-weight:600;color:#555;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:14px 16px;text-align:left;border-bottom:2px solid #e8eaed}
-td{padding:14px 16px;font-size:13px;border-bottom:1px solid #f0f2f5;color:#333}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:#fafbfc}
-button,.btn{background:#0d3b66;color:#fff;border:none;padding:10px 22px;cursor:pointer;font-size:13px;font-weight:600;border-radius:8px;letter-spacing:.2px;transition:all .15s;text-decoration:none;display:inline-block}
-button:hover,.btn:hover{background:#0f4c7a;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
-.btn-delete{background:#fff;color:#e74c3c;border:1px solid #fce4e4;padding:6px 14px;font-size:12px}
-.btn-delete:hover{background:#e74c3c;color:#fff;border-color:#e74c3c}
-.btn-edit{background:#fff;color:#2980b9;border:1px solid #d4e6f9;padding:6px 14px;font-size:12px;margin-right:6px}
-.btn-edit:hover{background:#2980b9;color:#fff;border-color:#2980b9}
-input,select{border:1.5px solid #e0e0e0;padding:10px 14px;font-size:13px;width:100%;border-radius:8px;background:#fff;transition:border-color .15s}
-input:focus,select:focus{outline:none;border-color:#0d3b66}
-label{display:block;margin-bottom:5px;font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.3px}
-.form-group{margin-bottom:15px;min-width:180px}
-form.inline-form{display:inline}
-.message{padding:14px 18px;margin:15px 0;border-left:4px solid #0d3b66;background:#e8eaed;font-size:13px;border-radius:6px;font-weight:500}
-.error{border-left-color:#e74c3c;background:#fef0ef;color:#c0392b}
-.success{border-left-color:#27ae60;background:#edfaf2;color:#1e7e34}
-.stats{display:flex;gap:18px;margin-top:20px;flex-wrap:wrap}
-.stat-box{background:#fff;padding:24px 28px;border-radius:12px;flex:1;min-width:170px;box-shadow:0 1px 3px rgba(0,0,0,.04);transition:transform .15s}
-.stat-box:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,.06)}
-.stat-box h3{font-weight:500;color:#999;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
-.stat-box p{font-size:36px;font-weight:800;color:#0d3b66;letter-spacing:-1px}
-.badge{display:inline-block;padding:5px 12px;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;border-radius:20px}
-.badge-success{background:#d4f5e0;color:#1e7e34}
-.badge-warning{background:#fff3d6;color:#b45309}
-.badge-danger{background:#fde8e8;color:#c0392b}
-.badge-info{background:#dbeafe;color:#1e40af}
-.badge-secondary{background:#e8eaed;color:#555}
-@media(max-width:768px){header{flex-direction:column;height:auto;padding:15px;gap:10px}nav{flex-wrap:wrap;justify-content:center}nav a{padding:6px 10px;font-size:12px}.stats{flex-direction:column}main{padding:15px}}
+h1{font-size:24px;font-weight:700;color:#0d3b66;margin-bottom:8px}
+h
