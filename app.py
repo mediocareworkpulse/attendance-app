@@ -10,6 +10,22 @@ SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+STATUS_LABELS = {
+    'present': 'Present',
+    'late': 'Arrived Late',
+    'absent': 'Absent',
+    'half-day': 'Half Day',
+    'excused': 'Excused'
+}
+
+STATUS_CLASSES = {
+    'present': 'badge-success',
+    'late': 'badge-warning',
+    'absent': 'badge-danger',
+    'half-day': 'badge-info',
+    'excused': 'badge-secondary'
+}
+
 
 def get_branches():
     r = supabase.table('branches').select('*').order('name').execute()
@@ -36,10 +52,13 @@ def home():
         if r3.data:
             name = r3.data[0]['full_name']
             branch = r3.data[0].get('branch', '')
+        status = rec.get('status', 'present')
         today_records.append({
             'employee_id': rec['employee_id'], 'full_name': name, 'branch': branch,
             'check_in': rec.get('check_in', '—'), 'check_out': rec.get('check_out', '—'),
-            'status': rec.get('status', 'present'), 'check_in_location': rec.get('check_in_location', '—')
+            'status': status, 'status_label': STATUS_LABELS.get(status, status),
+            'status_class': STATUS_CLASSES.get(status, ''),
+            'check_in_location': rec.get('check_in_location', '—')
         })
 
     return render_template('index.html', total_employees=total_employees, today_count=today_count,
@@ -76,6 +95,19 @@ def add_employee():
         'employee_id': employee_id, 'full_name': full_name,
         'department': department, 'branch': branch
     }).execute()
+    return redirect(url_for('employees_page'))
+
+
+@app.route('/employees/edit/<employee_id>', methods=['POST'])
+def edit_employee(employee_id):
+    full_name = request.form.get('full_name', '').strip()
+    department = request.form.get('department', '').strip()
+    branch = request.form.get('branch', '').strip()
+
+    supabase.table('employees').update({
+        'full_name': full_name, 'department': department, 'branch': branch,
+        'updated_at': datetime.now().isoformat()
+    }).eq('employee_id', employee_id).execute()
     return redirect(url_for('employees_page'))
 
 
@@ -179,10 +211,12 @@ def build_records(records):
         if r.data:
             name = r.data[0]['full_name']
             branch = r.data[0].get('branch', '')
+        status = rec.get('status', 'present')
         result.append({
             'employee_id': rec['employee_id'], 'full_name': name, 'branch': branch,
             'check_in': rec.get('check_in', '—'), 'check_out': rec.get('check_out', '—'),
-            'status': rec.get('status', 'present'),
+            'status': status, 'status_label': STATUS_LABELS.get(status, status),
+            'status_class': STATUS_CLASSES.get(status, ''),
             'check_in_location': rec.get('check_in_location', '—'),
             'check_out_location': rec.get('check_out_location', '—')
         })
@@ -209,10 +243,12 @@ def reports():
                 emp_branch = r2.data[0].get('branch', '')
             if branch_filter and emp_branch != branch_filter:
                 continue
+            status = rec.get('status', 'present')
             records.append({
                 'date': rec['date'], 'employee_id': rec['employee_id'], 'full_name': name, 'branch': emp_branch,
                 'check_in': rec.get('check_in', '—'), 'check_out': rec.get('check_out', '—'),
-                'status': rec.get('status', 'present'),
+                'status': status, 'status_label': STATUS_LABELS.get(status, status),
+                'status_class': STATUS_CLASSES.get(status, ''),
                 'check_in_location': rec.get('check_in_location', '—'),
                 'check_out_location': rec.get('check_out_location', '—')
             })
