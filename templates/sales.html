@@ -5,6 +5,7 @@
 
 {% if success_msg %}<div class="message success">✅ Sale submitted successfully! Thank you for your contribution.</div>{% endif %}
 
+{% if session.get('role') in ['staff','manager'] %}
 <h2>Submit Sale</h2>
 <form method="POST">
     <div style="display:flex;gap:15px;align-items:end;flex-wrap:wrap;">
@@ -16,6 +17,7 @@
     </div>
     <p style="font-size:12px;color:#888;margin-top:5px;">Total = M-Pesa + Cash (calculated automatically)</p>
 </form>
+{% endif %}
 
 {% if sales %}
 <h2>Individual Sales</h2>
