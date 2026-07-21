@@ -3,8 +3,8 @@
 <h1>Check In / Check Out</h1>
 {% if message %}<div class="message {{ message_type }}">{{ message }}</div>{% endif %}
 
-<div id="location-status" style="padding:10px;margin-bottom:15px;background:#fff;border:1px solid #ddd;font-size:13px;">
-    📍 Detecting location...
+<div id="location-status" style="padding:10px 15px;margin-bottom:15px;background:#fff;border:1px solid #ddd;font-size:13px;border-radius:3px;">
+    Detecting location...
 </div>
 
 <h2>Record Attendance</h2>
@@ -12,23 +12,25 @@
     <input type="hidden" name="lat" id="lat">
     <input type="hidden" name="lng" id="lng">
     <input type="hidden" name="location" id="location">
-    <div class="form-group"><label>Employee ID</label><input type="text" name="employee_id" required placeholder="Enter Employee ID" autofocus></div>
-    <div style="display: flex; gap: 10px;"><button type="submit" name="action" value="check_in">Check In</button><button type="submit" name="action" value="check_out">Check Out</button></div>
+    <div class="form-group"><label>Employee Name</label><input type="text" name="full_name" required placeholder="Enter full name" autofocus style="font-size:16px;padding:12px;"></div>
+    <div style="display: flex; gap: 10px;">
+        <button type="submit" name="action" value="check_in" style="font-size:15px;padding:12px 30px;">Check In</button>
+        <button type="submit" name="action" value="check_out" style="font-size:15px;padding:12px 30px;background:#555;">Check Out</button>
+    </div>
 </form>
 
 {% if today_records %}
 <h2>Today's Records</h2>
 <table>
-    <tr><th>Employee ID</th><th>Name</th><th>Branch</th><th>Check In</th><th>Location</th><th>Check Out</th><th>Status</th></tr>
+    <tr><th>Name</th><th>Department</th><th>Check In</th><th>Location</th><th>Check Out</th><th>Status</th></tr>
     {% for record in today_records %}
     <tr>
-        <td>{{ record.employee_id }}</td>
-        <td>{{ record.full_name }}</td>
-        <td>{{ record.branch or '—' }}</td>
+        <td><strong>{{ record.full_name }}</strong></td>
+        <td>{{ record.department }}</td>
         <td>{{ record.check_in or '—' }}</td>
         <td style="font-size:11px;">{{ record.check_in_location or '—' }}</td>
         <td>{{ record.check_out or '—' }}</td>
-        <td>{{ record.status }}</td>
+        <td><span class="{{ record.status_class }}">{{ record.status_label }}</span></td>
     </tr>
     {% endfor %}
 </table>
@@ -39,41 +41,27 @@ const statusDiv = document.getElementById('location-status');
 const latInput = document.getElementById('lat');
 const lngInput = document.getElementById('lng');
 const locInput = document.getElementById('location');
-
-function getLocation() {
-    if (navigator.geolocation) {
-        statusDiv.textContent = '📍 Getting your location...';
-        navigator.geolocation.getCurrentPosition(
-            function(position) {
-                const lat = position.coords.latitude;
-                const lng = position.coords.longitude;
-                latInput.value = lat;
-                lngInput.value = lng;
-                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-                    .then(r => r.json())
-                    .then(data => {
-                        const address = data.display_name || `${lat}, ${lng}`;
-                        locInput.value = address;
-                        statusDiv.innerHTML = '✅ Location: ' + address.substring(0, 80) + '...';
-                        statusDiv.style.background = '#e8f5e9';
-                    })
-                    .catch(() => {
-                        locInput.value = `${lat}, ${lng}`;
-                        statusDiv.innerHTML = `✅ Coordinates: ${lat}, ${lng}`;
-                        statusDiv.style.background = '#e8f5e9';
-                    });
-            },
-            function(error) {
-                statusDiv.textContent = '⚠️ Location access denied. Check-in will work but without location.';
-                statusDiv.style.background = '#fff3cd';
-            }
-        );
-    } else {
-        statusDiv.textContent = '⚠️ Geolocation not supported by this browser.';
-        statusDiv.style.background = '#fff3cd';
+function getLocation(){
+    if(navigator.geolocation){
+        statusDiv.textContent='Getting your location...';
+        navigator.geolocation.getCurrentPosition(function(pos){
+            latInput.value=pos.coords.latitude;lngInput.value=pos.coords.longitude;
+            fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+pos.coords.latitude+'&lon='+pos.coords.longitude)
+            .then(r=>r.json()).then(data=>{
+                locInput.value=data.display_name||pos.coords.latitude+','+pos.coords.longitude;
+                statusDiv.innerHTML='Location captured successfully';
+                statusDiv.style.background='#e8f5e9';
+            }).catch(()=>{
+                locInput.value=pos.coords.latitude+','+pos.coords.longitude;
+                statusDiv.innerHTML='Location captured (coordinates)';
+                statusDiv.style.background='#e8f5e9';
+            });
+        },function(err){
+            statusDiv.textContent='Location unavailable – check-in will proceed without location';
+            statusDiv.style.background='#fff3cd';
+        });
     }
 }
-
 getLocation();
 </script>
 {% endblock %}
