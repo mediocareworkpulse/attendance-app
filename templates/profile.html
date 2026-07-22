@@ -1,15 +1,25 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>My Profile</h1>
-<div style="background:#fff;padding:25px;border:1px solid #ddd;border-radius:4px;margin-bottom:20px;">
-    <p><strong>Name:</strong> {{ employee.full_name }}</p>
+<h1 class="page-title">My Profile</h1>
+<p class="page-subtitle">{{ company }}</p>
+
+<div class="stat-card" style="max-width:500px;margin-bottom:20px;">
+    <div class="stat-icon">👤</div>
+    <div class="stat-label">Name</div>
+    <div class="stat-value" style="font-size:20px;">{{ employee.full_name }}</div>
     <p><strong>Department:</strong> {{ employee.department or '—' }}</p>
     <p><strong>Branch:</strong> {{ employee.branch or '—' }}</p>
-    <p><strong>Role:</strong> <span class="badge badge-info">{{ employee.role|upper if employee.role else 'STAFF' }}</span></p>
-    <p><strong>Email:</strong> {{ employee.email or '—' }}</p>
-    <p><strong>Phone:</strong> {{ employee.phone or '—' }}</p>
+    <p><strong>Role:</strong> <span class="badge badge-info">{{ employee.role }}</span></p>
+    <p><strong>Shift Start:</strong> {{ employee.shift_start or '08:00' }} | <strong>Shift End:</strong> {{ employee.shift_end or '17:00' }}</p>
+    <p><strong>Days Present (this month):</strong> {{ days_present }}</p>
+    <p><strong>My Sales (this month):</strong> Ksh {{ "%.2f"|format(total_my_sales) }}</p>
 </div>
-<div class="stats"><div class="stat-box"><h3>Days Present (Month)</h3><p>{{ days_present }}</p></div><div class="stat-box"><h3>My Sales (Month)</h3><p style="font-size:28px;">{{ "%.2f"|format(total_my_sales) }}</p></div></div>
+
+{% if success_msg %}<div class="alert alert-success">{{ success_msg }}</div>{% endif %}
+
 <h2>Change Password</h2>
-<form method="POST"><div class="form-group"><label>New Password</label><input type="text" name="new_password" required></div><button type="submit">Update Password</button></form>
+<form method="POST" class="form-card" style="max-width:400px;">
+    <div class="form-group"><label>New Password</label><input type="text" name="new_password" required></div>
+    <button type="submit" class="btn">Update Password</button>
+</form>
 {% endblock %}
