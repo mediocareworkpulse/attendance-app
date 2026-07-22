@@ -4,14 +4,14 @@
 <p class="page-subtitle">{{ company }}</p>
 
 {% if session.get('role') not in ['admin','ceo'] %}
-<div id="ls" style="padding:12px 16px;margin-bottom:20px;background:#fff;border:1px solid #dde1e6;font-size:13px;border-radius:10px;display:flex;align-items:center;gap:8px;">
+<div id="ls" style="padding:12px 16px;margin-bottom:20px;background:#fff;border:1px solid var(--border);font-size:13px;border-radius:10px;display:flex;align-items:center;gap:8px;">
     <span>📍</span> <span id="ls-text">Location (optional) – detecting…</span>
 </div>
 
 {% if user_status=='none' %}
 <div class="checkin-container">
-    <div style="font-size:48px;margin-bottom:12px;">🌅</div>
-    <div class="checkin-title">Good Morning!</div>
+    <div style="font-size:48px;margin-bottom:12px;" id="greeting-icon">🌅</div>
+    <div class="checkin-title" id="greeting-text">Good Morning!</div>
     <div class="checkin-subtitle">Tap below to start your shift</div>
     <form method="POST" action="/check-in" id="af">
         <input type="hidden" name="lat" id="lat"><input type="hidden" name="lng" id="lng"><input type="hidden" name="location" id="loc">
@@ -71,6 +71,19 @@
 {% endif %}
 
 <script>
+// Dynamic greeting based on actual time
+function setGreeting() {
+    const now = new Date();
+    const hours = now.getHours();
+    let icon = '🌅', text = 'Good Morning!';
+    if (hours >= 12 && hours < 17) { icon = '☀️'; text = 'Good Afternoon!'; }
+    else if (hours >= 17) { icon = '🌆'; text = 'Good Evening!'; }
+    document.getElementById('greeting-icon').textContent = icon;
+    document.getElementById('greeting-text').textContent = text;
+}
+setGreeting();
+
+// Location capture
 var d=document.getElementById('ls-text'),la=document.getElementById('lat'),lo=document.getElementById('lng'),lc=document.getElementById('loc');
 if(d&&navigator.geolocation){
     navigator.geolocation.getCurrentPosition(function(p){
@@ -85,7 +98,7 @@ if(d&&navigator.geolocation){
     },{timeout:5000,enableHighAccuracy:false});
 } else if(d){d.innerHTML='⚠️ Location not supported by browser (optional)';d.parentElement.style.background='#fff3d6';d.parentElement.style.color='#b45309';}
 
-// Live timer
+// Live timer (unchanged)
 {% if user_status=='checked_in' and check_in_time %}
 (function(){
     var parts = "{{ check_in_time }}".split(':');
