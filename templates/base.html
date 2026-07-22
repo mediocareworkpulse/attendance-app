@@ -40,7 +40,9 @@
         </nav>
     </header>
     {% endif %}
-    <main>{% block content %}{% endblock %}</main>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
     <script>
         function toggleMenu(){document.getElementById('mainNav').classList.toggle('show');}
         document.addEventListener('click',function(e){if(!e.target.closest('header')){document.getElementById('mainNav').classList.remove('show');}});
