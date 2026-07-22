@@ -224,6 +224,25 @@ def delete_employee(eid):
     supabase.table('employees').delete().eq('id',eid).execute()
     return redirect('/employees')
 
+@app.route('/employees/edit/<int:eid>', methods=['POST'])
+@login_required
+@admin_required
+def edit_employee(eid):
+    data = {
+        'full_name': request.form.get('full_name','').strip(),
+        'department': request.form.get('department','').strip(),
+        'branch': request.form.get('branch','').strip(),
+        'role': request.form.get('role','Staff').strip(),
+        'password': request.form.get('password','1234').strip(),
+        'shift_start': request.form.get('shift_start','08:00').strip(),
+        'shift_end': request.form.get('shift_end','17:00').strip(),
+        'updated_at': now_eat().isoformat()
+    }
+    if not data['full_name']:
+        return redirect('/employees')
+    supabase.table('employees').update(data).eq('id', eid).execute()
+    return redirect('/employees')
+
 # ═══════════════ BRANCHES ═══════════════
 @app.route('/branches')
 @login_required
@@ -308,7 +327,6 @@ def process_attendance():
 
     if action == 'check_in':
         if exd and exd[0].get('check_in'): return redirect('/check-in')
-        # Determine shift start: employee > branch > default 09:00
         shift_start_time = emp[0].get('shift_start')
         if not shift_start_time and branch:
             br = supabase.table('branches').select('shift_start').eq('name',branch).execute()
@@ -326,6 +344,44 @@ def process_attendance():
     elif action == 'check_out':
         if exd and exd[0].get('check_in') and not exd[0].get('check_out'):
             supabase.table('attendance').update({'check_out':now}).eq('full_name',un).eq('date',today).execute()
+    return redirect('/check-in')
+
+@app.route('/manual-attendance', methods=['POST'])
+@login_required
+def manual_attendance():
+    if session.get('role') in NO_CHECKIN_ROLES: return redirect('/')
+    un = session.get('user')
+    action = request.form.get('action')
+    manual_time = request.form.get('manual_time','')
+    today = str(now_eat().date())
+    if not manual_time: return redirect('/check-in')
+
+    now = manual_time + ':00'
+
+    emp = safe_data(supabase.table('employees').select('department,branch,shift_start,shift_end').eq('full_name',un).execute())
+    if not emp: return redirect('/check-in')
+    dept = emp[0].get('department','')
+    branch = emp[0].get('branch','')
+    exd = safe_data(supabase.table('attendance').select('*').eq('full_name',un).eq('date',today).execute())
+
+    if action == 'check_in':
+        if exd and exd[0].get('check_in'): return redirect('/check-in')
+        shift_start_time = emp[0].get('shift_start')
+        if not shift_start_time and branch:
+            br = supabase.table('branches').select('shift_start').eq('name',branch).execute()
+            if br.data: shift_start_time = str(br.data[0].get('shift_start','09:00'))
+        if not shift_start_time: shift_start_time = '09:00'
+        status = 'late'
+        if now <= str(shift_start_time): status = 'present'
+
+        d = {'check_in':now,'status':status,'check_in_lat':'','check_in_lng':'','check_in_location':'Manual entry'}
+        if exd: supabase.table('attendance').update(d).eq('full_name',un).eq('date',today).execute()
+        else:
+            d.update({'full_name':un,'department':dept,'branch':branch,'date':today})
+            supabase.table('attendance').insert(d).execute()
+    elif action == 'check_out':
+        if exd and exd[0].get('check_in') and not exd[0].get('check_out'):
+            supabase.table('attendance').update({'check_out':now,'check_out_location':'Manual entry'}).eq('full_name',un).eq('date',today).execute()
     return redirect('/check-in')
 
 # ═══════════════ ATTENDANCE HISTORY ═══════════════
@@ -387,8 +443,10 @@ def sales_page():
 def profile():
     un=session.get('user'); sm=''
     if request.method=='POST':
-        np=request.form.get('new_password','').strip()
-        if np: supabase.table('employees').update({'password':np}).eq('full_name',un).execute(); sm='Password updated!'
+        np = request.form.get('new_password','').strip()
+        if np:
+            supabase.table('employees').update({'password':np}).eq('full_name',un).execute()
+            sm = 'Password updated!'
     emp=safe_data(supabase.table('employees').select('*').eq('full_name',un).execute())
     ed=emp[0] if emp else {}
     today=now_eat().date(); ms=today.replace(day=1)
