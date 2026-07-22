@@ -57,33 +57,35 @@ def can_view_all():
     role = session.get('role','')
     return role in SALES_VIEW_ROLES
 
-def get_branches():
-    return execute_query(supabase.table('branches').select('*').order('name'))
-
-def get_branch_names():
-    return [b['name'] for b in get_branches()]
-
-def safe_data(r):
-    """Extract data from Supabase response or dict, already handled by execute_query."""
-    if hasattr(r,'data'): return r.data if r.data else []
-    if isinstance(r,dict): return r.get('data',[])
-    return []
-
-def now_eat():
-    return datetime.now(EAT)
-
-# ═══════════════ RETRY WRAPPER ═══════════════
+# ═══════════════ RETRY & SAFE DATA ═══════════════
 def execute_query(builder, max_retries=2):
-    """Execute a Supabase query builder, retry on failure, return raw data."""
+    """Execute a Supabase query builder, retry on failure, return raw response."""
     for attempt in range(max_retries + 1):
         try:
-            res = builder.execute()
-            # Return the raw response; safe_data will extract .data if needed.
-            return res
+            return builder.execute()
         except Exception as e:
             if attempt == max_retries:
                 raise e
             time.sleep(1)
+
+def safe_data(r):
+    """Extract data list from Supabase response or dict."""
+    if hasattr(r, 'data'):
+        return r.data if r.data else []
+    if isinstance(r, dict):
+        return r.get('data', [])
+    return []
+
+def get_branches():
+    """Return list of branch dicts (e.g., [{'name':'Ahero','id':1},...])"""
+    res = execute_query(supabase.table('branches').select('*').order('name'))
+    return safe_data(res)
+
+def get_branch_names():
+    return [b['name'] for b in get_branches()]
+
+def now_eat():
+    return datetime.now(EAT)
 
 # ═══════════════ LOGIN ═══════════════
 @app.route('/login', methods=['GET','POST'])
@@ -111,7 +113,6 @@ def logout():
     session.clear()
     return redirect('/login')
 
-# ═══════════════ KEEP ALIVE ═══════════════
 @app.route('/keep-alive')
 def keep_alive():
     return 'OK', 200
@@ -193,7 +194,7 @@ def home():
 
     return render_template('index.html',total_employees=total_emp,present_count=present,late_count=late,total_sales=total_sales,recent_records=records,user_checked_in=uci,user_checked_out=uco,pending_count=pending,company=COMPANY_NAME)
 
-# ═══════════════ APPROVALS (Admin) ═══════════════
+# ═══════════════ APPROVALS ═══════════════
 @app.route('/approvals')
 @login_required
 @admin_required
@@ -270,7 +271,7 @@ def edit_employee(eid):
 @login_required
 @admin_required
 def branches_page():
-    branches = get_branches()   # already using execute_query
+    branches = get_branches()
     return render_template('branches.html', branches=branches, company=COMPANY_NAME)
 
 @app.route('/branches/add', methods=['POST'])
@@ -312,7 +313,8 @@ def check_in_page():
     branch_info = {}
     if ub:
         br = execute_query(supabase.table('branches').select('*').eq('name',ub))
-        if br.data: branch_info = br.data[0]
+        brd = safe_data(br)
+        if brd: branch_info = brd[0]
 
     if role in FULL_ACCESS_ROLES or can_view_all():
         r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50)))
@@ -357,7 +359,8 @@ def process_attendance():
         shift_start_time = emp[0].get('shift_start')
         if not shift_start_time and branch:
             br = execute_query(supabase.table('branches').select('shift_start').eq('name',branch))
-            if br.data: shift_start_time = str(br.data[0].get('shift_start','09:00'))
+            brd = safe_data(br)
+            if brd: shift_start_time = str(brd[0].get('shift_start','09:00'))
         if not shift_start_time: shift_start_time = '09:00'
         status = 'late'
         if now <= str(shift_start_time): status = 'present'
@@ -394,7 +397,8 @@ def manual_attendance():
         shift_start_time = emp[0].get('shift_start')
         if not shift_start_time and branch:
             br = execute_query(supabase.table('branches').select('shift_start').eq('name',branch))
-            if br.data: shift_start_time = str(br.data[0].get('shift_start','09:00'))
+            brd = safe_data(br)
+            if brd: shift_start_time = str(brd[0].get('shift_start','09:00'))
         if not shift_start_time: shift_start_time = '09:00'
         status = 'late'
         if now <= str(shift_start_time): status = 'present'
