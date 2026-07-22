@@ -23,6 +23,8 @@
         button[type="submit"]:hover{background:#0f4c7a;transform:translateY(-1px)}
         .link{text-align:center;margin-top:18px;font-size:13px;color:#999}
         .link a{color:#0d3b66;text-decoration:none;font-weight:700}
+        .row{display:flex;gap:10px}
+        .row .field{flex:1}
     </style>
 </head>
 <body>
@@ -55,6 +57,17 @@
                 <option value="">Select Role</option>
                 {% for r in roles %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
             </select>
+
+            <div class="row">
+                <div class="field">
+                    <label>Shift Start</label>
+                    <input type="time" name="shift_start" value="08:00" required>
+                </div>
+                <div class="field">
+                    <label>Shift End</label>
+                    <input type="time" name="shift_end" value="17:00" required>
+                </div>
+            </div>
 
             <label>Password</label>
             <div class="input-group">
