@@ -10,42 +10,34 @@
 
 {% if user_status=='none' %}
 <div class="checkin-container">
-    <div style="font-size:48px;margin-bottom:12px;" id="greeting-icon">🌅</div>
+    <div class="checkin-greeting-icon" id="greeting-icon">🌅</div>
     <div class="checkin-title" id="greeting-text">Good Morning!</div>
     <div class="checkin-subtitle">Tap below to start your shift</div>
     <form method="POST" action="/check-in" id="af">
         <input type="hidden" name="lat" id="lat"><input type="hidden" name="lng" id="lng"><input type="hidden" name="location" id="loc">
-        <button type="submit" name="action" value="check_in" class="checkin-btn btn-check-in">✅ Check In Now</button>
-    </form>
-    <hr style="margin:30px 0;border-color:#eee;">
-    <p style="color:#888;font-size:13px;margin-bottom:10px;">Or enter check‑in time manually</p>
-    <form method="POST" action="/manual-attendance">
-        <input type="hidden" name="action" value="check_in">
-        <div class="form-group" style="display:inline-block;"><input type="time" name="manual_time" value="08:00" required></div>
-        <button type="submit" class="btn" style="background:#555;">✍️ Manual Check In</button>
+        <button type="submit" name="action" value="check_in" class="checkin-btn btn-check-in">
+            <span class="btn-text">Check In Now</span>
+            <span class="btn-icon">✅</span>
+        </button>
     </form>
 </div>
 {% elif user_status=='checked_in' %}
 <div class="checkin-container">
-    <div style="font-size:48px;margin-bottom:12px;">⏳</div>
+    <div class="checkin-greeting-icon">⏳</div>
     <div class="checkin-title">You're Clocked In</div>
     <div class="checkin-subtitle" id="timer-display">Calculating…</div>
     <div id="remaining-display" style="font-size:14px;color:#666;margin-bottom:20px;"></div>
     <form method="POST" action="/check-in" id="af">
         <input type="hidden" name="lat" id="lat"><input type="hidden" name="lng" id="lng"><input type="hidden" name="location" id="loc">
-        <button type="submit" name="action" value="check_out" class="checkin-btn btn-check-out">🚪 Check Out Now</button>
-    </form>
-    <hr style="margin:30px 0;border-color:#eee;">
-    <p style="color:#888;font-size:13px;margin-bottom:10px;">Or enter check‑out time manually</p>
-    <form method="POST" action="/manual-attendance">
-        <input type="hidden" name="action" value="check_out">
-        <div class="form-group" style="display:inline-block;"><input type="time" name="manual_time" value="17:00" required></div>
-        <button type="submit" class="btn" style="background:#555;">✍️ Manual Check Out</button>
+        <button type="submit" name="action" value="check_out" class="checkin-btn btn-check-out">
+            <span class="btn-text">Check Out Now</span>
+            <span class="btn-icon">🚪</span>
+        </button>
     </form>
 </div>
 {% else %}
 <div class="checkin-container" style="background:#d4f5e0;box-shadow:none;">
-    <div style="font-size:48px;margin-bottom:12px;">🎉</div>
+    <div class="checkin-greeting-icon">🎉</div>
     <div class="checkin-title" style="color:#1e7e34;">Shift Complete!</div>
     <div class="checkin-subtitle" style="color:#1e7e34;">Great work today at Mediocare</div>
 </div>
@@ -71,34 +63,29 @@
 {% endif %}
 
 <script>
-// Dynamic greeting based on actual time
-function setGreeting() {
-    const now = new Date();
-    const hours = now.getHours();
+// Dynamic greeting
+(function() {
+    const hour = new Date().getHours();
     let icon = '🌅', text = 'Good Morning!';
-    if (hours >= 12 && hours < 17) { icon = '☀️'; text = 'Good Afternoon!'; }
-    else if (hours >= 17) { icon = '🌆'; text = 'Good Evening!'; }
+    if (hour >= 12 && hour < 17) { icon = '☀️'; text = 'Good Afternoon!'; }
+    else if (hour >= 17) { icon = '🌆'; text = 'Good Evening!'; }
     document.getElementById('greeting-icon').textContent = icon;
     document.getElementById('greeting-text').textContent = text;
-}
-setGreeting();
+})();
 
-// Location capture
+// Location (optional)
 var d=document.getElementById('ls-text'),la=document.getElementById('lat'),lo=document.getElementById('lng'),lc=document.getElementById('loc');
 if(d&&navigator.geolocation){
     navigator.geolocation.getCurrentPosition(function(p){
         la.value=p.coords.latitude;lo.value=p.coords.longitude;lc.value=p.coords.latitude+','+p.coords.longitude;
         d.innerHTML='✅ Location captured';d.parentElement.style.background='#d4f5e0';d.parentElement.style.color='#1e7e34';
     },function(err){
-        var msg='⚠️ Location unavailable – continuing without GPS (optional)';
-        if(err.code===1)msg='⚠️ Location permission denied – continuing (optional)';
-        else if(err.code===2)msg='⚠️ Location signal lost – continuing (optional)';
-        else if(err.code===3)msg='⚠️ Location timed out – continuing (optional)';
-        d.innerHTML=msg;d.parentElement.style.background='#fff3d6';d.parentElement.style.color='#b45309';
+        d.innerHTML='⚠️ Location unavailable – continuing without GPS';
+        d.parentElement.style.background='#fff3d6';d.parentElement.style.color='#b45309';
     },{timeout:5000,enableHighAccuracy:false});
-} else if(d){d.innerHTML='⚠️ Location not supported by browser (optional)';d.parentElement.style.background='#fff3d6';d.parentElement.style.color='#b45309';}
+}
 
-// Live timer (unchanged)
+// Live timer
 {% if user_status=='checked_in' and check_in_time %}
 (function(){
     var parts = "{{ check_in_time }}".split(':');
@@ -120,9 +107,9 @@ if(d&&navigator.geolocation){
             var rem = shiftEnd - now;
             if(rem>0){
                 var rh = Math.floor(rem/3600000), rm = Math.floor((rem%3600000)/60000);
-                document.getElementById('remaining-display').textContent = '⏰ Remaining: '+rh+'h '+rm+'m until shift end';
+                document.getElementById('remaining-display').textContent = '⏰ Remaining: '+rh+'h '+rm+'m';
             }else{
-                document.getElementById('remaining-display').textContent = '✅ Shift end time reached. You can check out now.';
+                document.getElementById('remaining-display').textContent = '✅ Shift end reached.';
             }
         }
     }
