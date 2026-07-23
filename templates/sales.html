@@ -1,116 +1,30 @@
-{% extends "base.html" %}
-{% block content %}
-<h1 class="page-title">Sales Management</h1>
-<p class="page-subtitle">{{ company }} — {{ today }}</p>
+<form method="POST" id="saleForm">
+    <!-- existing inputs -->
+</form>
+<button class="btn" onclick="confirmSale()">Submit Sale</button>
 
-{% if success_msg %}<div class="alert alert-success">✅ Sale submitted successfully!</div>{% endif %}
-
-<!-- Sales Overview Cards -->
-<div class="stats">
-    <div class="stat-card">
-        <div class="stat-icon">💳</div>
-        <div class="stat-label">M‑Pesa Sales</div>
-        <div class="stat-value" style="font-size:28px;">Ksh {{ "%.2f"|format(total_mpesa) }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon">💵</div>
-        <div class="stat-label">Cash Sales</div>
-        <div class="stat-value" style="font-size:28px;">Ksh {{ "%.2f"|format(total_cash) }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon">💰</div>
-        <div class="stat-label">Grand Total</div>
-        <div class="stat-value" style="font-size:28px;">Ksh {{ "%.2f"|format(total_all) }}</div>
-    </div>
-</div>
-
-{% if session.get('role') in ['staff','manager'] %}
-<!-- Sale Entry Form -->
-<div class="form-card" style="background:linear-gradient(135deg, #f8f9fb 0%, #fff 100%);">
-    <h2 style="border-bottom:none; margin-top:0;">➕ New Sale</h2>
-    <form method="POST">
-        <div class="form-grid">
-            <div class="form-group">
-                <label>M‑Pesa (Ksh)</label>
-                <input type="number" name="mpesa_sales" step="0.01" value="0" required>
-            </div>
-            <div class="form-group">
-                <label>Cash (Ksh)</label>
-                <input type="number" name="cash_sales" step="0.01" value="0" required>
-            </div>
-            <div class="form-group">
-                <label>Sale Type</label>
-                <select name="sales_type">
-                    <option value="individual">Individual Sale</option>
-                    {% if session.get('role')=='manager' %}
-                    <option value="branch_total">Branch Total</option>
-                    {% endif %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Notes</label>
-                <input type="text" name="notes" placeholder="Optional">
-            </div>
-            <div class="form-group" style="display:flex;align-items:end;">
-                <button type="submit" class="btn" style="width:100%;">Submit Sale</button>
-            </div>
+<div id="saleConfirmModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <h3>Confirm Sale</h3>
+        <p id="saleSummary"></p>
+        <div class="modal-actions">
+            <button class="btn" onclick="submitSale()">✅ Confirm</button>
+            <button class="btn" style="background:#999;" onclick="closeSaleConfirm()">Cancel</button>
         </div>
-        <p style="font-size:12px; color:#888; margin-top:8px;">Total = M‑Pesa + Cash (auto‑calculated)</p>
-    </form>
+    </div>
 </div>
-{% endif %}
-
-{% if sales %}
-<h2>Today's Individual Sales <span class="count">{{ sales|length }}</span></h2>
-<div class="table-container">
-<table>
-    <tr><th>Name</th><th>Branch</th><th>M‑Pesa</th><th>Cash</th><th>Total</th><th>Type</th></tr>
-    {% for s in sales %}
-    <tr>
-        <td class="td-name">{{ s.full_name }}</td>
-        <td>{{ s.branch or '—' }}</td>
-        <td>{{ "%.2f"|format(s.mpesa_sales|float) }}</td>
-        <td>{{ "%.2f"|format(s.cash_sales|float) }}</td>
-        <td><strong>{{ "%.2f"|format(s.total_sales|float) }}</strong></td>
-        <td><span class="badge badge-info">{{ s.sales_type }}</span></td>
-    </tr>
-    {% endfor %}
-</table>
-</div>
-{% endif %}
-
-{% if branch_sales %}
-<h2>Branch Totals Submitted</h2>
-<div class="table-container">
-<table>
-    <tr><th>Branch</th><th>M‑Pesa</th><th>Cash</th><th>Total</th><th>By</th></tr>
-    {% for s in branch_sales %}
-    <tr>
-        <td class="td-name">{{ s.branch }}</td>
-        <td>{{ "%.2f"|format(s.mpesa_sales|float) }}</td>
-        <td>{{ "%.2f"|format(s.cash_sales|float) }}</td>
-        <td><strong>{{ "%.2f"|format(s.total_sales|float) }}</strong></td>
-        <td>{{ s.submitted_by }}</td>
-    </tr>
-    {% endfor %}
-</table>
-</div>
-{% endif %}
-
-{% if branch_totals %}
-<h2>Branch Summary</h2>
-<div class="table-container">
-<table>
-    <tr><th>Branch</th><th>M‑Pesa</th><th>Cash</th><th>Total</th></tr>
-    {% for br, vals in branch_totals.items() %}
-    <tr>
-        <td class="td-name">{{ br }}</td>
-        <td>{{ "%.2f"|format(vals.mpesa) }}</td>
-        <td>{{ "%.2f"|format(vals.cash) }}</td>
-        <td><strong>{{ "%.2f"|format(vals.total) }}</strong></td>
-    </tr>
-    {% endfor %}
-</table>
-</div>
-{% endif %}
-{% endblock %}
+<script>
+function confirmSale() {
+    const mpesa = document.querySelector('input[name="mpesa_sales"]').value;
+    const cash = document.querySelector('input[name="cash_sales"]').value;
+    const total = (parseFloat(mpesa) + parseFloat(cash)).toFixed(2);
+    document.getElementById('saleSummary').innerHTML = `M‑Pesa: Ksh ${mpesa}<br>Cash: Ksh ${cash}<br><strong>Total: Ksh ${total}</strong>`;
+    document.getElementById('saleConfirmModal').style.display = 'flex';
+}
+function closeSaleConfirm() {
+    document.getElementById('saleConfirmModal').style.display = 'none';
+}
+function submitSale() {
+    document.getElementById('saleForm').submit();
+}
+</script>
