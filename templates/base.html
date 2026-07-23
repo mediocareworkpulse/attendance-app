@@ -8,12 +8,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
 </head>
 <body>
-    <div id="skeleton-loader" class="skeleton-overlay">
-        <div class="skeleton-card"></div>
-        <div class="skeleton-card"></div>
-        <div class="skeleton-card"></div>
-    </div>
-
     {% if session.get('user') %}
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -24,70 +18,37 @@
             </div>
         </div>
         <nav class="sidebar-nav">
-            <a href="/" class="{% if request.path == '/' %}active{% endif %}">
-                <span class="nav-icon">📊</span> Dashboard
-            </a>
-            <a href="/check-in" class="{% if request.path == '/check-in' %}active{% endif %}">
-                <span class="nav-icon">✅</span> Check In/Out
-            </a>
-            <a href="/attendance-history" class="{% if request.path == '/attendance-history' %}active{% endif %}">
-                <span class="nav-icon">📅</span> Attendance
-            </a>
-            <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">
-                <span class="nav-icon">📝</span> Leaves
-            </a>
-            <a href="/sales" class="{% if request.path == '/sales' %}active{% endif %}">
-                <span class="nav-icon">💰</span> Sales
-            </a>
+            <a href="/" class="{% if request.path == '/' %}active{% endif %}"><span class="nav-icon">📊</span> Dashboard</a>
+            <a href="/check-in" class="{% if request.path == '/check-in' %}active{% endif %}"><span class="nav-icon">✅</span> Check In/Out</a>
+            <a href="/attendance-history" class="{% if request.path == '/attendance-history' %}active{% endif %}"><span class="nav-icon">📅</span> Attendance</a>
+            <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}"><span class="nav-icon">📝</span> Leaves</a>
+            <a href="/sales" class="{% if request.path == '/sales' %}active{% endif %}"><span class="nav-icon">💰</span> Sales</a>
             {% if session.get('role') in ['admin','ceo'] %}
-            <a href="/admin" class="{% if request.path == '/admin' %}active{% endif %}">
-                <span class="nav-icon">⚙️</span> Admin Panel
-            </a>
-            <a href="/approvals" class="{% if request.path == '/approvals' %}active{% endif %}">
-                <span class="nav-icon">🔔</span> Approvals
-            </a>
-            <a href="/employees" class="{% if request.path == '/employees' %}active{% endif %}">
-                <span class="nav-icon">👥</span> Team
-            </a>
-            <a href="/branches" class="{% if request.path == '/branches' %}active{% endif %}">
-                <span class="nav-icon">🏢</span> Branches
-            </a>
+            <a href="/admin" class="{% if request.path == '/admin' %}active{% endif %}"><span class="nav-icon">⚙️</span> Admin Panel</a>
+            <a href="/approvals" class="{% if request.path == '/approvals' %}active{% endif %}"><span class="nav-icon">🔔</span> Approvals</a>
+            <a href="/employees" class="{% if request.path == '/employees' %}active{% endif %}"><span class="nav-icon">👥</span> Team</a>
+            <a href="/branches" class="{% if request.path == '/branches' %}active{% endif %}"><span class="nav-icon">🏢</span> Branches</a>
             {% endif %}
             {% if session.get('role') in ['Store Manager','Operations Manager','admin','ceo'] %}
-            <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}">
-                <span class="nav-icon">✅</span> Leave Approvals
-            </a>
+            <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}"><span class="nav-icon">✅</span> Leave Approvals</a>
             {% endif %}
             {% if session.get('role') in ['admin','ceo','manager'] or session.get('department') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant'] %}
-            <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}">
-                <span class="nav-icon">📋</span> Reports
-            </a>
+            <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}"><span class="nav-icon">📋</span> Reports</a>
             {% endif %}
-            <a href="/profile" class="{% if request.path == '/profile' %}active{% endif %}">
-                <span class="nav-icon">👤</span> Profile
-            </a>
-            <a href="/logout" class="logout-link">
-                <span class="nav-icon">🚪</span> Logout
-            </a>
+            <a href="/profile" class="{% if request.path == '/profile' %}active{% endif %}"><span class="nav-icon">👤</span> Profile</a>
+            <a href="/logout" class="logout-link"><span class="nav-icon">🚪</span> Logout</a>
         </nav>
     </aside>
-
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-
     <header class="topbar">
         <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-        <div class="topbar-brand">
-            <span class="brand-icon">💊</span>
-            <span>Mediocare</span>
-        </div>
+        <div class="topbar-brand"><span>💊 Mediocare</span></div>
         <div style="width:40px;"></div>
     </header>
     {% endif %}
-
     <main class="main-content" id="mainContent">
         {% block content %}{% endblock %}
     </main>
-
     <script>
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
@@ -100,9 +61,6 @@
                     document.getElementById('sidebarOverlay').classList.remove('show');
                 }
             });
-        });
-        window.addEventListener('load', function() {
-            document.getElementById('skeleton-loader').style.display = 'none';
         });
     </script>
 </body>
