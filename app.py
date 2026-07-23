@@ -57,7 +57,6 @@ def can_view_all():
     role = session.get('role','')
     return role in SALES_VIEW_ROLES
 
-# ═══════════════ RETRY & SAFE DATA ═══════════════
 def execute_query(builder, max_retries=2):
     """Execute a Supabase query builder, retry on failure, return raw response."""
     for attempt in range(max_retries + 1):
@@ -193,6 +192,24 @@ def home():
         pending=len(safe_data(execute_query(supabase.table('employees').select('id').eq('status','pending'))))
 
     return render_template('index.html',total_employees=total_emp,present_count=present,late_count=late,total_sales=total_sales,recent_records=records,user_checked_in=uci,user_checked_out=uco,pending_count=pending,company=COMPANY_NAME)
+
+# ═══════════════ ADMIN PANEL ═══════════════
+@app.route('/admin')
+@login_required
+@admin_required
+def admin_panel():
+    total_emp = len(safe_data(execute_query(supabase.table('employees').select('id').eq('status','approved'))))
+    pending = len(safe_data(execute_query(supabase.table('employees').select('id').eq('status','pending'))))
+    total_branches = len(get_branches())
+    today = str(now_eat().date())
+    att_today = len(safe_data(execute_query(supabase.table('attendance').select('id').eq('date',today))))
+
+    return render_template('admin.html',
+                         total_employees=total_emp,
+                         pending_count=pending,
+                         total_branches=total_branches,
+                         att_today=att_today,
+                         company=COMPANY_NAME)
 
 # ═══════════════ APPROVALS ═══════════════
 @app.route('/approvals')
