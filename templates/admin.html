@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">Admin Panel</h1>
+<p class="page-subtitle">{{ company }} — Manage your system</p>
+
+<div class="stats">
+    <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-label">Total Employees</div>
+        <div class="stat-value">{{ total_employees }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">🔔</div>
+        <div class="stat-label">Pending Approvals</div>
+        <div class="stat-value">{{ pending_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">🏢</div>
+        <div class="stat-label">Branches</div>
+        <div class="stat-value">{{ total_branches }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">✅</div>
+        <div class="stat-label">Checked In Today</div>
+        <div class="stat-value">{{ att_today }}</div>
+    </div>
+</div>
+
+<div style="margin-top:30px; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
+    <a href="/employees" class="btn" style="justify-content:center;">👥 Manage Team</a>
+    <a href="/branches" class="btn" style="justify-content:center;">🏢 Manage Branches</a>
+    <a href="/approvals" class="btn" style="justify-content:center; background:#e74c3c;">🔔 Review Approvals</a>
+    <a href="/reports" class="btn" style="justify-content:center;">📋 View Reports</a>
+</div>
+{% endblock %}
