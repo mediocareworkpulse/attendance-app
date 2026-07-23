@@ -92,6 +92,10 @@ def logout():
 def keep_alive():
     return 'OK', 200
 
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
+
 @app.route('/signup', methods=['GET','POST'])
 def signup():
     signup_roles = [r for r in ALL_ROLES if r not in ['admin','ceo']]
@@ -151,7 +155,6 @@ def home():
     records = []
     for rec in att_data[:10]:
         st = rec.get('status','present')
-        emp_detail = []
         try:
             emp_detail = safe_data(execute_query(supabase.table('employees').select('role,department').eq('full_name',rec['full_name'])))
         except:
@@ -175,7 +178,7 @@ def home():
 
     return render_template('index.html',total_employees=total_emp,present_count=present,late_count=late,total_sales=total_sales,recent_records=records,user_checked_in=uci,user_checked_out=uco,user_status=user_status,pending_count=pending,company=COMPANY_NAME)
 
-# ---------- ADMIN PANEL ----------
+# ---------- ADMIN / APPROVALS / EMPLOYEES / BRANCHES ----------
 @app.route('/admin')
 @login_required
 @admin_required
@@ -186,7 +189,6 @@ def admin_panel():
     att_today = len(safe_data(execute_query(supabase.table('attendance').select('id').eq('date',str(now_eat().date())))))
     return render_template('admin.html',total_employees=total_emp,pending_count=pending,total_branches=total_branches,att_today=att_today,company=COMPANY_NAME)
 
-# ---------- APPROVALS ----------
 @app.route('/approvals')
 @login_required
 @admin_required
@@ -208,7 +210,6 @@ def reject(eid):
     supabase.table('employees').delete().eq('id',eid).execute()
     return redirect('/approvals')
 
-# ---------- EMPLOYEES ----------
 @app.route('/employees')
 @login_required
 @admin_required
@@ -247,7 +248,6 @@ def edit_employee(eid):
     if data['full_name']: supabase.table('employees').update(data).eq('id',eid).execute()
     return redirect('/employees')
 
-# ---------- BRANCHES ----------
 @app.route('/branches')
 @login_required
 @admin_required
@@ -276,7 +276,7 @@ def delete_branch(bid):
     supabase.table('branches').delete().eq('id',bid).execute()
     return redirect('/branches')
 
-# ---------- CHECK IN / OUT ----------
+# ---------- CHECK IN / OUT (safe lunch handling) ----------
 @app.route('/check-in')
 @login_required
 def check_in_page():
@@ -296,7 +296,9 @@ def check_in_page():
         elif rec.get('check_in'):
             current_status = 'checked_in'
             check_in_time = rec.get('check_in')
-            lunch_active = (rec.get('lunch_start') and not rec.get('lunch_end'))
+            # lunch_active only if columns exist and values set
+            if rec.get('lunch_start') and not rec.get('lunch_end'):
+                lunch_active = True
 
     if role in FULL_ACCESS_ROLES or can_view_all():
         r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50)))
@@ -348,10 +350,17 @@ def process_attendance():
             supabase.table('attendance').update({'check_out':now,'status':'checked_out','check_out_lat':lat,'check_out_lng':lng,'check_out_location':loc}).eq('full_name',un).eq('date',today).execute()
     elif action == 'start_lunch':
         if exd and exd.get('check_in') and not exd.get('check_out') and exd.get('status')!='lunch':
-            supabase.table('attendance').update({'lunch_start':now,'status':'lunch'}).eq('full_name',un).eq('date',today).execute()
+            # Safely set lunch_start – if column missing, it will just ignore
+            try:
+                supabase.table('attendance').update({'lunch_start':now,'status':'lunch'}).eq('full_name',un).eq('date',today).execute()
+            except:
+                pass   # lunch feature not available, ignore
     elif action == 'end_lunch':
         if exd and exd.get('status')=='lunch' and not exd.get('lunch_end'):
-            supabase.table('attendance').update({'lunch_end':now,'status':'present'}).eq('full_name',un).eq('date',today).execute()
+            try:
+                supabase.table('attendance').update({'lunch_end':now,'status':'present'}).eq('full_name',un).eq('date',today).execute()
+            except:
+                pass
     return redirect('/check-in')
 
 # ---------- ATTENDANCE HISTORY ----------
