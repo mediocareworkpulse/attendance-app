@@ -1,11 +1,69 @@
-<!-- inside the checked_in block -->
-<form method="POST" action="/check-in" id="checkoutForm" style="display:none;">
-    <input type="hidden" name="action" value="check_out">
-    <input type="hidden" name="lat" id="lat"><input type="hidden" name="lng" id="lng"><input type="hidden" name="location" id="loc">
-</form>
-<button class="checkin-btn btn-check-out" onclick="confirmCheckOut()">🚪 Check Out Now</button>
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">Check In / Out</h1>
+<p class="page-subtitle">{{ company }}</p>
 
-<!-- Confirmation Modal -->
+{% if session.get('role') not in ['admin','ceo'] %}
+<div id="ls" style="padding:12px 16px;margin-bottom:20px;background:#fff;border:1px solid var(--border);font-size:13px;border-radius:10px;display:flex;align-items:center;gap:8px;">
+    <span>📍</span> <span id="ls-text">Location (optional) – detecting…</span>
+</div>
+
+{% if user_status=='none' %}
+<div class="checkin-container">
+    <div class="checkin-greeting-icon" id="greeting-icon">🌅</div>
+    <div class="checkin-title" id="greeting-text">Good Morning!</div>
+    <div class="checkin-subtitle">Tap below to start your shift</div>
+    <form method="POST" action="/check-in" id="checkinForm">
+        <input type="hidden" name="lat" id="lat"><input type="hidden" name="lng" id="lng"><input type="hidden" name="location" id="loc">
+        <button type="submit" name="action" value="check_in" class="checkin-btn btn-check-in">
+            <span class="btn-text">Check In Now</span>
+            <span class="btn-icon">✅</span>
+        </button>
+    </form>
+</div>
+{% elif user_status=='checked_in' %}
+<div class="checkin-container">
+    <div class="checkin-greeting-icon">⏳</div>
+    <div class="checkin-title">You're Clocked In</div>
+    <div class="checkin-subtitle" id="timer-display">Calculating…</div>
+    <div id="remaining-display" style="font-size:14px;color:#666;margin-bottom:20px;"></div>
+    <form method="POST" action="/check-in" id="checkoutForm" style="display:none;">
+        <input type="hidden" name="action" value="check_out">
+        <input type="hidden" name="lat" id="lat2"><input type="hidden" name="lng" id="lng2"><input type="hidden" name="location" id="loc2">
+    </form>
+    <button class="checkin-btn btn-check-out" onclick="confirmCheckOut()">
+        <span class="btn-text">Check Out Now</span>
+        <span class="btn-icon">🚪</span>
+    </button>
+</div>
+{% else %}
+<div class="checkin-container" style="background:#d4f5e0;box-shadow:none;">
+    <div class="checkin-greeting-icon">🎉</div>
+    <div class="checkin-title" style="color:#1e7e34;">Shift Complete!</div>
+    <div class="checkin-subtitle" style="color:#1e7e34;">Great work today at Mediocare</div>
+</div>
+{% endif %}
+{% endif %}
+
+{% if records %}
+<h2>Today's Records <span class="count">{{ records|length }}</span></h2>
+<div class="table-container">
+<table>
+    <tr><th>Name</th><th>Department</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
+    {% for r in records %}
+    <tr>
+        <td class="td-name">{{ r.full_name }}</td>
+        <td>{{ r.department }}</td>
+        <td>{{ r.check_in }}</td>
+        <td>{{ r.check_out }}</td>
+        <td><span class="badge {% if r.status=='present' %}badge-success{% else %}badge-warning{% endif %}">{{ r.label }}</span></td>
+    </tr>
+    {% endfor %}
+</table>
+</div>
+{% endif %}
+
+<!-- Check‑Out Confirmation Modal -->
 <div id="confirmModal" class="modal-overlay" style="display:none;">
     <div class="modal-box">
         <h3>Confirm Check‑Out</h3>
@@ -18,13 +76,70 @@
 </div>
 
 <script>
+// Dynamic greeting
+(function() {
+    const hour = new Date().getHours();
+    let icon = '🌅', text = 'Good Morning!';
+    if (hour >= 12 && hour < 17) { icon = '☀️'; text = 'Good Afternoon!'; }
+    else if (hour >= 17) { icon = '🌆'; text = 'Good Evening!'; }
+    document.getElementById('greeting-icon').textContent = icon;
+    document.getElementById('greeting-text').textContent = text;
+})();
+
+// Location capture (check-in)
+var d=document.getElementById('ls-text'),la=document.getElementById('lat'),lo=document.getElementById('lng'),lc=document.getElementById('loc');
+if(d&&navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(function(p){
+        la.value=p.coords.latitude;lo.value=p.coords.longitude;lc.value=p.coords.latitude+','+p.coords.longitude;
+        d.innerHTML='✅ Location captured';d.parentElement.style.background='#d4f5e0';d.parentElement.style.color='#1e7e34';
+    },function(err){
+        d.innerHTML='⚠️ Location unavailable – continuing without GPS';
+        d.parentElement.style.background='#fff3d6';d.parentElement.style.color='#b45309';
+    },{timeout:5000,enableHighAccuracy:false});
+}
+
+// Check-out confirmation
 function confirmCheckOut() {
+    // Update hidden fields for check-out
+    document.getElementById('lat2').value = la.value;
+    document.getElementById('lng2').value = lo.value;
+    document.getElementById('loc2').value = lc.value;
     document.getElementById('confirmModal').style.display = 'flex';
 }
-function closeConfirm() {
-    document.getElementById('confirmModal').style.display = 'none';
-}
-function submitCheckOut() {
-    document.getElementById('checkoutForm').submit();
-}
+function closeConfirm() { document.getElementById('confirmModal').style.display = 'none'; }
+function submitCheckOut() { document.getElementById('checkoutForm').submit(); }
+
+// Live timer
+{% if user_status=='checked_in' and check_in_time %}
+(function(){
+    var parts = "{{ check_in_time }}".split(':');
+    var checkIn = new Date();
+    checkIn.setHours(parseInt(parts[0]),parseInt(parts[1]),parseInt(parts[2]),0);
+    {% if branch_info and branch_info.shift_end %}
+    var ep = "{{ branch_info.shift_end }}".split(':');
+    var shiftEnd = new Date();
+    shiftEnd.setHours(parseInt(ep[0]),parseInt(ep[1]),0,0);
+    {% else %}
+    var shiftEnd = null;
+    {% endif %}
+    function update(){
+        var now = new Date();
+        var diff = now - checkIn;
+        var h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
+        document.getElementById('timer-display').textContent = '🕒 Worked: '+h+'h '+m+'m '+s+'s';
+        if(shiftEnd){
+            var rem = shiftEnd - now;
+            if(rem>0){
+                var rh = Math.floor(rem/3600000), rm = Math.floor((rem%3600000)/60000);
+                document.getElementById('remaining-display').textContent = '⏰ Remaining: '+rh+'h '+rm+'m';
+            }else{
+                document.getElementById('remaining-display').textContent = '✅ Shift end reached.';
+            }
+        }
+    }
+    update();
+    setInterval(update,10000);
+})();
+{% endif %}
 </script>
+{% endblock %}
