@@ -8,7 +8,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
 </head>
 <body>
-    <!-- Skeleton Loader -->
     <div id="skeleton-loader" class="skeleton-overlay">
         <div class="skeleton-card"></div>
         <div class="skeleton-card"></div>
@@ -16,7 +15,6 @@
     </div>
 
     {% if session.get('user') %}
-    <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="brand-icon">💊</div>
@@ -103,7 +101,6 @@
                 }
             });
         });
-        // Skeleton loader: hide after page loads
         window.addEventListener('load', function() {
             document.getElementById('skeleton-loader').style.display = 'none';
         });
