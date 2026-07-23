@@ -1,20 +1,32 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Attendance History</h1>
-<div style="margin-bottom:20px;display:flex;gap:5px;flex-wrap:wrap;">
-    <a href="?period=week" class="btn" style="font-size:12px;">This Week</a>
-    <a href="?period=month" class="btn" style="font-size:12px;">This Month</a>
-    <a href="?period=last_month" class="btn" style="font-size:12px;">Last Month</a>
+<h1 class="page-title">Attendance History</h1>
+<p class="page-subtitle">{{ company }}</p>
+
+<!-- Filter Bar with pill buttons -->
+<div class="filter-bar">
+  <a href="?period=week" class="filter-btn {% if period == 'week' %}active{% endif %}">This Week</a>
+  <a href="?period=month" class="filter-btn {% if period == 'month' %}active{% endif %}">This Month</a>
+  <a href="?period=last_month" class="filter-btn {% if period == 'last_month' %}active{% endif %}">Last Month</a>
 </div>
-<form method="GET" style="margin-bottom:20px;display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
-    <div class="form-group"><label>From</label><input type="date" name="from_date" value="{{ start_date }}"></div>
-    <div class="form-group"><label>To</label><input type="date" name="to_date" value="{{ end_date }}"></div>
-    <div class="form-group"><button type="submit">Filter</button></div>
-</form>
-<div class="stats"><div class="stat-box"><h3>Total Days</h3><p>{{ total_days }}</p></div><div class="stat-box"><h3>Present</h3><p>{{ present_days }}</p></div><div class="stat-box"><h3>Late</h3><p>{{ late_days }}</p></div></div>
+
 {% if records %}
-<h2>Records ({{ start_date }} to {{ end_date }})</h2>
-<table><tr><th>Date</th><th>Name</th><th>Department</th><th>Branch</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
-{% for r in records %}<tr><td>{{ r.date }}</td><td><strong>{{ r.full_name }}</strong></td><td>{{ r.department }}</td><td>{{ r.branch }}</td><td>{{ r.check_in }}</td><td>{{ r.check_out }}</td><td><span class="badge {{ r.status_class }}">{{ r.status_label }}</span></td></tr>{% endfor %}</table>
-{% else %}<p>No records found.</p>{% endif %}
+<h2>Records ({{ records|length }})</h2>
+<div class="table-container">
+<table>
+  <tr><th>Date</th><th>Name</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
+  {% for r in records %}
+  <tr>
+    <td>{{ r.date }}</td>
+    <td class="td-name">{{ r.full_name }}</td>
+    <td>{{ r.check_in }}</td>
+    <td>{{ r.check_out }}</td>
+    <td><span class="badge {% if r.status in ['present','late'] %}badge-success{% elif r.status=='lunch' %}badge-warning{% else %}badge-danger{% endif %}">{{ r.label }}</span></td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% else %}
+<p style="text-align:center; padding:30px; color:#999;">No records found.</p>
+{% endif %}
 {% endblock %}
