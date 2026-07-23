@@ -58,7 +58,6 @@ def can_view_all():
     return role in SALES_VIEW_ROLES
 
 def execute_query(builder, max_retries=2):
-    """Execute a Supabase query builder, retry on failure, return raw response."""
     for attempt in range(max_retries + 1):
         try:
             return builder.execute()
@@ -68,7 +67,6 @@ def execute_query(builder, max_retries=2):
             time.sleep(1)
 
 def safe_data(r):
-    """Extract data list from Supabase response or dict."""
     if hasattr(r, 'data'):
         return r.data if r.data else []
     if isinstance(r, dict):
@@ -76,7 +74,6 @@ def safe_data(r):
     return []
 
 def get_branches():
-    """Return list of branch dicts (e.g., [{'name':'Ahero','id':1},...])"""
     res = execute_query(supabase.table('branches').select('*').order('name'))
     return safe_data(res)
 
@@ -390,44 +387,6 @@ def process_attendance():
     elif action == 'check_out':
         if exd and exd[0].get('check_in') and not exd[0].get('check_out'):
             supabase.table('attendance').update({'check_out':now}).eq('full_name',un).eq('date',today).execute()
-    return redirect('/check-in')
-
-@app.route('/manual-attendance', methods=['POST'])
-@login_required
-def manual_attendance():
-    if session.get('role') in NO_CHECKIN_ROLES: return redirect('/')
-    un = session.get('user')
-    action = request.form.get('action')
-    manual_time = request.form.get('manual_time','')
-    today = str(now_eat().date())
-    if not manual_time: return redirect('/check-in')
-    now = manual_time + ':00'
-
-    emp = safe_data(execute_query(supabase.table('employees').select('department,branch,shift_start,shift_end').eq('full_name',un)))
-    if not emp: return redirect('/check-in')
-    dept = emp[0].get('department','')
-    branch = emp[0].get('branch','')
-    exd = safe_data(execute_query(supabase.table('attendance').select('*').eq('full_name',un).eq('date',today)))
-
-    if action == 'check_in':
-        if exd and exd[0].get('check_in'): return redirect('/check-in')
-        shift_start_time = emp[0].get('shift_start')
-        if not shift_start_time and branch:
-            br = execute_query(supabase.table('branches').select('shift_start').eq('name',branch))
-            brd = safe_data(br)
-            if brd: shift_start_time = str(brd[0].get('shift_start','09:00'))
-        if not shift_start_time: shift_start_time = '09:00'
-        status = 'late'
-        if now <= str(shift_start_time): status = 'present'
-
-        d = {'check_in':now,'status':status,'check_in_lat':'','check_in_lng':'','check_in_location':'Manual entry'}
-        if exd: supabase.table('attendance').update(d).eq('full_name',un).eq('date',today).execute()
-        else:
-            d.update({'full_name':un,'department':dept,'branch':branch,'date':today})
-            supabase.table('attendance').insert(d).execute()
-    elif action == 'check_out':
-        if exd and exd[0].get('check_in') and not exd[0].get('check_out'):
-            supabase.table('attendance').update({'check_out':now,'check_out_location':'Manual entry'}).eq('full_name',un).eq('date',today).execute()
     return redirect('/check-in')
 
 # ═══════════════ ATTENDANCE HISTORY ═══════════════
