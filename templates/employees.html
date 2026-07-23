@@ -9,7 +9,6 @@
     <button class="btn" onclick="openAddEmployeeModal()">➕ Add Member</button>
 </div>
 
-<!-- Search -->
 <div class="search-bar">
     <span class="search-icon">🔍</span>
     <input type="text" id="employeeSearch" placeholder="Search by name or department..." onkeyup="filterEmployees()">
@@ -44,14 +43,12 @@
 <div id="addEmployeeModal" class="modal-overlay" style="display:none;">
     <div class="modal-box" style="max-width:600px; text-align:left;">
         <h3>Add New Employee</h3>
-        <!-- Progress Steps -->
         <div class="progress-steps" id="progressSteps">
             <div class="step active" id="step1Indicator"><div class="step-circle">1</div><span class="step-label">Personal</span></div>
             <div class="step" id="step2Indicator"><div class="step-circle">2</div><span class="step-label">Job</span></div>
             <div class="step" id="step3Indicator"><div class="step-circle">3</div><span class="step-label">Account</span></div>
         </div>
         <form id="addEmployeeForm" method="POST" action="/employees/add">
-            <!-- Step 1: Personal Info -->
             <div class="form-step" id="step1">
                 <div class="form-grid">
                     <div class="form-group"><label>Full Name</label><input type="text" name="full_name" required></div>
@@ -61,7 +58,6 @@
                     <button type="button" class="btn" onclick="nextStep(2)">Next →</button>
                 </div>
             </div>
-            <!-- Step 2: Job Details -->
             <div class="form-step" id="step2" style="display:none;">
                 <div class="form-grid">
                     <div class="form-group"><label>Department</label><select name="department" required>{% for d in departments %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
@@ -73,7 +69,6 @@
                     <button type="button" class="btn" onclick="nextStep(3)">Next →</button>
                 </div>
             </div>
-            <!-- Step 3: Account -->
             <div class="form-step" id="step3" style="display:none;">
                 <div class="form-grid">
                     <div class="form-group"><label>Password</label><input type="text" name="password" value="1234"></div>
@@ -87,6 +82,28 @@
             </div>
         </form>
         <button class="btn" style="background:#999; margin-top:12px;" onclick="closeAddModal()">Cancel</button>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box" style="max-width:600px; text-align:left;">
+        <h3>Edit Employee</h3>
+        <form id="editForm" method="POST">
+            <div class="form-grid">
+                <div class="form-group"><label>Full Name</label><input type="text" name="full_name" id="eName" required></div>
+                <div class="form-group"><label>Department</label><select name="department" id="eDept">{% for d in departments %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
+                <div class="form-group"><label>Branch</label><select name="branch" id="eBranch">{% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select></div>
+                <div class="form-group"><label>Role</label><select name="role" id="eRole">{% for r in roles %}<option value="{{ r }}">{{ r }}</option>{% endfor %}</select></div>
+                <div class="form-group"><label>Password</label><input type="text" name="password" id="ePass"></div>
+                <div class="form-group"><label>Shift Start</label><input type="time" name="shift_start" id="eShiftStart"></div>
+                <div class="form-group"><label>Shift End</label><input type="time" name="shift_end" id="eShiftEnd"></div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:16px;">
+                <button type="submit" class="btn">Save</button>
+                <button type="button" class="btn" style="background:#999;" onclick="closeEditModal()">Cancel</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -105,18 +122,13 @@
 </div>
 
 <script>
-// Search filter
 function filterEmployees() {
     const query = document.getElementById('employeeSearch').value.toLowerCase();
     const rows = document.querySelectorAll('#employeeTable tbody tr');
     rows.forEach(row => {
         const name = row.getAttribute('data-name');
         const dept = row.getAttribute('data-dept');
-        if (name.includes(query) || dept.includes(query)) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
+        row.style.display = (name.includes(query) || dept.includes(query)) ? '' : 'none';
     });
 }
 
@@ -125,7 +137,6 @@ let currentStep = 1;
 function showStep(step) {
     document.querySelectorAll('.form-step').forEach(el => el.style.display = 'none');
     document.getElementById('step' + step).style.display = 'block';
-    // Update progress indicators
     for (let i = 1; i <= 3; i++) {
         const indicator = document.getElementById('step' + i + 'Indicator');
         indicator.classList.remove('active', 'completed');
@@ -137,13 +148,22 @@ function showStep(step) {
 function nextStep(step) { showStep(step); }
 function prevStep(step) { showStep(step); }
 
-function openAddEmployeeModal() {
-    document.getElementById('addEmployeeModal').style.display = 'flex';
-    showStep(1);
+function openAddEmployeeModal() { document.getElementById('addEmployeeModal').style.display = 'flex'; showStep(1); }
+function closeAddModal() { document.getElementById('addEmployeeModal').style.display = 'none'; }
+
+// Edit modal
+function openEditModal(id, name, dept, branch, role, pass, shift_start, shift_end) {
+    document.getElementById('editForm').action = '/employees/edit/' + id;
+    document.getElementById('eName').value = name;
+    document.getElementById('eDept').value = dept;
+    document.getElementById('eBranch').value = branch;
+    document.getElementById('eRole').value = role;
+    document.getElementById('ePass').value = pass;
+    document.getElementById('eShiftStart').value = shift_start || '08:00';
+    document.getElementById('eShiftEnd').value = shift_end || '17:00';
+    document.getElementById('editModal').style.display = 'flex';
 }
-function closeAddModal() {
-    document.getElementById('addEmployeeModal').style.display = 'none';
-}
+function closeEditModal() { document.getElementById('editModal').style.display = 'none'; }
 
 // Delete confirmation
 function confirmDelete(id, name) {
@@ -151,13 +171,6 @@ function confirmDelete(id, name) {
     document.getElementById('deleteForm').action = '/employees/delete/' + id;
     document.getElementById('deleteModal').style.display = 'flex';
 }
-function closeDeleteModal() {
-    document.getElementById('deleteModal').style.display = 'none';
-}
-
-// Existing edit function (unchanged)
-function openEditModal(id, name, dept, branch, role, pass, shift_start, shift_end) {
-    // reuse the edit modal you already have in the previous employees.html (not included here for brevity)
-}
+function closeDeleteModal() { document.getElementById('deleteModal').style.display = 'none'; }
 </script>
 {% endblock %}
