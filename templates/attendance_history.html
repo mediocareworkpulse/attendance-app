@@ -2,31 +2,13 @@
 {% block content %}
 <h1 class="page-title">Attendance History</h1>
 <p class="page-subtitle">{{ company }}</p>
-
-<!-- Filter Bar with pill buttons -->
 <div class="filter-bar">
-  <a href="?period=week" class="filter-btn {% if period == 'week' %}active{% endif %}">This Week</a>
-  <a href="?period=month" class="filter-btn {% if period == 'month' %}active{% endif %}">This Month</a>
-  <a href="?period=last_month" class="filter-btn {% if period == 'last_month' %}active{% endif %}">Last Month</a>
+  <a href="?period=week" class="filter-btn {% if period=='week' %}active{% endif %}">This Week</a>
+  <a href="?period=month" class="filter-btn {% if period=='month' %}active{% endif %}">This Month</a>
+  <a href="?period=last_month" class="filter-btn {% if period=='last_month' %}active{% endif %}">Last Month</a>
 </div>
-
 {% if records %}
 <h2>Records ({{ records|length }})</h2>
-<div class="table-container">
-<table>
-  <tr><th>Date</th><th>Name</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
-  {% for r in records %}
-  <tr>
-    <td>{{ r.date }}</td>
-    <td class="td-name">{{ r.full_name }}</td>
-    <td>{{ r.check_in }}</td>
-    <td>{{ r.check_out }}</td>
-    <td><span class="badge {% if r.status in ['present','late'] %}badge-success{% elif r.status=='lunch' %}badge-warning{% else %}badge-danger{% endif %}">{{ r.label }}</span></td>
-  </tr>
-  {% endfor %}
-</table>
-</div>
-{% else %}
-<p style="text-align:center; padding:30px; color:#999;">No records found.</p>
-{% endif %}
+<div class="table-container"><table><tr><th>Date</th><th>Name</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>{% for r in records %}<tr><td>{{ r.date }}</td><td class="td-name">{{ r.full_name }}</td><td>{{ r.check_in }}</td><td>{{ r.check_out }}</td><td><span class="badge {% if r.status in ['present','late'] %}badge-success{% elif r.status=='lunch' %}badge-warning{% else %}badge-danger{% endif %}">{{ r.label }}</span></td></tr>{% endfor %}</table></div>
+{% else %}<p style="text-align:center;padding:30px;color:#999;">No records found.</p>{% endif %}
 {% endblock %}
