@@ -5,61 +5,48 @@
 
 {% if success_msg %}<div class="alert alert-success">✅ Sale submitted successfully!</div>{% endif %}
 
+<!-- Overview Cards -->
 <div class="stats">
-    <div class="stat-card">
-        <div class="stat-icon">💳</div>
-        <div class="stat-label">M‑Pesa Sales</div>
-        <div class="stat-value" style="font-size:28px;">Ksh {{ "%.2f"|format(total_mpesa) }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon">💵</div>
-        <div class="stat-label">Cash Sales</div>
-        <div class="stat-value" style="font-size:28px;">Ksh {{ "%.2f"|format(total_cash) }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon">💰</div>
-        <div class="stat-label">Grand Total</div>
-        <div class="stat-value" style="font-size:28px;">Ksh {{ "%.2f"|format(total_all) }}</div>
-    </div>
+    <div class="stat-card"><div class="stat-icon">💳</div><div class="stat-label">M‑Pesa Sales</div><div class="stat-value" style="font-size:28px;">Ksh {{ "%.2f"|format(total_mpesa) }}</div></div>
+    <div class="stat-card"><div class="stat-icon">💵</div><div class="stat-label">Cash Sales</div><div class="stat-value" style="font-size:28px;">Ksh {{ "%.2f"|format(total_cash) }}</div></div>
+    <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-label">Grand Total</div><div class="stat-value" style="font-size:28px;">Ksh {{ "%.2f"|format(total_all) }}</div></div>
 </div>
 
 {% if session.get('role') in ['staff','manager'] %}
+<!-- Sale Entry Form -->
 <div class="form-card" style="background:linear-gradient(135deg, #f8f9fb 0%, #fff 100%);">
     <h2 style="border-bottom:none; margin-top:0;">➕ New Sale</h2>
     <form method="POST" id="saleForm">
         <div class="form-grid">
-            <div class="form-group">
-                <label>M‑Pesa (Ksh)</label>
-                <input type="number" name="mpesa_sales" step="0.01" value="0" required>
-            </div>
-            <div class="form-group">
-                <label>Cash (Ksh)</label>
-                <input type="number" name="cash_sales" step="0.01" value="0" required>
-            </div>
+            <div class="form-group"><label>M‑Pesa (Ksh)</label><input type="number" name="mpesa_sales" step="0.01" value="0" required></div>
+            <div class="form-group"><label>Cash (Ksh)</label><input type="number" name="cash_sales" step="0.01" value="0" required></div>
             <div class="form-group">
                 <label>Sale Type</label>
-                <select name="sales_type">
+                <select name="sales_type" id="salesType" onchange="toggleExpenses()">
                     <option value="individual">Individual Sale</option>
                     {% if session.get('role')=='manager' %}
                     <option value="branch_total">Branch Total</option>
                     {% endif %}
                 </select>
             </div>
-            <div class="form-group">
-                <label>Notes</label>
-                <input type="text" name="notes" placeholder="Optional">
-            </div>
-            <div class="form-group" style="display:flex;align-items:end;">
-                <button type="button" class="btn" onclick="confirmSale()">Submit Sale</button>
-            </div>
+            <div class="form-group"><label>Notes</label><input type="text" name="notes" placeholder="Optional"></div>
         </div>
-        <p style="font-size:12px; color:#888; margin-top:8px;">Total = M‑Pesa + Cash (auto‑calculated)</p>
+
+        <!-- Expenses block (only for branch total) -->
+        <div id="expensesBlock" style="display:none; margin-top:20px;">
+            <h3>Expenses</h3>
+            <div id="expenseList"></div>
+            <button type="button" class="btn btn-sm" onclick="addExpense()" style="background:#888;">➕ Add Expense</button>
+        </div>
+
+        <button type="button" class="btn" onclick="confirmSale()">Submit Sale</button>
+        <p style="font-size:12px; color:#888; margin-top:8px;">Total = M‑Pesa + Cash + Expenses (auto‑calculated)</p>
     </form>
 </div>
 {% endif %}
 
 {% if sales %}
-<h2>Today's Individual Sales <span class="count">{{ sales|length }}</span></h2>
+<h2>Individual Sales <span class="count">{{ sales|length }}</span></h2>
 <div class="table-container">
 <table>
     <tr><th>Name</th><th>Branch</th><th>M‑Pesa</th><th>Cash</th><th>Total</th><th>Type</th></tr>
@@ -81,12 +68,21 @@
 <h2>Branch Totals Submitted</h2>
 <div class="table-container">
 <table>
-    <tr><th>Branch</th><th>M‑Pesa</th><th>Cash</th><th>Total</th><th>By</th></tr>
+    <tr><th>Branch</th><th>M‑Pesa</th><th>Cash</th><th>Expenses</th><th>Total</th><th>By</th></tr>
     {% for s in branch_sales %}
     <tr>
         <td class="td-name">{{ s.branch }}</td>
         <td>{{ "%.2f"|format(s.mpesa_sales|float) }}</td>
         <td>{{ "%.2f"|format(s.cash_sales|float) }}</td>
+        <td>
+            {% if s.expenses %}
+                <ul style="margin:0; padding-left:16px; font-size:12px;">
+                {% for exp in s.expenses %}
+                    <li>{{ exp.name }}: Ksh {{ "%.2f"|format(exp.amount|float) }}</li>
+                {% endfor %}
+                </ul>
+            {% else %}—{% endif %}
+        </td>
         <td><strong>{{ "%.2f"|format(s.total_sales|float) }}</strong></td>
         <td>{{ s.submitted_by }}</td>
     </tr>
@@ -125,11 +121,32 @@
 </div>
 
 <script>
+// Expense handling
+function toggleExpenses() {
+    const type = document.getElementById('salesType').value;
+    document.getElementById('expensesBlock').style.display = (type === 'branch_total') ? 'block' : 'none';
+}
+function addExpense() {
+    const div = document.createElement('div');
+    div.style.display = 'flex'; div.style.gap = '10px'; div.style.marginBottom = '8px';
+    div.innerHTML = `
+        <input type="text" name="expense_name[]" placeholder="Expense name" style="flex:1;" required>
+        <input type="number" name="expense_amount[]" step="0.01" placeholder="Amount" style="flex:1;" required>
+        <button type="button" class="btn-danger btn-sm" onclick="this.parentElement.remove()">✕</button>
+    `;
+    document.getElementById('expenseList').appendChild(div);
+}
+
+// Sale confirmation
 function confirmSale() {
-    const mpesa = document.querySelector('input[name="mpesa_sales"]').value;
-    const cash = document.querySelector('input[name="cash_sales"]').value;
-    const total = (parseFloat(mpesa) + parseFloat(cash)).toFixed(2);
-    document.getElementById('saleSummary').innerHTML = `M‑Pesa: Ksh ${mpesa}<br>Cash: Ksh ${cash}<br><strong>Total: Ksh ${total}</strong>`;
+    const mpesa = document.querySelector('input[name="mpesa_sales"]').value || 0;
+    const cash = document.querySelector('input[name="cash_sales"]').value || 0;
+    let expenseTotal = 0;
+    document.querySelectorAll('#expenseList input[name="expense_amount[]"]').forEach(inp => {
+        expenseTotal += parseFloat(inp.value) || 0;
+    });
+    const grandTotal = parseFloat(mpesa) + parseFloat(cash) + expenseTotal;
+    document.getElementById('saleSummary').innerHTML = `M‑Pesa: Ksh ${mpesa}<br>Cash: Ksh ${cash}<br>Expenses: Ksh ${expenseTotal.toFixed(2)}<br><strong>Total: Ksh ${grandTotal.toFixed(2)}</strong>`;
     document.getElementById('saleConfirmModal').style.display = 'flex';
 }
 function closeSaleConfirm() { document.getElementById('saleConfirmModal').style.display = 'none'; }
