@@ -9,43 +9,97 @@
 </head>
 <body>
     {% if session.get('user') %}
-    <header>
-        <div class="brand">
+    <!-- ── Sidebar ── -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
             <div class="brand-icon">💊</div>
             <div class="brand-info">
                 <span class="brand-name">Mediocare</span>
                 <span class="brand-sub">Pharmaceutical Ltd</span>
             </div>
         </div>
-        <button class="menu-toggle" onclick="toggleMenu()">☰</button>
-        <nav id="mainNav">
-            <a href="/">📊 Dashboard</a>
-            <a href="/check-in">✅ Check In/Out</a>
-            <a href="/attendance-history">📅 Attendance</a>
-            <a href="/leaves">📝 Leaves</a>
-            <a href="/sales">💰 Sales</a>
+        <nav class="sidebar-nav">
+            <a href="/" class="{% if request.path == '/' %}active{% endif %}">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <a href="/check-in" class="{% if request.path == '/check-in' %}active{% endif %}">
+                <span class="nav-icon">✅</span> Check In/Out
+            </a>
+            <a href="/attendance-history" class="{% if request.path == '/attendance-history' %}active{% endif %}">
+                <span class="nav-icon">📅</span> Attendance
+            </a>
+            <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">
+                <span class="nav-icon">📝</span> Leaves
+            </a>
+            <a href="/sales" class="{% if request.path == '/sales' %}active{% endif %}">
+                <span class="nav-icon">💰</span> Sales
+            </a>
             {% if session.get('role') in ['admin','ceo'] %}
-            <a href="/approvals" class="nav-alert">🔔 Approvals</a>
-            <a href="/employees">👥 Team</a>
-            <a href="/branches">🏢 Branches</a>
+            <a href="/admin" class="{% if request.path == '/admin' %}active{% endif %}">
+                <span class="nav-icon">⚙️</span> Admin Panel
+            </a>
+            <a href="/approvals" class="{% if request.path == '/approvals' %}active{% endif %}">
+                <span class="nav-icon">🔔</span> Approvals
+            </a>
+            <a href="/employees" class="{% if request.path == '/employees' %}active{% endif %}">
+                <span class="nav-icon">👥</span> Team
+            </a>
+            <a href="/branches" class="{% if request.path == '/branches' %}active{% endif %}">
+                <span class="nav-icon">🏢</span> Branches
+            </a>
             {% endif %}
             {% if session.get('role') in ['Store Manager','Operations Manager','admin','ceo'] %}
-            <a href="/approve-leaves">✅ Leave Approvals</a>
+            <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}">
+                <span class="nav-icon">✅</span> Leave Approvals
+            </a>
             {% endif %}
             {% if session.get('role') in ['admin','ceo','manager'] or session.get('department') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant'] %}
-            <a href="/reports">📋 Reports</a>
+            <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}">
+                <span class="nav-icon">📋</span> Reports
+            </a>
             {% endif %}
-            <a href="/profile">👤 Profile</a>
-            <a href="/logout" class="nav-logout">🚪 Logout</a>
+            <a href="/profile" class="{% if request.path == '/profile' %}active{% endif %}">
+                <span class="nav-icon">👤</span> Profile
+            </a>
+            <a href="/logout" class="logout-link">
+                <span class="nav-icon">🚪</span> Logout
+            </a>
         </nav>
+    </aside>
+
+    <!-- ── Overlay for mobile ── -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- ── Top bar (mobile) ── -->
+    <header class="topbar">
+        <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+        <div class="topbar-brand">
+            <span class="brand-icon">💊</span>
+            <span>Mediocare</span>
+        </div>
+        <div style="width:40px;"></div> <!-- spacer -->
     </header>
     {% endif %}
-    <main>
+
+    <!-- ── Main content ── -->
+    <main class="main-content" id="mainContent">
         {% block content %}{% endblock %}
     </main>
+
     <script>
-        function toggleMenu(){document.getElementById('mainNav').classList.toggle('show');}
-        document.addEventListener('click',function(e){if(!e.target.closest('header')){document.getElementById('mainNav').classList.remove('show');}});
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('show');
+        }
+        // Close sidebar when clicking a link on mobile
+        document.querySelectorAll('.sidebar-nav a').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    document.getElementById('sidebar').classList.remove('open');
+                    document.getElementById('sidebarOverlay').classList.remove('show');
+                }
+            });
+        });
     </script>
 </body>
 </html>
