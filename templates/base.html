@@ -8,8 +8,15 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
 </head>
 <body>
+    <!-- Skeleton Loader -->
+    <div id="skeleton-loader" class="skeleton-overlay">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+    </div>
+
     {% if session.get('user') %}
-    <!-- ── Sidebar ── -->
+    <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="brand-icon">💊</div>
@@ -67,21 +74,18 @@
         </nav>
     </aside>
 
-    <!-- ── Overlay for mobile ── -->
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-    <!-- ── Top bar (mobile) ── -->
     <header class="topbar">
         <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
         <div class="topbar-brand">
             <span class="brand-icon">💊</span>
             <span>Mediocare</span>
         </div>
-        <div style="width:40px;"></div> <!-- spacer -->
+        <div style="width:40px;"></div>
     </header>
     {% endif %}
 
-    <!-- ── Main content ── -->
     <main class="main-content" id="mainContent">
         {% block content %}{% endblock %}
     </main>
@@ -91,7 +95,6 @@
             document.getElementById('sidebar').classList.toggle('open');
             document.getElementById('sidebarOverlay').classList.toggle('show');
         }
-        // Close sidebar when clicking a link on mobile
         document.querySelectorAll('.sidebar-nav a').forEach(link => {
             link.addEventListener('click', () => {
                 if (window.innerWidth <= 768) {
@@ -99,6 +102,10 @@
                     document.getElementById('sidebarOverlay').classList.remove('show');
                 }
             });
+        });
+        // Skeleton loader: hide after page loads
+        window.addEventListener('load', function() {
+            document.getElementById('skeleton-loader').style.display = 'none';
         });
     </script>
 </body>
