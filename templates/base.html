@@ -31,9 +31,11 @@
             <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">
                 <span class="nav-icon">📝</span> Leaves
             </a>
+            {% if session.get('role') != 'Sales Manager' %}
             <a href="/sales" class="{% if request.path == '/sales' %}active{% endif %}">
                 <span class="nav-icon">💰</span> Sales
             </a>
+            {% endif %}
             {% if session.get('role') in ['admin','ceo'] %}
             <a href="/admin" class="{% if request.path == '/admin' %}active{% endif %}">
                 <span class="nav-icon">⚙️</span> Admin Panel
