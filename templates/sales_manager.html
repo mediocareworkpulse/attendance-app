@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">Sales Manager Dashboard</h1>
+<p class="page-subtitle">{{ company }} — {{ today }}</p>
+
+<!-- Pending Check‑ins -->
+<h2>⏳ Pending Check‑ins</h2>
+{% if pending_checkins %}
+<div class="table-container">
+<table>
+  <tr><th>Marketer</th><th>Time</th><th>Location</th><th>Actions</th></tr>
+  {% for c in pending_checkins %}
+  <tr>
+    <td class="td-name">{{ c.full_name }}</td>
+    <td>{{ c.check_in_time }}</td>
+    <td>{{ c.location or '—' }}</td>
+    <td>
+      <form method="POST" action="/sales-manager/approve/{{ c.id }}" style="display:inline;">
+        <button class="btn btn-sm" style="background:#27ae60;">Approve</button>
+      </form>
+      <form method="POST" action="/sales-manager/reject/{{ c.id }}" style="display:inline;">
+        <button class="btn-danger btn-sm">Reject</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% else %}<p>No pending check‑ins.</p>{% endif %}
+
+<!-- Approved Check‑ins Today -->
+<h2>✅ Approved Today</h2>
+{% if approved_checkins %}
+<div class="table-container">
+<table>
+  <tr><th>Marketer</th><th>Time</th><th>Location</th></tr>
+  {% for c in approved_checkins %}
+  <tr>
+    <td>{{ c.full_name }}</td>
+    <td>{{ c.check_in_time }}</td>
+    <td>{{ c.location or '—' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% else %}<p>No approved check‑ins yet.</p>{% endif %}
+
+<!-- Reports -->
+<h2>📋 Today's Reports</h2>
+{% if reports %}
+<div class="table-container">
+<table>
+  <tr><th>Marketer</th><th>Customer</th><th>Phone</th><th>Details</th><th>Expenses</th></tr>
+  {% for r in reports %}
+  <tr>
+    <td>{{ r.full_name }}</td>
+    <td>{{ r.customer_name }}</td>
+    <td>{{ r.customer_phone or '—' }}</td>
+    <td>{{ r.details or '—' }}</td>
+    <td>Ksh {{ "%.2f"|format(r.expenses|float) }}</td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% else %}<p>No reports yet.</p>{% endif %}
+
+<!-- Assign Places -->
+<h2>📍 Assign Visiting Place</h2>
+<div class="form-card">
+  <form method="POST" action="/sales-manager/assign">
+    <div class="form-grid">
+      <div class="form-group"><label>Marketer Name</label><input type="text" name="marketer_name" required></div>
+      <div class="form-group"><label>Place / Town</label><input type="text" name="place_name" required></div>
+      <div class="form-group"><button type="submit" class="btn">Assign</button></div>
+    </div>
+  </form>
+</div>
+
+<!-- Assigned Places List -->
+<h2>Assigned Places</h2>
+{% if assigned %}
+<div class="table-container">
+<table>
+  <tr><th>Marketer</th><th>Place</th><th>Date</th></tr>
+  {% for a in assigned %}
+  <tr>
+    <td>{{ a.marketer_name }}</td>
+    <td>{{ a.place_name }}</td>
+    <td>{{ a.date_assigned }}</td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% else %}<p>No places assigned.</p>{% endif %}
+{% endblock %}
