@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">My Assigned Places</h1>
+<p class="page-subtitle">{{ company }}</p>
+
+{% if places %}
+<div class="table-container">
+<table>
+  <tr><th>Place</th><th>Date Assigned</th></tr>
+  {% for p in places %}
+  <tr>
+    <td class="td-name">{{ p.place_name }}</td>
+    <td>{{ p.date_assigned }}</td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% else %}<p>No places assigned yet.</p>{% endif %}
+{% endblock %}
