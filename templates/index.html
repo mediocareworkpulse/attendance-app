@@ -32,6 +32,12 @@
     {% endif %}
 </div>
 
+{% if target_achieved %}
+<div class="alert alert-success" style="font-size:16px; font-weight:700;">
+    🎉 Congratulations, {{ session.get('user') }}! You have achieved your monthly sales target!
+</div>
+{% endif %}
+
 {% if session.get('role') in ['admin','ceo'] and pending_count > 0 %}
 <div class="alert alert-error">⚠️ {{ pending_count }} pending approvals — <a href="/approvals" style="color:#c0392b;font-weight:700;">Review Now</a></div>
 {% endif %}
