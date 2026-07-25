@@ -36,6 +36,7 @@ OPERATIONS_MANAGER_TEAM = [
 RIDER_DRIVER_ROLES = ['Riders','Drivers']
 MARKETER_ROLE = 'Marketers'
 SALES_MANAGER_ROLE = 'Sales Manager'
+TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller']
 COMPANY_NAME = 'Mediocare Pharmaceutical Ltd'
 
 def login_required(f):
@@ -146,7 +147,6 @@ def home():
     ub = session.get('branch','')
     un = session.get('user','')
 
-    # Determine if the user should see the Sales Today card
     show_sales_card = (
         role in ['Staff','Branch Manager','admin','ceo'] or
         session.get('department','') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant']
@@ -211,11 +211,25 @@ def home():
 
     pending = len(safe_data(execute_query(supabase.table('employees').select('id').eq('status','pending')))) if role in FULL_ACCESS_ROLES else 0
 
+    # 🎯 Target achievement message
+    target_achieved = False
+    if role in SALES_SUBMIT_ROLES:
+        month_str = str(now_eat().date().replace(day=1))
+        target = safe_data(execute_query(supabase.table('sales_targets').select('target_amount').eq('full_name',un).eq('month',month_str).limit(1)))
+        if target:
+            target_amt = float(target[0]['target_amount'])
+            ms = today.replace(day=1)
+            my_sales = safe_data(execute_query(supabase.table('sales').select('total_sales').eq('full_name',un).gte('date',str(ms)).lte('date',today)))
+            month_total = sum(float(s['total_sales']) for s in my_sales)
+            if month_total >= target_amt and target_amt > 0:
+                target_achieved = True
+
     return render_template('index.html',
         total_employees=total_emp,present_count=present,late_count=late,
         total_sales=total_sales,recent_records=records,
         user_checked_in=uci,user_checked_out=uco,user_status=user_status,
-        pending_count=pending,show_sales_card=show_sales_card,company=COMPANY_NAME)
+        pending_count=pending,show_sales_card=show_sales_card,
+        target_achieved=target_achieved,company=COMPANY_NAME)
 
 # ---------- ADMIN PANEL ----------
 @app.route('/admin')
@@ -526,7 +540,7 @@ def attendance_history():
     records = [{'date':x.get('date',''),'full_name':x.get('full_name',''),'check_in':x.get('check_in','—'),'check_out':x.get('check_out','—'),'status':x.get('status','present'),'label':{'present':'Working','late':'Working','lunch':'At Lunch','checked_out':'Checked Out'}.get(x.get('status','present'),'Working')} for x in r]
     return render_template('attendance_history.html', records=records, period=period, today=str(today), company=COMPANY_NAME)
 
-# ---------- SALES (with expenses) ----------
+# ---------- SALES (with target progress) ----------
 @app.route('/sales', methods=['GET','POST'])
 @login_required
 def sales_page():
@@ -583,7 +597,29 @@ def sales_page():
         bt[br]['mpesa'] += float(s.get('mpesa_sales',0))
         bt[br]['cash']  += float(s.get('cash_sales',0))
         bt[br]['total'] += float(s.get('total_sales',0))
-    return render_template('sales.html',sales=sd,branch_sales=bd,branch_totals=dict(bt),total_mpesa=t_mpesa,total_cash=t_cash,total_all=t_mpesa+t_cash,today=today,company=COMPANY_NAME,success_msg=request.args.get('success',''))
+
+    # 🎯 Target progress for current user
+    target_progress = None
+    if role in SALES_SUBMIT_ROLES:
+        month_str = str(now_eat().date().replace(day=1))
+        target = safe_data(execute_query(supabase.table('sales_targets').select('target_amount').eq('full_name',un).eq('month',month_str).limit(1)))
+        if target:
+            target_amt = float(target[0]['target_amount'])
+            ms = today.replace(day=1)
+            my_sales = safe_data(execute_query(supabase.table('sales').select('total_sales').eq('full_name',un).gte('date',str(ms)).lte('date',today)))
+            month_total = sum(float(s['total_sales']) for s in my_sales)
+            target_progress = {
+                'target': target_amt,
+                'current': month_total,
+                'percent': round((month_total / target_amt * 100), 1) if target_amt > 0 else 0,
+                'achieved': month_total >= target_amt
+            }
+
+    return render_template('sales.html',
+        sales=sd,branch_sales=bd,branch_totals=dict(bt),
+        total_mpesa=t_mpesa,total_cash=t_cash,total_all=t_mpesa+t_cash,
+        today=today,company=COMPANY_NAME,success_msg=request.args.get('success',''),
+        target_progress=target_progress)
 
 # ---------- PROFILE ----------
 @app.route('/profile', methods=['GET','POST'])
@@ -743,19 +779,11 @@ def sales_manager_dashboard():
 @login_required
 def approve_checkin(cid):
     if session.get('role') != SALES_MANAGER_ROLE: return redirect('/')
-    # Update the check‑in request status
     supabase.table('marketer_checkins').update({'status':'approved'}).eq('id',cid).execute()
-    # Now create the corresponding attendance record
     req = safe_data(execute_query(supabase.table('marketer_checkins').select('*').eq('id',cid)))
     if req:
         r = req[0]
-        # Avoid duplicate attendance entries
-        existing = safe_data(execute_query(
-            supabase.table('attendance')
-            .select('id')
-            .eq('full_name', r['full_name'])
-            .eq('date', r['date'])
-        ))
+        existing = safe_data(execute_query(supabase.table('attendance').select('id').eq('full_name',r['full_name']).eq('date',r['date'])))
         if not existing:
             supabase.table('attendance').insert({
                 'full_name': r['full_name'],
@@ -765,7 +793,7 @@ def approve_checkin(cid):
                 'check_in_lat': r.get('lat',''),
                 'check_in_lng': r.get('lng',''),
                 'check_in_location': r.get('location',''),
-                'department': '',   # will be updated from employee if needed
+                'department': '',
                 'branch': ''
             }).execute()
     return redirect('/sales-manager')
@@ -797,6 +825,31 @@ def my_places():
     un = session.get('user')
     places = safe_data(execute_query(supabase.table('assigned_places').select('*').eq('marketer_name',un).order('date_assigned',desc=True).limit(50)))
     return render_template('my_places.html', places=places, company=COMPANY_NAME)
+
+# ---------- TARGET SETTING (Stock Controller) ----------
+@app.route('/targets', methods=['GET','POST'])
+@login_required
+def targets_page():
+    if session.get('role') not in TARGET_SETTER_ROLES: return redirect('/')
+    if request.method == 'POST':
+        employee = request.form.get('employee_name','').strip()
+        month = request.form.get('month','')
+        amount = request.form.get('amount','0')
+        try:
+            amt = float(amount)
+            if employee and month and amt > 0:
+                supabase.table('sales_targets').upsert({
+                    'full_name': employee,
+                    'month': month,
+                    'target_amount': amt,
+                    'set_by': session.get('user')
+                }, on_conflict='full_name,month').execute()
+        except: pass
+        return redirect('/targets')
+
+    employees = safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').order('full_name')))
+    targets = safe_data(execute_query(supabase.table('sales_targets').select('*').order('month', desc=True).order('full_name').limit(100)))
+    return render_template('targets.html', employees=employees, targets=targets, today=str(now_eat().date()), company=COMPANY_NAME)
 
 # ---------- ERROR HANDLER ----------
 @app.errorhandler(Exception)
