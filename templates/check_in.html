@@ -48,7 +48,7 @@
     </div>
     {% endif %}
 
-<!-- ═══════════ OTHER ROLES (Staff, Managers, Riders, Drivers, etc.) ═══════════ -->
+<!-- ═══════════ OTHER ROLES ═══════════ -->
 {% else %}
     {% if user_status == 'none' %}
     <div class="checkin-container">
@@ -187,7 +187,7 @@
 </div>
 
 <script>
-// Dynamic greeting (only for non‑marketer roles)
+// Dynamic greeting (non‑marketers)
 {% if session.get('role') != 'Marketers' %}
 (function() {
     const hour = new Date().getHours();
@@ -224,7 +224,7 @@ updateShiftTimer();
 setInterval(updateShiftTimer, 10000);
 {% endif %}
 
-// Location capture (for all)
+// Location capture WITH reverse geocoding (for all)
 (function() {
     var d = document.getElementById('ls-text');
     var la = document.getElementById('lat');
@@ -237,19 +237,29 @@ setInterval(updateShiftTimer, 10000);
     navigator.geolocation.getCurrentPosition(function(p) {
         const lat = p.coords.latitude;
         const lng = p.coords.longitude;
-        const loc = lat + ',' + lng;
+        // Set coordinates immediately
         if (la) la.value = lat;
         if (lo) lo.value = lng;
-        if (lc) lc.value = loc;
-        // Fill journey fields if present
-        document.querySelectorAll('[id^="latJ"], [id^="lngJ"], [id^="locJ"]').forEach(el => {
-            if (el.id.startsWith('lat')) el.value = lat;
-            if (el.id.startsWith('lng')) el.value = lng;
-            if (el.id.startsWith('loc')) el.value = loc;
-        });
-        d.textContent = '✅ Location captured';
-        d.parentElement.style.background = '#d4f5e0';
-        d.parentElement.style.color = '#1e7e34';
+        if (lc) lc.value = lat + ',' + lng;
+
+        // Now try to get address (non‑blocking)
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+            .then(res => res.json())
+            .then(data => {
+                const address = data.display_name || (lat + ',' + lng);
+                if (lc) lc.value = address;
+                // Also update all hidden location fields that start with loc
+                document.querySelectorAll('[id^="loc"]').forEach(el => { el.value = address; });
+                d.textContent = '✅ ' + address.substring(0, 60) + (address.length > 60 ? '…' : '');
+                d.parentElement.style.background = '#d4f5e0';
+                d.parentElement.style.color = '#1e7e34';
+            })
+            .catch(() => {
+                // Keep lat,lng as fallback
+                d.textContent = '✅ Location captured (coordinates)';
+                d.parentElement.style.background = '#d4f5e0';
+                d.parentElement.style.color = '#1e7e34';
+            });
     }, function(err) {
         d.textContent = '⚠️ Location unavailable – continuing without GPS';
         d.parentElement.style.background = '#fff3d6';
@@ -259,16 +269,14 @@ setInterval(updateShiftTimer, 10000);
 
 // Check-out confirmation
 function confirmCheckOut() {
-    document.getElementById('confirmModal').style.display = 'flex';
-}
-function closeConfirm() { document.getElementById('confirmModal').style.display = 'none'; }
-function submitCheckOut() {
-    // Copy location to checkout hidden fields
+    // Copy location values to checkout hidden fields
     document.getElementById('latCO').value = document.getElementById('lat').value || '';
     document.getElementById('lngCO').value = document.getElementById('lng').value || '';
     document.getElementById('locCO').value = document.getElementById('loc').value || '';
-    document.getElementById('checkoutForm').submit();
+    document.getElementById('confirmModal').style.display = 'flex';
 }
+function closeConfirm() { document.getElementById('confirmModal').style.display = 'none'; }
+function submitCheckOut() { document.getElementById('checkoutForm').submit(); }
 
 // Worked timer (for checked-in non‑marketers)
 {% if user_status == 'checked_in' and check_in_time and session.get('role') != 'Marketers' %}
