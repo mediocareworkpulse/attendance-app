@@ -71,7 +71,8 @@ def get_branches():
     return safe_data(execute_query(supabase.table('branches').select('*').order('name')))
 
 def get_branch_names():
-    return [b['name'] for b in get_branches()]
+    names = [b['name'] for b in get_branches()]
+    return names
 
 def now_eat():
     return datetime.now(EAT)
@@ -161,7 +162,6 @@ def home():
         sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names))
         emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM))
     elif role == 'Sales Manager':
-        # Sales Manager sees only marketers
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('role',MARKETER_ROLE)))]
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
         sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names))
@@ -377,7 +377,6 @@ def check_in_page():
             check_in_time = rec.get('check_in')
             lunch_active = (rec.get('lunch_start') and not rec.get('lunch_end'))
 
-    # Override for marketers
     if role == MARKETER_ROLE:
         if marketer_approved:
             current_status = 'approved'
@@ -445,7 +444,7 @@ def process_attendance():
     exd = existing[0] if existing else None
 
     if action == 'check_in':
-        if role == MARKETER_ROLE: return redirect('/check-in')  # marketers use separate flow
+        if role == MARKETER_ROLE: return redirect('/check-in')
         if exd and exd.get('check_in'): return redirect('/check-in')
         status = 'present'
         if role not in RIDER_DRIVER_ROLES + [MARKETER_ROLE]:
