@@ -6,15 +6,36 @@
     <span class="badge badge-info" style="margin-left:10px;">{{ session.get('role')|upper }}</span>
     {% if session.get('branch') %}<span style="margin-left:10px;color:var(--text-secondary);">· {{ session.get('branch') }}</span>{% endif %}
 </div>
+
 <div class="stats">
-    <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-label">Team Members</div><div class="stat-value">{{ total_employees }}</div></div>
-    <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-label">Present Today</div><div class="stat-value">{{ present_count }}</div></div>
-    <div class="stat-card"><div class="stat-icon">⏰</div><div class="stat-label">Arrived Late</div><div class="stat-value">{{ late_count }}</div></div>
-    <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-label">Sales Today</div><div class="stat-value" style="font-size:28px;">Ksh {{ "%.0f"|format(total_sales) }}</div></div>
+    <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-label">Team Members</div>
+        <div class="stat-value">{{ total_employees }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">✅</div>
+        <div class="stat-label">Present Today</div>
+        <div class="stat-value">{{ present_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">⏰</div>
+        <div class="stat-label">Arrived Late</div>
+        <div class="stat-value">{{ late_count }}</div>
+    </div>
+    {% if show_sales_card %}
+    <div class="stat-card">
+        <div class="stat-icon">💰</div>
+        <div class="stat-label">Sales Today</div>
+        <div class="stat-value" style="font-size:28px;">Ksh {{ "%.0f"|format(total_sales) }}</div>
+    </div>
+    {% endif %}
 </div>
+
 {% if session.get('role') in ['admin','ceo'] and pending_count > 0 %}
 <div class="alert alert-error">⚠️ {{ pending_count }} pending approvals — <a href="/approvals" style="color:#c0392b;font-weight:700;">Review Now</a></div>
 {% endif %}
+
 {% if session.get('role') not in ['admin','ceo'] %}
 <div style="margin-top:20px;">
     {% if not user_checked_in %}
@@ -22,12 +43,13 @@
     {% elif not user_checked_out %}
     <a href="/check-in" class="checkin-btn btn-check-out">🚪 Check Out Now</a>
     {% else %}
-    <div class="status-badge working" style="font-size:14px;padding:12px 24px;">✅ Shift Complete</div>
+    <div class="btn-done">✅ Shift Complete — Great work!</div>
     {% endif %}
 </div>
 {% endif %}
+
 {% if recent_records %}
-<h2>Today's Attendance</h2>
+<h2>Today's Attendance <span class="count">{{ recent_records|length }}</span></h2>
 <div class="table-container">
 <table>
     <tr><th>Name</th><th>Dept / Role</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
