@@ -31,7 +31,8 @@
             <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">
                 <span class="nav-icon">📝</span> Leaves
             </a>
-            {% if session.get('role') != 'Sales Manager' %}
+            <!-- Sales visible only for roles that can submit or view -->
+            {% if session.get('role') in ['Staff','Branch Manager','admin','ceo'] or session.get('department') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant'] %}
             <a href="/sales" class="{% if request.path == '/sales' %}active{% endif %}">
                 <span class="nav-icon">💰</span> Sales
             </a>
