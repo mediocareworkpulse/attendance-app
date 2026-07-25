@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">Sales Targets</h1>
+<p class="page-subtitle">{{ company }} – Set monthly targets for employees</p>
+
+<div class="form-card">
+    <h2>🎯 Set / Update Target</h2>
+    <form method="POST">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Employee</label>
+                <select name="employee_name" required>
+                    <option value="">Select employee</option>
+                    {% for e in employees %}
+                    <option value="{{ e.full_name }}">{{ e.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Month</label>
+                <input type="month" name="month" required value="{{ today[:7] }}">
+            </div>
+            <div class="form-group">
+                <label>Target Amount (Ksh)</label>
+                <input type="number" name="amount" step="0.01" required placeholder="e.g. 500000">
+            </div>
+            <div class="form-group" style="align-self:end;">
+                <button type="submit" class="btn">Save Target</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+{% if targets %}
+<h2>Existing Targets <span class="count">{{ targets|length }}</span></h2>
+<div class="table-container">
+<table>
+    <tr><th>Employee</th><th>Month</th><th>Target (Ksh)</th><th>Set By</th></tr>
+    {% for t in targets %}
+    <tr>
+        <td class="td-name">{{ t.full_name }}</td>
+        <td>{{ t.month }}</td>
+        <td>{{ "%.2f"|format(t.target_amount|float) }}</td>
+        <td>{{ t.set_by }}</td>
+    </tr>
+    {% endfor %}
+</table>
+</div>
+{% endif %}
+{% endblock %}
