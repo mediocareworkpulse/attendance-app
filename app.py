@@ -71,8 +71,7 @@ def get_branches():
     return safe_data(execute_query(supabase.table('branches').select('*').order('name')))
 
 def get_branch_names():
-    names = [b['name'] for b in get_branches()]
-    return names
+    return [b['name'] for b in get_branches()]
 
 def now_eat():
     return datetime.now(EAT)
@@ -147,6 +146,12 @@ def home():
     ub = session.get('branch','')
     un = session.get('user','')
 
+    # Determine if the user should see the Sales Today card
+    show_sales_card = (
+        role in ['Staff','Branch Manager','admin','ceo'] or
+        session.get('department','') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant']
+    )
+
     if role in FULL_ACCESS_ROLES or can_view_all():
         emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved'))
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).limit(20))
@@ -175,7 +180,7 @@ def home():
     att_data = safe_data(att_r)
     present = sum(1 for a in att_data if a.get('check_in') and a.get('status') not in ['lunch','checked_out'])
     late = sum(1 for a in att_data if a.get('status')=='late')
-    total_sales = sum(float(s.get('total_sales',0)) for s in safe_data(sales_r))
+    total_sales = sum(float(s.get('total_sales',0)) for s in safe_data(sales_r)) if show_sales_card else 0
 
     records = []
     for rec in att_data[:10]:
@@ -210,7 +215,7 @@ def home():
         total_employees=total_emp,present_count=present,late_count=late,
         total_sales=total_sales,recent_records=records,
         user_checked_in=uci,user_checked_out=uco,user_status=user_status,
-        pending_count=pending,company=COMPANY_NAME)
+        pending_count=pending,show_sales_card=show_sales_card,company=COMPANY_NAME)
 
 # ---------- ADMIN PANEL ----------
 @app.route('/admin')
@@ -350,7 +355,6 @@ def check_in_page():
     un = session.get('user')
     ub = session.get('branch','')
 
-    # Marketer specific
     marketer_pending = False
     marketer_approved = False
     if role == MARKETER_ROLE:
@@ -739,7 +743,31 @@ def sales_manager_dashboard():
 @login_required
 def approve_checkin(cid):
     if session.get('role') != SALES_MANAGER_ROLE: return redirect('/')
+    # Update the check‑in request status
     supabase.table('marketer_checkins').update({'status':'approved'}).eq('id',cid).execute()
+    # Now create the corresponding attendance record
+    req = safe_data(execute_query(supabase.table('marketer_checkins').select('*').eq('id',cid)))
+    if req:
+        r = req[0]
+        # Avoid duplicate attendance entries
+        existing = safe_data(execute_query(
+            supabase.table('attendance')
+            .select('id')
+            .eq('full_name', r['full_name'])
+            .eq('date', r['date'])
+        ))
+        if not existing:
+            supabase.table('attendance').insert({
+                'full_name': r['full_name'],
+                'date': r['date'],
+                'check_in': r['check_in_time'],
+                'status': 'present',
+                'check_in_lat': r.get('lat',''),
+                'check_in_lng': r.get('lng',''),
+                'check_in_location': r.get('location',''),
+                'department': '',   # will be updated from employee if needed
+                'branch': ''
+            }).execute()
     return redirect('/sales-manager')
 
 @app.route('/sales-manager/reject/<int:cid>', methods=['POST'])
