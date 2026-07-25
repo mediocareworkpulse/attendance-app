@@ -7,10 +7,37 @@
 
 <!-- Overview Cards -->
 <div class="stats">
-    <div class="stat-card"><div class="stat-icon">💳</div><div class="stat-label">M‑Pesa Sales</div><div class="stat-value" style="font-size:28px;">Ksh {{ "%.2f"|format(total_mpesa) }}</div></div>
-    <div class="stat-card"><div class="stat-icon">💵</div><div class="stat-label">Cash Sales</div><div class="stat-value" style="font-size:28px;">Ksh {{ "%.2f"|format(total_cash) }}</div></div>
-    <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-label">Grand Total</div><div class="stat-value" style="font-size:28px;">Ksh {{ "%.2f"|format(total_all) }}</div></div>
+    <div class="stat-card">
+        <div class="stat-icon">💳</div>
+        <div class="stat-label">M‑Pesa Sales</div>
+        <div class="stat-value" style="font-size:28px;">Ksh {{ "%.2f"|format(total_mpesa) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">💵</div>
+        <div class="stat-label">Cash Sales</div>
+        <div class="stat-value" style="font-size:28px;">Ksh {{ "%.2f"|format(total_cash) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">💰</div>
+        <div class="stat-label">Grand Total</div>
+        <div class="stat-value" style="font-size:28px;">Ksh {{ "%.2f"|format(total_all) }}</div>
+    </div>
 </div>
+
+{% if target_progress %}
+<div class="target-progress-card">
+    <h3>🎯 Monthly Target Progress</h3>
+    <div class="progress-bar-bg">
+        <div class="progress-bar-fill" style="width: {{ target_progress.percent }}%;">
+            <span class="progress-text">{{ target_progress.percent }}%</span>
+        </div>
+    </div>
+    <p>Ksh {{ "%.2f"|format(target_progress.current) }} / Ksh {{ "%.2f"|format(target_progress.target) }}</p>
+    {% if target_progress.achieved %}
+    <div class="alert alert-success">🎉 Congratulations! You've achieved your monthly target!</div>
+    {% endif %}
+</div>
+{% endif %}
 
 {% if session.get('role') in ['staff','manager'] %}
 <!-- Sale Entry Form -->
@@ -31,14 +58,11 @@
             </div>
             <div class="form-group"><label>Notes</label><input type="text" name="notes" placeholder="Optional"></div>
         </div>
-
-        <!-- Expenses block (only for branch total) -->
         <div id="expensesBlock" style="display:none; margin-top:20px;">
             <h3>Expenses</h3>
             <div id="expenseList"></div>
             <button type="button" class="btn btn-sm" onclick="addExpense()" style="background:#888;">➕ Add Expense</button>
         </div>
-
         <button type="button" class="btn" onclick="confirmSale()">Submit Sale</button>
         <p style="font-size:12px; color:#888; margin-top:8px;">Total = M‑Pesa + Cash + Expenses (auto‑calculated)</p>
     </form>
@@ -121,7 +145,6 @@
 </div>
 
 <script>
-// Expense handling
 function toggleExpenses() {
     const type = document.getElementById('salesType').value;
     document.getElementById('expensesBlock').style.display = (type === 'branch_total') ? 'block' : 'none';
@@ -136,8 +159,6 @@ function addExpense() {
     `;
     document.getElementById('expenseList').appendChild(div);
 }
-
-// Sale confirmation
 function confirmSale() {
     const mpesa = document.querySelector('input[name="mpesa_sales"]').value || 0;
     const cash = document.querySelector('input[name="cash_sales"]').value || 0;
