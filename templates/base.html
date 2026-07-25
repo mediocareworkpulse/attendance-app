@@ -37,6 +37,12 @@
                 <span class="nav-icon">💰</span> Sales
             </a>
             {% endif %}
+            <!-- Sales Targets for Stock Controllers -->
+            {% if session.get('role') in ['Stock Controller','Assistant Stock Controller'] %}
+            <a href="/targets" class="{% if request.path == '/targets' %}active{% endif %}">
+                <span class="nav-icon">🎯</span> Sales Targets
+            </a>
+            {% endif %}
             {% if session.get('role') in ['admin','ceo'] %}
             <a href="/admin" class="{% if request.path == '/admin' %}active{% endif %}">
                 <span class="nav-icon">⚙️</span> Admin Panel
