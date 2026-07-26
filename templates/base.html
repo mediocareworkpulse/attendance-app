@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mediocare Pharmaceutical Ltd</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     {% if session.get('user') %}
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="brand-icon">💊</div>
             <div class="brand-info">
@@ -45,7 +45,6 @@
             <a href="/profile" class="{% if request.path == '/profile' %}active{% endif %}">👤 Profile</a>
             <a href="/logout" class="logout-link">🚪 Logout</a>
         </nav>
-        <!-- Lunch status in sidebar -->
         {% if lunch_active %}
         <div class="sidebar-lunch">
             <div class="lunch-label">Lunch Break</div>
@@ -56,13 +55,12 @@
     </aside>
     {% endif %}
 
-    <main class="main-content">
+    <main class="main-content" id="mainContent">
         {% block content %}{% endblock %}
     </main>
 
     {% if lunch_active %}
     <script>
-        // Sidebar lunch countdown (same logic)
         (function() {
             let remaining = {{ lunch_remaining }};
             const display = document.getElementById('sidebar-lunch-timer');
