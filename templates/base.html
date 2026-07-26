@@ -9,22 +9,7 @@
 </head>
 <body>
     {% if session.get('user') %}
-    <!-- ========== MOBILE HEADER ========== -->
-    <header class="mobile-header">
-        <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">
-            <span></span><span></span><span></span>
-        </button>
-        <div class="mobile-brand">
-            <span class="brand-icon">💊</span>
-            <span class="brand-text">Mediocare</span>
-        </div>
-        <div class="header-spacer"></div>
-    </header>
-
-    <!-- ========== SIDEBAR OVERLAY ========== -->
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-
-    <!-- ========== SIDEBAR ========== -->
+    <!-- ========== SIDEBAR (always visible) ========== -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="brand-icon">💊</div>
@@ -99,20 +84,5 @@
     <main class="main-content" id="mainContent">
         {% block content %}{% endblock %}
     </main>
-
-    <script>
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
-            document.getElementById('sidebarOverlay').classList.toggle('show');
-        }
-        document.querySelectorAll('.sidebar-nav a').forEach(link => {
-            link.addEventListener('click', () => {
-                if (window.innerWidth <= 768) {
-                    document.getElementById('sidebar').classList.remove('open');
-                    document.getElementById('sidebarOverlay').classList.remove('show');
-                }
-            });
-        });
-    </script>
 </body>
 </html>
