@@ -130,7 +130,11 @@
         <td><span class="dept-role">{{ r.department }} / {{ r.role }}</span></td>
         <td>{{ r.check_in }}</td>
         <td>{{ r.check_out }}</td>
-        <td><span class="badge {% if r.status in ['present','late'] %}badge-success{% elif r.status=='lunch' %}badge-warning{% else %}badge-danger{% endif %}">{{ r.label }}</span></td>
+        <td>
+            <span class="badge {% if r.label == 'Working' %}badge-success{% elif r.label == 'Arrived Late' %}badge-warning{% elif r.label == 'Checked Out' %}badge-danger{% else %}badge-info{% endif %}">
+                {{ r.label }}
+            </span>
+        </td>
     </tr>
     {% endfor %}
 </table>
