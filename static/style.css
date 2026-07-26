@@ -33,7 +33,7 @@ body {
     display: flex;
 }
 
-/* ═══════════════ SIDEBAR (elegant dark) ═══════════════ */
+/* ═══════════════ SIDEBAR (desktop) ═══════════════ */
 .sidebar {
     width: var(--sidebar-width);
     height: 100vh;
@@ -95,12 +95,26 @@ body {
 .sidebar-overlay.show { display: block; }
 
 /* ═══════════════ TOP BAR (mobile) ═══════════════ */
-.topbar { display: none; position: sticky; top:0; z-index:998; background: var(--primary); padding: 12px 16px; color: #fff; align-items: center; justify-content: space-between; }
-.topbar .menu-toggle { background: rgba(255,255,255,0.1); border:none; font-size:20px; cursor:pointer; color:#fff; padding:6px 10px; border-radius:6px; }
-.topbar-brand { display: flex; align-items: center; gap:8px; font-weight:600; }
+.topbar {
+    display: none;
+    position: sticky; top:0; z-index:998;
+    background: var(--primary); padding: 12px 16px;
+    color: #fff; align-items: center; justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.topbar .menu-toggle { background: rgba(255,255,255,0.15); border:none; font-size:22px; cursor:pointer; color:#fff; padding:8px 12px; border-radius:8px; }
+.topbar-brand { display: flex; align-items: center; gap:8px; font-weight:600; font-size:16px; }
+.topbar-brand .brand-icon { font-size:24px; }
 
 /* ═══════════════ MAIN CONTENT ═══════════════ */
-.main-content { margin-left: var(--sidebar-width); flex:1; padding: 36px 40px; max-width: 1300px; width:100%; animation: fadeUp 0.4s ease; }
+.main-content {
+    margin-left: var(--sidebar-width);
+    flex:1;
+    padding: 36px 40px;
+    max-width: 1300px;
+    width:100%;
+    animation: fadeUp 0.4s ease;
+}
 @keyframes fadeUp { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
 
 /* ═══════════════ TYPOGRAPHY ═══════════════ */
@@ -295,15 +309,109 @@ label { display: block; margin-bottom: 6px; font-size: 11px; font-weight: 700; c
 }
 .progress-text { color: #fff; font-size: 12px; font-weight: 700; }
 
-/* ═══════════════ MOBILE ═══════════════ */
+/* ═══════════════ PERFECT MOBILE EXPERIENCE ═══════════════ */
 @media (max-width: 768px) {
-    .sidebar { transform: translateX(-100%); }
-    .sidebar.open { transform: translateX(0); }
-    .topbar { display: flex; }
-    .main-content { margin-left:0; padding: 16px; }
-    .stats { grid-template-columns: 1fr; }
-    .checkin-btn { width: 100%; justify-content: center; }
-    .sm-grid { grid-template-columns: 1fr; }
-    .profile-header { flex-direction: column; text-align: center; }
-    .profile-details { grid-template-columns: 1fr; }
+    body { flex-direction: column; }
+    .sidebar {
+        transform: translateX(-100%);
+        width: 80%;
+        max-width: 300px;
+    }
+    .sidebar.open {
+        transform: translateX(0);
+    }
+    .topbar {
+        display: flex;
+    }
+    .main-content {
+        margin-left: 0;
+        padding: 20px 16px;
+        animation: fadeUp 0.3s ease;
+    }
+
+    /* typography */
+    .page-title { font-size: 24px; }
+    .page-subtitle { margin-bottom: 24px; }
+
+    /* stats cards – single column */
+    .stats {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .stat-card { padding: 20px 18px; }
+    .stat-value { font-size: 28px; }
+
+    /* tables – horizontal scroll */
+    .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { min-width: 600px; }
+    th, td { padding: 12px 14px; white-space: nowrap; }
+
+    /* check‑in container */
+    .checkin-container { padding: 32px 20px; margin: 16px 0; }
+    .checkin-greeting-icon { font-size: 40px; }
+    .checkin-title { font-size: 20px; }
+    .checkin-btn { width: 100%; justify-content: center; padding: 16px 24px; font-size: 16px; }
+
+    /* forms – stack fields */
+    .form-grid { grid-template-columns: 1fr; gap: 12px; }
+    .form-card { padding: 20px; }
+
+    /* buttons */
+    .btn { padding: 14px 20px; width: 100%; justify-content: center; }
+    .btn-danger { width: auto; }
+
+    /* lunch buttons */
+    .btn-lunch, .btn-lunch-end { width: auto; padding: 12px 20px; }
+
+    /* filter bar – wrap and full width */
+    .filter-bar { gap: 8px; }
+    .filter-btn { padding: 10px 16px; font-size: 12px; }
+
+    /* progress steps */
+    .progress-steps { flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .step-circle { width: 24px; height: 24px; font-size: 10px; }
+
+    /* search bar */
+    .search-bar input { padding: 14px 14px 14px 40px; }
+
+    /* sales manager dashboard */
+    .sm-grid { grid-template-columns: 1fr; gap: 16px; }
+    .sm-card { padding: 20px; }
+    .sm-card-header h2 { font-size: 15px; }
+
+    /* profile card */
+    .profile-card { padding: 20px; }
+    .profile-header { flex-direction: column; text-align: center; gap: 12px; }
+    .profile-avatar { width: 56px; height: 56px; font-size: 24px; }
+    .profile-info h2 { font-size: 20px; }
+    .profile-details { grid-template-columns: 1fr; gap: 12px; }
+
+    /* target progress */
+    .target-progress-card { padding: 16px; }
+
+    /* modal */
+    .modal-box { padding: 24px; }
+    .modal-actions { flex-direction: column; gap: 8px; }
+    .modal-actions .btn { width: 100%; }
+
+    /* check‑out button */
+    .btn-check-out { margin-top: 16px; }
+
+    /* shift timer */
+    .shift-timer-card { padding: 18px; }
+    .timer-value { font-size: 28px; }
+
+    /* location status */
+    .location-status { font-size: 12px; padding: 10px 12px; }
+
+    /* sidebar nav items when sidebar open */
+    .sidebar-nav a { padding: 14px 20px; font-size: 14px; }
+}
+
+/* Small phones */
+@media (max-width: 400px) {
+    .main-content { padding: 16px 12px; }
+    .page-title { font-size: 22px; }
+    .checkin-btn { font-size: 15px; }
+    .stat-value { font-size: 24px; }
 }
