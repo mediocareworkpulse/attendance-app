@@ -179,7 +179,6 @@ def home():
 
     total_emp = len(safe_data(emp_r)) if emp_r else 0
     att_data = safe_data(att_r)
-    # Count present: checked in and not checked out (ignore old lunch status – treat as present)
     present = sum(1 for a in att_data if a.get('check_in') and not a.get('check_out'))
     late = sum(1 for a in att_data if a.get('status')=='late')
     total_sales = sum(float(s.get('total_sales',0)) for s in safe_data(sales_r)) if show_sales_card else 0
@@ -187,23 +186,12 @@ def home():
     records = []
     for rec in att_data[:10]:
         st = rec.get('status','present')
-        # Unified label mapping
-        label_map = {
-            'present': 'Working',
-            'late': 'Arrived Late',
-            'checked_out': 'Checked Out',
-            'lunch': 'Working',   # treat legacy lunch as Working
-            'absent': 'Absent'
-        }
-        label = label_map.get(st, 'Working')
-        # Determine if checked out
         if rec.get('check_out'):
             label = 'Checked Out'
         elif st == 'late':
             label = 'Arrived Late'
         else:
             label = 'Working'
-
         try:
             emp_detail = safe_data(execute_query(supabase.table('employees').select('role,department').eq('full_name',rec['full_name'])))
         except:
@@ -213,8 +201,7 @@ def home():
         records.append({
             'full_name':rec['full_name'],'department':dept_disp,'role':role_disp,
             'check_in':rec.get('check_in','—'),'check_out':rec.get('check_out','—'),
-            'status':st,
-            'label':label
+            'status':st,'label':label
         })
 
     uci=uco=False; user_status=''
@@ -436,7 +423,6 @@ def check_in_page():
     records = []
     for rec in r:
         st = rec.get('status','present')
-        # same label mapping
         if rec.get('check_out'):
             label = 'Checked Out'
         elif st == 'late':
@@ -452,8 +438,7 @@ def check_in_page():
         records.append({
             'full_name':rec['full_name'],'department':dept_disp,'role':role_disp,
             'check_in':rec.get('check_in','—'),'check_out':rec.get('check_out','—'),
-            'status':st,
-            'label':label
+            'status':st,'label':label
         })
 
     return render_template('check_in.html',
@@ -483,7 +468,6 @@ def process_attendance():
     if action == 'check_in':
         if role == MARKETER_ROLE: return redirect('/check-in')
         if exd and exd.get('check_in'): return redirect('/check-in')
-        # Set status: 'present' if on time, 'late' if after shift start
         status = 'late' if now > shift_start else 'present'
         d = {'check_in':now,'status':status,'check_in_lat':lat,'check_in_lng':lng,'check_in_location':loc}
         if exd: supabase.table('attendance').update(d).eq('full_name',un).eq('date',today).execute()
