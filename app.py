@@ -77,6 +77,38 @@ def get_branch_names():
 def now_eat():
     return datetime.now(EAT)
 
+# ---------- CONTEXT PROCESSOR (global lunch status) ----------
+@app.context_processor
+def inject_attendance():
+    if 'user' not in session:
+        return {}
+    un = session.get('user')
+    today = str(now_eat().date())
+    try:
+        att = safe_data(execute_query(
+            supabase.table('attendance').select('*').eq('full_name', un).eq('date', today).limit(1)
+        ))
+        if att:
+            rec = att[0]
+            if rec.get('check_out'):
+                status = 'completed'
+            elif rec.get('status') == 'lunch':
+                status = 'lunch'
+            elif rec.get('check_in'):
+                status = 'checked_in'
+            else:
+                status = 'none'
+            lunch_active = (rec.get('lunch_start') and not rec.get('lunch_end'))
+            return dict(
+                global_att_status=status,
+                global_lunch_active=lunch_active,
+                global_check_in_time=rec.get('check_in'),
+                global_shift_end=session.get('shift_end', '17:00')
+            )
+    except:
+        pass
+    return dict(global_att_status='none', global_lunch_active=False)
+
 # ---------- AUTH ----------
 @app.route('/login', methods=['GET','POST'])
 def login():
@@ -94,6 +126,8 @@ def login():
                 session['role'] = emp.get('role','Staff')
                 session['department'] = emp.get('department','')
                 session['branch'] = emp.get('branch','')
+                # store shift_end for global use
+                session['shift_end'] = emp.get('shift_end','17:00')
                 return redirect('/')
         return render_template('login.html', error='Invalid credentials.')
     return render_template('login.html')
