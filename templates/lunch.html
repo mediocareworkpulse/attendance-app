@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="lunch-page">
+    <h1 class="page-title">🍽️ Lunch Break</h1>
+    <div class="lunch-timer-big" id="lunchCountdown">--:--</div>
+    <p class="page-subtitle">Enjoy your break! Time remaining:</p>
+    <form method="POST" action="/check-in">
+        <input type="hidden" name="action" value="end_lunch">
+        <button type="submit" class="btn btn-lunch-end" style="font-size:18px; padding:16px 40px;">End Lunch &amp; Return</button>
+    </form>
+</div>
+
+<script>
+    let remaining = {{ remaining }};
+    const display = document.getElementById('lunchCountdown');
+    function format(sec) {
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+    function tick() {
+        if (remaining <= 0) {
+            display.textContent = '0:00';
+            return;
+        }
+        remaining--;
+        display.textContent = format(remaining);
+    }
+    tick();
+    setInterval(tick, 1000);
+</script>
+{% endblock %}
