@@ -33,7 +33,7 @@ body {
     display: flex;
 }
 
-/* ═══════════════ SIDEBAR (fixed, always visible) ═══════════════ */
+/* ═══════════════ SIDEBAR (always visible on all screens) ═══════════════ */
 .sidebar {
     width: var(--sidebar-w);
     height: 100vh;
@@ -46,7 +46,8 @@ body {
     display: flex;
     flex-direction: column;
     box-shadow: 4px 0 20px rgba(0,0,0,0.1);
-    transform: none !important;   /* always visible */
+    /* never translate off‑screen */
+    transform: none !important;
 }
 .sidebar-header {
     padding: 28px 20px 20px;
@@ -88,21 +89,6 @@ body {
 .sidebar-nav a.active { background: rgba(255,255,255,0.12); color: #fff; border-left-color: var(--accent); font-weight: 600; }
 .sidebar-nav a.logout-link { margin-top: auto; color: rgba(255,255,255,0.5); }
 .sidebar-nav a.logout-link:hover { color: #ffb3b3; background: rgba(231,76,60,0.2); }
-
-/* Lunch status inside sidebar */
-.sidebar-lunch {
-    padding: 16px;
-    border-top: 1px solid rgba(255,255,255,0.15);
-    margin-top: auto;
-    text-align: center;
-}
-.sidebar-lunch .lunch-label {
-    font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
-    color: rgba(255,255,255,0.7); margin-bottom: 6px;
-}
-.sidebar-lunch .lunch-timer {
-    font-size: 24px; font-weight: 700; color: #fff;
-}
 
 /* ═══════════════ MAIN CONTENT ═══════════════ */
 .main-content {
@@ -289,31 +275,12 @@ label { display: block; margin-bottom: 6px; font-size: 11px; font-weight: 700; c
 }
 .progress-text { color: #fff; font-size: 12px; font-weight: 700; }
 
-/* ═══════════════ LUNCH PAGE ═══════════════ */
-.lunch-page {
-    text-align: center;
-    padding: 60px 20px;
-}
-.lunch-timer-big {
-    font-size: 96px;
-    font-weight: 800;
-    color: var(--primary);
-    margin: 30px 0;
-}
-
-/* ═══════════════ CHECKOUT PAGE ═══════════════ */
-.checkout-page {
-    text-align: center;
-    padding: 60px 20px;
-}
-
-/* ═══════════════ MOBILE (sidebar always visible, same layout as desktop) ═══════════════ */
+/* ═══════════════ MOBILE – sidebar always visible, smaller width ═══════════════ */
 @media (max-width: 768px) {
-    .sidebar {
-        width: 200px;
+    :root {
+        --sidebar-w: 200px;
     }
     .main-content {
-        margin-left: 200px;
         padding: 20px 16px;
     }
     .stats { grid-template-columns: 1fr; gap: 12px; }
@@ -326,5 +293,4 @@ label { display: block; margin-bottom: 6px; font-size: 11px; font-weight: 700; c
     .profile-header { flex-direction: column; text-align: center; gap: 12px; }
     .profile-avatar { width: 56px; height: 56px; font-size: 24px; }
     .profile-details { grid-template-columns: 1fr; gap: 12px; }
-    .lunch-timer-big { font-size: 64px; }
 }
