@@ -51,6 +51,10 @@
             {% if session.get('role') in ['admin','ceo','manager'] or session.get('department') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant'] %}
             <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}">📋 Reports</a>
             {% endif %}
+            <!-- Directorate link -->
+            {% if session.get('role') in ['Stock Controller','Assistant Stock Controller','admin','ceo','Operations Manager','Sales Manager','Accountant','Accountant Assistant','HR','HR Assistant'] %}
+            <a href="/contacts" class="{% if request.path == '/contacts' %}active{% endif %}">📞 Directorate</a>
+            {% endif %}
             <a href="/profile" class="{% if request.path == '/profile' %}active{% endif %}">👤 Profile</a>
             <a href="/logout" class="logout-link">🚪 Logout</a>
         </nav>
