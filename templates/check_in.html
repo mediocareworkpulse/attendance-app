@@ -94,13 +94,18 @@
                 <button type="submit" class="btn btn-lunch">🍽️ Start Lunch</button>
             </form>
             {% else %}
-            <form method="POST" action="/check-in" class="lunch-form">
-                <input type="hidden" name="lat" class="lat-field">
-                <input type="hidden" name="lng" class="lng-field">
-                <input type="hidden" name="location" class="loc-field">
-                <input type="hidden" name="action" value="end_lunch">
-                <button type="submit" class="btn btn-lunch-end">🍽️ End Lunch (Return)</button>
-            </form>
+            <!-- Lunch active: show countdown -->
+            <div id="lunch-timer" style="margin:20px 0;">
+                <div class="timer-label">Lunch Break Remaining</div>
+                <div class="timer-value" id="lunchCountdown">60:00</div>
+                <form method="POST" action="/check-in" class="lunch-form" style="display:inline;">
+                    <input type="hidden" name="lat" class="lat-field">
+                    <input type="hidden" name="lng" class="lng-field">
+                    <input type="hidden" name="location" class="loc-field">
+                    <input type="hidden" name="action" value="end_lunch">
+                    <button type="submit" class="btn btn-lunch-end">🍽️ End Lunch (Return)</button>
+                </form>
+            </div>
             {% endif %}
         </div>
         {% endif %}
@@ -151,10 +156,15 @@
     </div>
 
     {% elif user_status == 'lunch' %}
+    <!-- This block is shown when the user is already at lunch (page reload) -->
     <div class="checkin-container">
         <div class="status-badge at-lunch">At Lunch</div>
         <div class="checkin-title">Enjoy your break!</div>
         <div class="checkin-subtitle">Lunch started at {{ check_in_time }}</div>
+        <div id="lunch-timer" style="margin:20px 0;">
+            <div class="timer-label">Lunch Break Remaining</div>
+            <div class="timer-value" id="lunchCountdown">60:00</div>
+        </div>
         <form method="POST" action="/check-in">
             <input type="hidden" name="lat" class="lat-field">
             <input type="hidden" name="lng" class="lng-field">
@@ -327,6 +337,33 @@ function submitCheckOut() {
     }
     update();
     setInterval(update, 10000);
+})();
+{% endif %}
+
+// ---- Lunch Countdown Timer ----
+{% if (user_status == 'checked_in' and lunch_active) or user_status == 'lunch' %}
+(function() {
+    // Set lunch duration (60 minutes = 3600 seconds)
+    const lunchDuration = 3600; // 1 hour in seconds
+    let remaining = lunchDuration;
+    const display = document.getElementById('lunchCountdown');
+
+    function formatTime(sec) {
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function tick() {
+        if (remaining <= 0) {
+            if (display) display.textContent = '0:00';
+            return;
+        }
+        remaining--;
+        if (display) display.textContent = formatTime(remaining);
+    }
+    tick(); // initial display
+    setInterval(tick, 1000);
 })();
 {% endif %}
 </script>
