@@ -5,12 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mediocare Pharmaceutical Ltd</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <meta name="apple-mobile-web-app-capable" content="yes">
 </head>
 <body>
     {% if session.get('user') %}
-    <!-- ========== SIDEBAR (always visible) ========== -->
-    <aside class="sidebar" id="sidebar">
+    <!-- Sidebar always visible -->
+    <aside class="sidebar">
         <div class="sidebar-header">
             <div class="brand-icon">💊</div>
             <div class="brand-info">
@@ -19,137 +18,39 @@
             </div>
         </div>
         <nav class="sidebar-nav">
-            <a href="/" class="{% if request.path == '/' %}active{% endif %}">
-                <span class="nav-icon">📊</span> Dashboard
-            </a>
-            <a href="/check-in" class="{% if request.path == '/check-in' %}active{% endif %}">
-                <span class="nav-icon">✅</span> Check In/Out
-            </a>
-            <a href="/attendance-history" class="{% if request.path == '/attendance-history' %}active{% endif %}">
-                <span class="nav-icon">📅</span> Attendance
-            </a>
-            <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">
-                <span class="nav-icon">📝</span> Leaves
-            </a>
+            <a href="/" class="{% if request.path == '/' %}active{% endif %}">📊 Dashboard</a>
+            <a href="/check-in" class="{% if request.path == '/check-in' %}active{% endif %}">✅ Check In/Out</a>
+            <a href="/attendance-history" class="{% if request.path == '/attendance-history' %}active{% endif %}">📅 Attendance</a>
+            <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">📝 Leaves</a>
             {% if session.get('role') in ['Staff','Branch Manager','admin','ceo'] or session.get('department') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant'] %}
-            <a href="/sales" class="{% if request.path == '/sales' %}active{% endif %}">
-                <span class="nav-icon">💰</span> Sales
-            </a>
+            <a href="/sales" class="{% if request.path == '/sales' %}active{% endif %}">💰 Sales</a>
             {% endif %}
             {% if session.get('role') in ['Stock Controller','Assistant Stock Controller'] %}
-            <a href="/targets" class="{% if request.path == '/targets' %}active{% endif %}">
-                <span class="nav-icon">🎯</span> Sales Targets
-            </a>
+            <a href="/targets" class="{% if request.path == '/targets' %}active{% endif %}">🎯 Targets</a>
             {% endif %}
             {% if session.get('role') in ['admin','ceo'] %}
-            <a href="/admin" class="{% if request.path == '/admin' %}active{% endif %}">
-                <span class="nav-icon">⚙️</span> Admin Panel
-            </a>
-            <a href="/approvals" class="{% if request.path == '/approvals' %}active{% endif %}">
-                <span class="nav-icon">🔔</span> Approvals
-            </a>
-            <a href="/employees" class="{% if request.path == '/employees' %}active{% endif %}">
-                <span class="nav-icon">👥</span> Team
-            </a>
-            <a href="/branches" class="{% if request.path == '/branches' %}active{% endif %}">
-                <span class="nav-icon">🏢</span> Branches
-            </a>
+            <a href="/admin" class="{% if request.path == '/admin' %}active{% endif %}">⚙️ Admin</a>
+            <a href="/approvals" class="{% if request.path == '/approvals' %}active{% endif %}">🔔 Approvals</a>
+            <a href="/employees" class="{% if request.path == '/employees' %}active{% endif %}">👥 Team</a>
+            <a href="/branches" class="{% if request.path == '/branches' %}active{% endif %}">🏢 Branches</a>
             {% endif %}
             {% if session.get('role') == 'Sales Manager' %}
-            <a href="/sales-manager" class="{% if request.path == '/sales-manager' %}active{% endif %}">
-                <span class="nav-icon">💼</span> Sales Manager
-            </a>
+            <a href="/sales-manager" class="{% if request.path == '/sales-manager' %}active{% endif %}">💼 Sales Mgr</a>
             {% endif %}
             {% if session.get('role') in ['Store Manager','Operations Manager','Sales Manager','admin','ceo'] %}
-            <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}">
-                <span class="nav-icon">✅</span> Leave Approvals
-            </a>
+            <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}">✅ Leave Appr.</a>
             {% endif %}
             {% if session.get('role') in ['admin','ceo','manager'] or session.get('department') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant'] %}
-            <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}">
-                <span class="nav-icon">📋</span> Reports
-            </a>
+            <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}">📋 Reports</a>
             {% endif %}
-            <a href="/profile" class="{% if request.path == '/profile' %}active{% endif %}">
-                <span class="nav-icon">👤</span> Profile
-            </a>
-            <a href="/logout" class="logout-link">
-                <span class="nav-icon">🚪</span> Logout
-            </a>
+            <a href="/profile" class="{% if request.path == '/profile' %}active{% endif %}">👤 Profile</a>
+            <a href="/logout" class="logout-link">🚪 Logout</a>
         </nav>
     </aside>
     {% endif %}
 
-    <!-- ========== MAIN CONTENT ========== -->
-    <main class="main-content" id="mainContent">
+    <main class="main-content">
         {% block content %}{% endblock %}
     </main>
-
-    <!-- ========== GLOBAL LUNCH BAR (top‑right) ========== -->
-    {% if session.get('user') and global_att_status == 'checked_in' and session.get('role') not in ['admin','ceo','Riders','Drivers'] %}
-    <div id="global-lunch-bar">
-        <div class="lunch-bar-content">
-            {% if not global_lunch_active %}
-            <form method="POST" action="/check-in" class="lunch-bar-form">
-                <input type="hidden" name="lat" id="global-lat">
-                <input type="hidden" name="lng" id="global-lng">
-                <input type="hidden" name="location" id="global-loc">
-                <input type="hidden" name="action" value="start_lunch">
-                <button type="submit" class="btn btn-lunch">🍽️ Start Lunch</button>
-            </form>
-            {% else %}
-            <div class="lunch-timer-bar">
-                <span class="lunch-countdown" id="global-lunch-countdown">60:00</span>
-                <form method="POST" action="/check-in" class="lunch-bar-form" style="display:inline;">
-                    <input type="hidden" name="lat" id="global-lat">
-                    <input type="hidden" name="lng" id="global-lng">
-                    <input type="hidden" name="location" id="global-loc">
-                    <input type="hidden" name="action" value="end_lunch">
-                    <button type="submit" class="btn btn-lunch-end btn-sm">Return</button>
-                </form>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
-
-    <script>
-        // ---- Global location capture for lunch bar ----
-        (function() {
-            if (!navigator.geolocation) return;
-            navigator.geolocation.getCurrentPosition(function(pos) {
-                const lat = pos.coords.latitude;
-                const lng = pos.coords.longitude;
-                const loc = lat + ',' + lng;
-                document.getElementById('global-lat').value = lat;
-                document.getElementById('global-lng').value = lng;
-                document.getElementById('global-loc').value = loc;
-            }, function() {}, {timeout: 5000, enableHighAccuracy: false});
-        })();
-
-        // ---- Lunch countdown timer (if active) ----
-        {% if global_lunch_active %}
-        (function() {
-            const lunchDuration = 3600; // 1 hour
-            let remaining = lunchDuration;
-            const display = document.getElementById('global-lunch-countdown');
-            function format(sec) {
-                const m = Math.floor(sec / 60);
-                const s = sec % 60;
-                return m + ':' + (s < 10 ? '0' : '') + s;
-            }
-            function tick() {
-                if (remaining <= 0) {
-                    if (display) display.textContent = '0:00';
-                    return;
-                }
-                remaining--;
-                if (display) display.textContent = format(remaining);
-            }
-            tick();
-            setInterval(tick, 1000);
-        })();
-        {% endif %}
-    </script>
 </body>
 </html>
