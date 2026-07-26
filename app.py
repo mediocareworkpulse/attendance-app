@@ -179,13 +179,16 @@ def home():
 
     total_emp = len(safe_data(emp_r)) if emp_r else 0
     att_data = safe_data(att_r)
-    present = sum(1 for a in att_data if a.get('check_in') and a.get('status') not in ['lunch','checked_out'])
+    # Count as present if checked in and not checked out (ignore lunch status – treat as present)
+    present = sum(1 for a in att_data if a.get('check_in') and not a.get('check_out'))
     late = sum(1 for a in att_data if a.get('status')=='late')
     total_sales = sum(float(s.get('total_sales',0)) for s in safe_data(sales_r)) if show_sales_card else 0
 
     records = []
     for rec in att_data[:10]:
         st = rec.get('status','present')
+        # If status is 'lunch', display as 'Working'
+        label = {'present':'Working','late':'Working','lunch':'Working','checked_out':'Checked Out'}.get(st, 'Working')
         try:
             emp_detail = safe_data(execute_query(supabase.table('employees').select('role,department').eq('full_name',rec['full_name'])))
         except:
@@ -196,7 +199,7 @@ def home():
             'full_name':rec['full_name'],'department':dept_disp,'role':role_disp,
             'check_in':rec.get('check_in','—'),'check_out':rec.get('check_out','—'),
             'status':st,
-            'label':{'present':'Working','late':'Working','lunch':'At Lunch','checked_out':'Checked Out'}.get(st,st)
+            'label':label
         })
 
     uci=uco=False; user_status=''
@@ -206,13 +209,11 @@ def home():
             uci = bool(my[0].get('check_in'))
             uco = bool(my[0].get('check_out'))
             if uco: user_status = 'Checked Out'
-            elif my[0].get('status')=='lunch': user_status = 'At Lunch'
-            elif uci: user_status = 'Working'
+            elif uci: user_status = 'Working'   # treat any checked-in (including old lunch) as Working
             else: user_status = 'Not Checked In'
 
     pending = len(safe_data(execute_query(supabase.table('employees').select('id').eq('status','pending')))) if role in FULL_ACCESS_ROLES else 0
 
-    # Target achievement
     target_achieved = False
     if role in SALES_SUBMIT_ROLES:
         month_str = str(now_eat().date().replace(day=1))
@@ -361,7 +362,7 @@ def delete_branch(bid):
     supabase.table('branches').delete().eq('id',bid).execute()
     return redirect('/branches')
 
-# ---------- CHECK IN / OUT (simplified) ----------
+# ---------- CHECK IN / OUT (no lunch) ----------
 @app.route('/check-in')
 @login_required
 def check_in_page():
@@ -391,7 +392,7 @@ def check_in_page():
     if my_att:
         rec = my_att[0]
         if rec.get('check_out'): current_status = 'completed'
-        elif rec.get('status')=='lunch': current_status = 'lunch'
+        elif rec.get('status')=='lunch': current_status = 'checked_in'   # treat old lunch as still checked in
         elif rec.get('check_in'):
             current_status = 'checked_in'
             check_in_time = rec.get('check_in')
@@ -422,6 +423,7 @@ def check_in_page():
     records = []
     for rec in r:
         st = rec.get('status','present')
+        label = {'present':'Working','late':'Working','lunch':'Working','checked_out':'Checked Out'}.get(st, 'Working')
         try:
             emp_det = safe_data(execute_query(supabase.table('employees').select('role,department').eq('full_name',rec['full_name'])))
         except:
@@ -432,7 +434,7 @@ def check_in_page():
             'full_name':rec['full_name'],'department':dept_disp,'role':role_disp,
             'check_in':rec.get('check_in','—'),'check_out':rec.get('check_out','—'),
             'status':st,
-            'label':{'present':'Working','late':'Working','lunch':'At Lunch','checked_out':'Checked Out'}.get(st,st)
+            'label':label
         })
 
     return render_template('check_in.html',
@@ -477,6 +479,7 @@ def process_attendance():
                 'check_out_lat':lat,'check_out_lng':lng,'check_out_location':loc
             }).eq('full_name',un).eq('date',today).execute()
             return redirect('/')
+    # No lunch actions handled
     return redirect('/check-in')
 
 # ---------- JOURNEY ROUTES ----------
@@ -528,7 +531,15 @@ def attendance_history():
         r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).in_('full_name',team_names).order('date',desc=True).limit(100)))
     else:
         r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).eq('full_name',un).order('date',desc=True).limit(100)))
-    records = [{'date':x.get('date',''),'full_name':x.get('full_name',''),'check_in':x.get('check_in','—'),'check_out':x.get('check_out','—'),'status':x.get('status','present'),'label':{'present':'Working','late':'Working','lunch':'At Lunch','checked_out':'Checked Out'}.get(x.get('status','present'),'Working')} for x in r]
+    records = []
+    for rec in r:
+        st = rec.get('status','present')
+        label = {'present':'Working','late':'Working','lunch':'Working','checked_out':'Checked Out'}.get(st, 'Working')
+        records.append({
+            'date':rec.get('date',''),'full_name':rec.get('full_name',''),
+            'check_in':rec.get('check_in','—'),'check_out':rec.get('check_out','—'),
+            'status':st,'label':label
+        })
     return render_template('attendance_history.html', records=records, period=period, today=str(today), company=COMPANY_NAME)
 
 # ---------- SALES (with target progress) ----------
@@ -589,7 +600,6 @@ def sales_page():
         bt[br]['cash']  += float(s.get('cash_sales',0))
         bt[br]['total'] += float(s.get('total_sales',0))
 
-    # Target progress
     target_progress = None
     if role in SALES_SUBMIT_ROLES:
         month_str = str(now_eat().date().replace(day=1))
@@ -641,7 +651,8 @@ def reports():
     if rt == 'attendance':
         for rec in safe_data(execute_query(supabase.table('attendance').select('*').gte('date',fd).lte('date',td).order('date',desc=True).limit(200))):
             st = rec.get('status','present')
-            records.append({'date':rec.get('date',''),'full_name':rec.get('full_name',''),'check_in':rec.get('check_in','—'),'check_out':rec.get('check_out','—'),'status':st,'label':{'present':'Working','late':'Working','lunch':'At Lunch','checked_out':'Checked Out'}.get(st,st)})
+            label = {'present':'Working','late':'Working','lunch':'Working','checked_out':'Checked Out'}.get(st, 'Working')
+            records.append({'date':rec.get('date',''),'full_name':rec.get('full_name',''),'check_in':rec.get('check_in','—'),'check_out':rec.get('check_out','—'),'status':st,'label':label})
     elif rt == 'sales':
         srecs = safe_data(execute_query(supabase.table('sales').select('*').gte('date',fd).lte('date',td).order('date',desc=True).limit(200)))
         brecs = safe_data(execute_query(supabase.table('branch_sales').select('*').gte('date',fd).lte('date',td).order('date',desc=True).limit(200)))
