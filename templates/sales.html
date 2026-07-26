@@ -5,6 +5,23 @@
 
 {% if success_msg %}<div class="alert alert-success">✅ Sale submitted successfully!</div>{% endif %}
 
+<!-- Branch filter for CEO/Admin -->
+{% if session.get('role') in ['admin','ceo'] %}
+<div style="margin-bottom:20px;">
+    <form method="GET" style="display:flex; gap:10px; align-items:end;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label>Filter by Branch</label>
+            <select name="branch" onchange="this.form.submit()">
+                <option value="">All Branches</option>
+                {% for b in branches %}
+                <option value="{{ b }}" {% if branch_filter == b %}selected{% endif %}>{{ b }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+</div>
+{% endif %}
+
 <!-- Overview Cards -->
 <div class="stats">
     <div class="stat-card">
@@ -24,6 +41,7 @@
     </div>
 </div>
 
+<!-- Target Progress -->
 {% if target_progress %}
 <div class="target-progress-card">
     <h3>🎯 Monthly Target Progress</h3>
@@ -32,9 +50,10 @@
             <span class="progress-text">{{ target_progress.percent }}%</span>
         </div>
     </div>
-    <p>Ksh {{ "%.2f"|format(target_progress.current) }} / Ksh {{ "%.2f"|format(target_progress.target) }}</p>
+    <p>Achieved: Ksh {{ "%.2f"|format(target_progress.current) }} / Ksh {{ "%.2f"|format(target_progress.target) }}</p>
+    <p><strong>Remaining: Ksh {{ "%.2f"|format(target_progress.remaining) }}</strong></p>
     {% if target_progress.achieved %}
-    <div class="alert alert-success">🎉 Congratulations! You've achieved your monthly target!</div>
+    <div class="alert alert-success">🎉 Target achieved!</div>
     {% endif %}
 </div>
 {% endif %}
