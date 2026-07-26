@@ -84,5 +84,72 @@
     <main class="main-content" id="mainContent">
         {% block content %}{% endblock %}
     </main>
+
+    <!-- ========== GLOBAL LUNCH BAR (top‑right) ========== -->
+    {% if session.get('user') and global_att_status == 'checked_in' and session.get('role') not in ['admin','ceo','Riders','Drivers'] %}
+    <div id="global-lunch-bar">
+        <div class="lunch-bar-content">
+            {% if not global_lunch_active %}
+            <form method="POST" action="/check-in" class="lunch-bar-form">
+                <input type="hidden" name="lat" id="global-lat">
+                <input type="hidden" name="lng" id="global-lng">
+                <input type="hidden" name="location" id="global-loc">
+                <input type="hidden" name="action" value="start_lunch">
+                <button type="submit" class="btn btn-lunch">🍽️ Start Lunch</button>
+            </form>
+            {% else %}
+            <div class="lunch-timer-bar">
+                <span class="lunch-countdown" id="global-lunch-countdown">60:00</span>
+                <form method="POST" action="/check-in" class="lunch-bar-form" style="display:inline;">
+                    <input type="hidden" name="lat" id="global-lat">
+                    <input type="hidden" name="lng" id="global-lng">
+                    <input type="hidden" name="location" id="global-loc">
+                    <input type="hidden" name="action" value="end_lunch">
+                    <button type="submit" class="btn btn-lunch-end btn-sm">Return</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <script>
+        // ---- Global location capture for lunch bar ----
+        (function() {
+            if (!navigator.geolocation) return;
+            navigator.geolocation.getCurrentPosition(function(pos) {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                const loc = lat + ',' + lng;
+                document.getElementById('global-lat').value = lat;
+                document.getElementById('global-lng').value = lng;
+                document.getElementById('global-loc').value = loc;
+            }, function() {}, {timeout: 5000, enableHighAccuracy: false});
+        })();
+
+        // ---- Lunch countdown timer (if active) ----
+        {% if global_lunch_active %}
+        (function() {
+            const lunchDuration = 3600; // 1 hour
+            let remaining = lunchDuration;
+            const display = document.getElementById('global-lunch-countdown');
+            function format(sec) {
+                const m = Math.floor(sec / 60);
+                const s = sec % 60;
+                return m + ':' + (s < 10 ? '0' : '') + s;
+            }
+            function tick() {
+                if (remaining <= 0) {
+                    if (display) display.textContent = '0:00';
+                    return;
+                }
+                remaining--;
+                if (display) display.textContent = format(remaining);
+            }
+            tick();
+            setInterval(tick, 1000);
+        })();
+        {% endif %}
+    </script>
 </body>
 </html>
