@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">Directorate</h1>
+<p class="page-subtitle">{{ company }} — Employee Contact Directory</p>
+{% if contacts %}
+<div class="table-container">
+<table>
+    <tr><th>#</th><th>Name</th><th>Phone</th><th>Email</th><th>Department</th><th>Branch</th><th>Role</th></tr>
+    {% for c in contacts %}
+    <tr>
+        <td>{{ loop.index }}</td>
+        <td class="td-name">{{ c.full_name }}</td>
+        <td>{{ c.phone or '—' }}</td>
+        <td>{{ c.email or '—' }}</td>
+        <td>{{ c.department or '—' }}</td>
+        <td>{{ c.branch or '—' }}</td>
+        <td>{{ c.role }}</td>
+    </tr>
+    {% endfor %}
+</table>
+</div>
+{% else %}
+<p style="text-align:center;padding:30px;color:var(--text-secondary);">No contacts found.</p>
+{% endif %}
+{% endblock %}
