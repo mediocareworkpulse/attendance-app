@@ -211,7 +211,7 @@ def home():
 
     pending = len(safe_data(execute_query(supabase.table('employees').select('id').eq('status','pending')))) if role in FULL_ACCESS_ROLES else 0
 
-    # 🎯 Target achievement message
+    # Target achievement message
     target_achieved = False
     if role in SALES_SUBMIT_ROLES:
         month_str = str(now_eat().date().replace(day=1))
@@ -369,6 +369,7 @@ def check_in_page():
     un = session.get('user')
     ub = session.get('branch','')
 
+    # Marketer specific
     marketer_pending = False
     marketer_approved = False
     if role == MARKETER_ROLE:
@@ -598,7 +599,7 @@ def sales_page():
         bt[br]['cash']  += float(s.get('cash_sales',0))
         bt[br]['total'] += float(s.get('total_sales',0))
 
-    # 🎯 Target progress for current user
+    # Target progress
     target_progress = None
     if role in SALES_SUBMIT_ROLES:
         month_str = str(now_eat().date().replace(day=1))
@@ -846,7 +847,6 @@ def targets_page():
                 }, on_conflict='full_name,month').execute()
         except: pass
         return redirect('/targets')
-
     employees = safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').order('full_name')))
     targets = safe_data(execute_query(supabase.table('sales_targets').select('*').order('month', desc=True).order('full_name').limit(100)))
     return render_template('targets.html', employees=employees, targets=targets, today=str(now_eat().date()), company=COMPANY_NAME)
