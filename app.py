@@ -14,7 +14,9 @@ SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 EAT = timezone(timedelta(hours=3))
 
-DEPARTMENTS = ['Staff','Store','Dispatch','Sales','Stock Control','Procurement','Accounts Office','Operations','Branch Management']
+# ★ Added "Management" for overall management roles
+DEPARTMENTS = ['Staff','Store','Dispatch','Sales','Stock Control','Procurement','Accounts Office','Operations','Branch Management','Management']
+
 ALL_ROLES = [
     'Staff','Branch Manager','Stock Controller','Assistant Stock Controller',
     'Procurement Officer','Procurement Assistant','Accountant','Accountant Assistant',
@@ -73,7 +75,7 @@ def get_branches():
 
 def get_branch_names():
     names = [b['name'] for b in get_branches()]
-    # Ensure Head Office is always available for management
+    # Ensure Head Office is always available
     if 'Head Office' not in names:
         names.insert(0, 'Head Office')
     return names
