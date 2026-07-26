@@ -7,7 +7,7 @@
 <div id="ls" class="location-status"><span>📍</span> <span id="ls-text">Detecting location…</span></div>
 <input type="hidden" id="lat"><input type="hidden" id="lng"><input type="hidden" id="loc">
 
-<!-- Marketer flow (unchanged) -->
+<!-- Marketer flow -->
 {% if session.get('role') == 'Marketers' %}
     {% if user_status == 'none' %}
     <div class="checkin-container">
@@ -70,7 +70,7 @@
         </div>
         {% endif %}
 
-        <!-- Journeys (Riders & Drivers) – keep existing -->
+        <!-- Journeys (Riders/Drivers) -->
         {% if session.get('role') in ['Riders','Drivers'] %}
         <div class="journeys-section" style="margin:20px 0; text-align:left;">
             <h3 style="margin-bottom:10px;">🚚 Journeys</h3>
@@ -107,12 +107,6 @@
             <input type="hidden" name="action" value="check_out">
         </form>
         <button class="checkin-btn btn-check-out" onclick="confirmCheckOut()">🚪 Check Out Now</button>
-    </div>
-
-    {% elif user_status == 'lunch' %}
-    <div class="checkin-container" style="background:#fff3d6;">
-        <div class="checkin-title">⏳ Awaiting Approval</div>
-        <div class="checkin-subtitle">Please wait for your manager</div>
     </div>
 
     {% else %}
