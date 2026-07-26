@@ -4,15 +4,20 @@
     <h1 class="page-title">End Your Shift</h1>
     <p class="page-subtitle">Confirm you want to check out for today.</p>
     <form method="POST" action="/checkout" id="checkoutForm">
-        <input type="hidden" name="lat" id="lat"><input type="hidden" name="lng" id="lng"><input type="hidden" name="location" id="loc">
+        <input type="hidden" name="lat" id="lat">
+        <input type="hidden" name="lng" id="lng">
+        <input type="hidden" name="location" id="loc">
         <button type="submit" class="checkin-btn btn-check-out">🚪 Check Out Now</button>
     </form>
-    <script>
+</div>
+
+<script>
+    if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(pos) {
             document.getElementById('lat').value = pos.coords.latitude;
             document.getElementById('lng').value = pos.coords.longitude;
             document.getElementById('loc').value = pos.coords.latitude + ',' + pos.coords.longitude;
         });
-    </script>
-</div>
+    }
+</script>
 {% endblock %}
