@@ -1,4 +1,5 @@
-supabase
 flask
 gunicorn
+supabase
 pytz
+Flask-Limiter
