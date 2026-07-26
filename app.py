@@ -72,7 +72,11 @@ def get_branches():
     return safe_data(execute_query(supabase.table('branches').select('*').order('name')))
 
 def get_branch_names():
-    return [b['name'] for b in get_branches()]
+    names = [b['name'] for b in get_branches()]
+    # Ensure Head Office is always available for management
+    if 'Head Office' not in names:
+        names.insert(0, 'Head Office')
+    return names
 
 def now_eat():
     return datetime.now(EAT)
