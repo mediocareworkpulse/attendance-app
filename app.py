@@ -38,7 +38,7 @@ MARKETER_ROLE = 'Marketers'
 SALES_MANAGER_ROLE = 'Sales Manager'
 TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller']
 COMPANY_NAME = 'Mediocare Pharmaceutical Ltd'
-LUNCH_DURATION = 3600          # 1 hour in seconds
+LUNCH_DURATION = 3600  # 1 hour in seconds
 
 def login_required(f):
     @wraps(f)
@@ -94,8 +94,7 @@ def inject_lunch():
             lunch_active = (rec.get('lunch_start') and not rec.get('lunch_end'))
             remaining = 0
             if lunch_active:
-                # calculate seconds remaining since lunch_start
-                lunch_start_str = rec['lunch_start']   # HH:MM:SS
+                lunch_start_str = rec['lunch_start']
                 h, m, s = map(int, lunch_start_str.split(':'))
                 lunch_start_sec = h*3600 + m*60 + s
                 now_sec = now_eat().hour*3600 + now_eat().minute*60 + now_eat().second
@@ -394,7 +393,7 @@ def delete_branch(bid):
     supabase.table('branches').delete().eq('id',bid).execute()
     return redirect('/branches')
 
-# ---------- CHECK IN / OUT (simplified) ----------
+# ---------- CHECK IN / OUT ----------
 @app.route('/check-in')
 @login_required
 def check_in_page():
