@@ -38,7 +38,6 @@ MARKETER_ROLE = 'Marketers'
 SALES_MANAGER_ROLE = 'Sales Manager'
 TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller']
 COMPANY_NAME = 'Mediocare Pharmaceutical Ltd'
-LUNCH_DURATION = 3600  # 1 hour in seconds
 
 def login_required(f):
     @wraps(f)
@@ -77,37 +76,6 @@ def get_branch_names():
 
 def now_eat():
     return datetime.now(EAT)
-
-# ---------- CONTEXT PROCESSOR (injects lunch status for sidebar) ----------
-@app.context_processor
-def inject_lunch():
-    if 'user' not in session:
-        return {}
-    un = session.get('user')
-    today = str(now_eat().date())
-    try:
-        att = safe_data(execute_query(
-            supabase.table('attendance').select('*').eq('full_name', un).eq('date', today).limit(1)
-        ))
-        if att:
-            rec = att[0]
-            lunch_active = (rec.get('lunch_start') and not rec.get('lunch_end'))
-            remaining = 0
-            if lunch_active:
-                lunch_start_str = rec['lunch_start']
-                h, m, s = map(int, lunch_start_str.split(':'))
-                lunch_start_sec = h*3600 + m*60 + s
-                now_sec = now_eat().hour*3600 + now_eat().minute*60 + now_eat().second
-                elapsed = now_sec - lunch_start_sec
-                remaining = max(0, LUNCH_DURATION - elapsed)
-            return dict(
-                lunch_active=lunch_active,
-                lunch_remaining=remaining,
-                lunch_remaining_str=f"{remaining//60}:{remaining%60:02d}"
-            )
-    except:
-        pass
-    return dict(lunch_active=False, lunch_remaining=0, lunch_remaining_str="")
 
 # ---------- AUTH ----------
 @app.route('/login', methods=['GET','POST'])
@@ -393,7 +361,7 @@ def delete_branch(bid):
     supabase.table('branches').delete().eq('id',bid).execute()
     return redirect('/branches')
 
-# ---------- CHECK IN / OUT ----------
+# ---------- CHECK IN / OUT (simplified) ----------
 @app.route('/check-in')
 @login_required
 def check_in_page():
@@ -503,21 +471,11 @@ def process_attendance():
             d.update({'full_name':un,'department':dept,'branch':branch,'date':today})
             supabase.table('attendance').insert(d).execute()
     elif action == 'check_out':
-        if exd and exd.get('check_in') and not exd.get('check_out') and exd.get('status')!='lunch':
+        if exd and exd.get('check_in') and not exd.get('check_out'):
             supabase.table('attendance').update({
                 'check_out':now,'status':'checked_out',
                 'check_out_lat':lat,'check_out_lng':lng,'check_out_location':loc
             }).eq('full_name',un).eq('date',today).execute()
-            return redirect('/')
-    elif action == 'start_lunch':
-        if role not in RIDER_DRIVER_ROLES + [MARKETER_ROLE] and exd and exd.get('check_in') and not exd.get('check_out') and exd.get('status')!='lunch':
-            try: supabase.table('attendance').update({'lunch_start':now,'status':'lunch'}).eq('full_name',un).eq('date',today).execute()
-            except: pass
-            return redirect('/lunch')
-    elif action == 'end_lunch':
-        if role not in RIDER_DRIVER_ROLES + [MARKETER_ROLE] and exd and exd.get('status')=='lunch' and not exd.get('lunch_end'):
-            try: supabase.table('attendance').update({'lunch_end':now,'status':'present'}).eq('full_name',un).eq('date',today).execute()
-            except: pass
             return redirect('/')
     return redirect('/check-in')
 
@@ -882,57 +840,6 @@ def targets_page():
     employees = safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').order('full_name')))
     targets = safe_data(execute_query(supabase.table('sales_targets').select('*').order('month', desc=True).order('full_name').limit(100)))
     return render_template('targets.html', employees=employees, targets=targets, today=str(now_eat().date()), company=COMPANY_NAME)
-
-# ---------- LUNCH PAGE ----------
-@app.route('/lunch')
-@login_required
-def lunch_page():
-    if session.get('role') in NO_CHECKIN_ROLES:
-        return redirect('/')
-    un = session.get('user')
-    today = str(now_eat().date())
-    att = safe_data(execute_query(supabase.table('attendance').select('*').eq('full_name', un).eq('date', today).limit(1)))
-    if not att or not att[0].get('check_in') or att[0].get('status') != 'lunch':
-        return redirect('/check-in')
-    lunch_start_str = att[0]['lunch_start']
-    h, m, s = map(int, lunch_start_str.split(':'))
-    lunch_start_sec = h*3600 + m*60 + s
-    now_sec = now_eat().hour*3600 + now_eat().minute*60 + now_eat().second
-    elapsed = now_sec - lunch_start_sec
-    remaining = max(0, LUNCH_DURATION - elapsed)
-    return render_template('lunch.html', remaining=remaining, company=COMPANY_NAME)
-
-# ---------- CHECKOUT PAGE ----------
-@app.route('/checkout')
-@login_required
-def checkout_page():
-    if session.get('role') in NO_CHECKIN_ROLES:
-        return redirect('/')
-    un = session.get('user')
-    today = str(now_eat().date())
-    att = safe_data(execute_query(supabase.table('attendance').select('*').eq('full_name', un).eq('date', today).limit(1)))
-    if not att or not att[0].get('check_in') or att[0].get('status') == 'lunch' or att[0].get('check_out'):
-        return redirect('/check-in')
-    return render_template('checkout.html', company=COMPANY_NAME)
-
-@app.route('/checkout', methods=['POST'])
-@login_required
-def process_checkout():
-    if session.get('role') in NO_CHECKIN_ROLES:
-        return redirect('/')
-    un = session.get('user')
-    today = str(now_eat().date())
-    now = now_eat().strftime('%H:%M:%S')
-    lat = request.form.get('lat',''); lng = request.form.get('lng',''); loc = request.form.get('location','')
-    existing = safe_data(execute_query(supabase.table('attendance').select('*').eq('full_name', un).eq('date', today)))
-    if existing:
-        exd = existing[0]
-        if exd.get('check_in') and not exd.get('check_out') and exd.get('status') != 'lunch':
-            supabase.table('attendance').update({
-                'check_out': now, 'status': 'checked_out',
-                'check_out_lat': lat, 'check_out_lng': lng, 'check_out_location': loc
-            }).eq('full_name', un).eq('date', today).execute()
-    return redirect('/')
 
 # ---------- ERROR HANDLER ----------
 @app.errorhandler(Exception)
