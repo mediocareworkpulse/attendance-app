@@ -2,13 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mediocare Pharmaceutical Ltd</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     {% if session.get('user') %}
-    <!-- Sidebar always visible -->
     <aside class="sidebar">
         <div class="sidebar-header">
             <div class="brand-icon">💊</div>
@@ -46,11 +45,44 @@
             <a href="/profile" class="{% if request.path == '/profile' %}active{% endif %}">👤 Profile</a>
             <a href="/logout" class="logout-link">🚪 Logout</a>
         </nav>
+        <!-- Lunch status in sidebar -->
+        {% if lunch_active %}
+        <div class="sidebar-lunch">
+            <div class="lunch-label">Lunch Break</div>
+            <div class="lunch-timer" id="sidebar-lunch-timer">{{ lunch_remaining_str }}</div>
+            <a href="/lunch" class="btn btn-sm btn-lunch-end" style="margin-top:8px;width:100%">Return</a>
+        </div>
+        {% endif %}
     </aside>
     {% endif %}
 
     <main class="main-content">
         {% block content %}{% endblock %}
     </main>
+
+    {% if lunch_active %}
+    <script>
+        // Sidebar lunch countdown (same logic)
+        (function() {
+            let remaining = {{ lunch_remaining }};
+            const display = document.getElementById('sidebar-lunch-timer');
+            function format(sec) {
+                const m = Math.floor(sec / 60);
+                const s = sec % 60;
+                return m + ':' + (s < 10 ? '0' : '') + s;
+            }
+            function tick() {
+                if (remaining <= 0) {
+                    display.textContent = '0:00';
+                    return;
+                }
+                remaining--;
+                display.textContent = format(remaining);
+            }
+            tick();
+            setInterval(tick, 1000);
+        })();
+    </script>
+    {% endif %}
 </body>
 </html>
