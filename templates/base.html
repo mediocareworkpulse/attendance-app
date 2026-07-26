@@ -9,7 +9,22 @@
 </head>
 <body>
     {% if session.get('user') %}
-    <!-- Sidebar -->
+    <!-- ========== MOBILE HEADER ========== -->
+    <header class="mobile-header">
+        <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">
+            <span></span><span></span><span></span>
+        </button>
+        <div class="mobile-brand">
+            <span class="brand-icon">💊</span>
+            <span class="brand-text">Mediocare</span>
+        </div>
+        <div class="header-spacer"></div>
+    </header>
+
+    <!-- ========== SIDEBAR OVERLAY ========== -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- ========== SIDEBAR (off‑canvas on mobile) ========== -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="brand-icon">💊</div>
@@ -31,13 +46,11 @@
             <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">
                 <span class="nav-icon">📝</span> Leaves
             </a>
-            <!-- Sales visible only for roles that can submit or view -->
             {% if session.get('role') in ['Staff','Branch Manager','admin','ceo'] or session.get('department') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant'] %}
             <a href="/sales" class="{% if request.path == '/sales' %}active{% endif %}">
                 <span class="nav-icon">💰</span> Sales
             </a>
             {% endif %}
-            <!-- Sales Targets for Stock Controllers -->
             {% if session.get('role') in ['Stock Controller','Assistant Stock Controller'] %}
             <a href="/targets" class="{% if request.path == '/targets' %}active{% endif %}">
                 <span class="nav-icon">🎯</span> Sales Targets
@@ -80,21 +93,9 @@
             </a>
         </nav>
     </aside>
-
-    <!-- Overlay for mobile -->
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-
-    <!-- Top bar (mobile) -->
-    <header class="topbar">
-        <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-        <div class="topbar-brand">
-            <span class="brand-icon">💊</span>
-            <span>Mediocare</span>
-        </div>
-        <div style="width:40px;"></div>
-    </header>
     {% endif %}
 
+    <!-- ========== MAIN CONTENT ========== -->
     <main class="main-content" id="mainContent">
         {% block content %}{% endblock %}
     </main>
@@ -104,6 +105,7 @@
             document.getElementById('sidebar').classList.toggle('open');
             document.getElementById('sidebarOverlay').classList.toggle('show');
         }
+        // Close sidebar when a link is tapped (mobile)
         document.querySelectorAll('.sidebar-nav a').forEach(link => {
             link.addEventListener('click', () => {
                 if (window.innerWidth <= 768) {
