@@ -7,7 +7,7 @@
 <div id="ls" class="location-status"><span>📍</span> <span id="ls-text">Detecting location…</span></div>
 <input type="hidden" id="lat"><input type="hidden" id="lng"><input type="hidden" id="loc">
 
-<!-- Marketer flow (keep existing) -->
+<!-- Marketer flow (unchanged) -->
 {% if session.get('role') == 'Marketers' %}
     {% if user_status == 'none' %}
     <div class="checkin-container">
@@ -70,15 +70,6 @@
         </div>
         {% endif %}
 
-        <!-- Lunch button -->
-        {% if session.get('role') not in ['Riders','Drivers'] %}
-        <form method="POST" action="/check-in" style="margin:20px 0;">
-            <input type="hidden" name="lat" class="lat-field"><input type="hidden" name="lng" class="lng-field"><input type="hidden" name="location" class="loc-field">
-            <input type="hidden" name="action" value="start_lunch">
-            <button type="submit" class="btn btn-lunch">🍽️ Start Lunch</button>
-        </form>
-        {% endif %}
-
         <!-- Journeys (Riders & Drivers) – keep existing -->
         {% if session.get('role') in ['Riders','Drivers'] %}
         <div class="journeys-section" style="margin:20px 0; text-align:left;">
@@ -110,15 +101,18 @@
         </div>
         {% endif %}
 
-        <!-- Checkout link -->
-        <a href="/checkout" class="checkin-btn btn-check-out">🚪 Check Out</a>
+        <!-- Checkout form (hidden) -->
+        <form method="POST" action="/check-in" id="checkoutForm" style="display:none;">
+            <input type="hidden" name="lat" class="lat-field"><input type="hidden" name="lng" class="lng-field"><input type="hidden" name="location" class="loc-field">
+            <input type="hidden" name="action" value="check_out">
+        </form>
+        <button class="checkin-btn btn-check-out" onclick="confirmCheckOut()">🚪 Check Out Now</button>
     </div>
 
     {% elif user_status == 'lunch' %}
-    <div class="checkin-container">
-        <div class="status-badge at-lunch">At Lunch</div>
-        <div class="checkin-title">You are on lunch break</div>
-        <a href="/lunch" class="btn btn-lunch">View Lunch Timer</a>
+    <div class="checkin-container" style="background:#fff3d6;">
+        <div class="checkin-title">⏳ Awaiting Approval</div>
+        <div class="checkin-subtitle">Please wait for your manager</div>
     </div>
 
     {% else %}
@@ -148,6 +142,18 @@
 </table>
 </div>
 {% endif %}
+
+<!-- Check‑Out Confirmation Modal -->
+<div id="confirmModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <h3>Confirm Check‑Out</h3>
+        <p>Are you sure you want to end your shift now?</p>
+        <div class="modal-actions">
+            <button class="btn-danger" onclick="submitCheckOut()">Yes, Check Out</button>
+            <button class="btn" style="background:#999;" onclick="closeConfirm()">Cancel</button>
+        </div>
+    </div>
+</div>
 
 <script>
 // Dynamic greeting
@@ -243,6 +249,15 @@ setInterval(updateShiftTimer, 10000);
         { timeout: 5000, enableHighAccuracy: false }
     );
 })();
+
+// Check-out confirmation
+function confirmCheckOut() {
+    document.getElementById('confirmModal').style.display = 'flex';
+}
+function closeConfirm() { document.getElementById('confirmModal').style.display = 'none'; }
+function submitCheckOut() {
+    document.getElementById('checkoutForm').submit();
+}
 
 // Worked timer
 {% if user_status == 'checked_in' and check_in_time %}
