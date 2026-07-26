@@ -9,16 +9,20 @@
     <span>📍</span> <span id="ls-text">Detecting location…</span>
 </div>
 
+<input type="hidden" id="lat" value="">
+<input type="hidden" id="lng" value="">
+<input type="hidden" id="loc" value="">
+
 <!-- ═══════════ MARKETER FLOW ═══════════ -->
 {% if session.get('role') == 'Marketers' %}
     {% if user_status == 'none' %}
     <div class="checkin-container">
         <div class="checkin-title">📋 Request Check‑In Approval</div>
         <div class="checkin-subtitle">Your location will be shared with Sales Manager</div>
-        <form method="POST" action="/marketer/checkin" id="af">
-            <input type="hidden" name="lat" id="lat">
-            <input type="hidden" name="lng" id="lng">
-            <input type="hidden" name="location" id="loc">
+        <form method="POST" action="/marketer/checkin" id="marketerForm">
+            <input type="hidden" name="lat" class="lat-field">
+            <input type="hidden" name="lng" class="lng-field">
+            <input type="hidden" name="location" class="loc-field">
             <button type="submit" class="checkin-btn btn-check-in">✅ Send Check‑In Request</button>
         </form>
     </div>
@@ -31,7 +35,6 @@
     <div class="checkin-container" style="background:#d4f5e0;">
         <div class="checkin-title">✅ Approved – You are Clocked In</div>
         <div class="checkin-subtitle">Start your field work</div>
-        <!-- Report Form -->
         <div class="form-card" style="text-align:left; margin-top:20px;">
             <h3>📝 Daily Customer Report</h3>
             <form method="POST" action="/marketer/report">
@@ -55,11 +58,12 @@
         <div class="checkin-greeting-icon" id="greeting-icon">🌅</div>
         <div class="checkin-title" id="greeting-text">Good Morning!</div>
         <div class="checkin-subtitle">Tap below to start your shift</div>
-        <form method="POST" action="/check-in" id="af">
-            <input type="hidden" name="lat" id="lat"><input type="hidden" name="lng" id="lng"><input type="hidden" name="location" id="loc">
-            <button type="submit" name="action" value="check_in" class="checkin-btn btn-check-in">
-                <span class="btn-text">Check In Now</span><span class="btn-icon">✅</span>
-            </button>
+        <form method="POST" action="/check-in" id="checkinForm">
+            <input type="hidden" name="lat" class="lat-field">
+            <input type="hidden" name="lng" class="lng-field">
+            <input type="hidden" name="location" class="loc-field">
+            <input type="hidden" name="action" value="check_in">
+            <button type="submit" class="checkin-btn btn-check-in">✅ Check In Now</button>
         </form>
     </div>
 
@@ -82,12 +86,18 @@
         {% if session.get('role') not in ['Riders','Drivers'] %}
         <div class="lunch-section">
             {% if not lunch_active %}
-            <form method="POST" action="/check-in">
+            <form method="POST" action="/check-in" class="lunch-form">
+                <input type="hidden" name="lat" class="lat-field">
+                <input type="hidden" name="lng" class="lng-field">
+                <input type="hidden" name="location" class="loc-field">
                 <input type="hidden" name="action" value="start_lunch">
                 <button type="submit" class="btn btn-lunch">🍽️ Start Lunch</button>
             </form>
             {% else %}
-            <form method="POST" action="/check-in">
+            <form method="POST" action="/check-in" class="lunch-form">
+                <input type="hidden" name="lat" class="lat-field">
+                <input type="hidden" name="lng" class="lng-field">
+                <input type="hidden" name="location" class="loc-field">
                 <input type="hidden" name="action" value="end_lunch">
                 <button type="submit" class="btn btn-lunch-end">🍽️ End Lunch (Return)</button>
             </form>
@@ -108,7 +118,9 @@
                         {% if j.status == 'active' %}
                             <span class="badge badge-warning">Active</span>
                             <form method="POST" action="/journey/end/{{ j.id }}" style="display:inline;">
-                                <input type="hidden" name="lat" id="latJ{{ j.id }}"><input type="hidden" name="lng" id="lngJ{{ j.id }}"><input type="hidden" name="location" id="locJ{{ j.id }}">
+                                <input type="hidden" name="lat" class="lat-field">
+                                <input type="hidden" name="lng" class="lng-field">
+                                <input type="hidden" name="location" class="loc-field">
                                 <button type="submit" class="btn btn-sm" style="background:#e74c3c; margin-left:8px;">End Journey</button>
                             </form>
                         {% else %}
@@ -120,7 +132,9 @@
             </ul>
             {% endif %}
             <form method="POST" action="/journey/start" style="margin-top:10px;">
-                <input type="hidden" name="lat" id="latJnew"><input type="hidden" name="lng" id="lngJnew"><input type="hidden" name="location" id="locJnew">
+                <input type="hidden" name="lat" class="lat-field">
+                <input type="hidden" name="lng" class="lng-field">
+                <input type="hidden" name="location" class="loc-field">
                 <button type="submit" class="btn btn-lunch">🟢 Start New Journey</button>
             </form>
         </div>
@@ -128,8 +142,10 @@
 
         <!-- Check‑out button (below) -->
         <form method="POST" action="/check-in" id="checkoutForm" style="display:none;">
+            <input type="hidden" name="lat" class="lat-field">
+            <input type="hidden" name="lng" class="lng-field">
+            <input type="hidden" name="location" class="loc-field">
             <input type="hidden" name="action" value="check_out">
-            <input type="hidden" name="lat" id="latCO"><input type="hidden" name="lng" id="lngCO"><input type="hidden" name="location" id="locCO">
         </form>
         <button class="checkin-btn btn-check-out" onclick="confirmCheckOut()">🚪 Check Out Now</button>
     </div>
@@ -140,6 +156,9 @@
         <div class="checkin-title">Enjoy your break!</div>
         <div class="checkin-subtitle">Lunch started at {{ check_in_time }}</div>
         <form method="POST" action="/check-in">
+            <input type="hidden" name="lat" class="lat-field">
+            <input type="hidden" name="lng" class="lng-field">
+            <input type="hidden" name="location" class="loc-field">
             <input type="hidden" name="action" value="end_lunch">
             <button type="submit" class="btn btn-lunch-end" style="margin-top:20px;">🍽️ End Lunch (Return)</button>
         </form>
@@ -187,7 +206,7 @@
 </div>
 
 <script>
-// Dynamic greeting (non‑marketers)
+// ---- Dynamic Greeting ----
 {% if session.get('role') != 'Marketers' %}
 (function() {
     const hour = new Date().getHours();
@@ -201,7 +220,7 @@
 })();
 {% endif %}
 
-// Shift timer (only if shift_start is defined)
+// ---- Shift Timer ----
 {% if shift_start and shift_end %}
 function updateShiftTimer() {
     const now = new Date();
@@ -224,61 +243,74 @@ updateShiftTimer();
 setInterval(updateShiftTimer, 10000);
 {% endif %}
 
-// Location capture WITH reverse geocoding (for all)
+// ---- Location Capture & Fill All Fields ----
 (function() {
-    var d = document.getElementById('ls-text');
-    var la = document.getElementById('lat');
-    var lo = document.getElementById('lng');
-    var lc = document.getElementById('loc');
-    if (!d || !navigator.geolocation) {
-        if (d) d.textContent = '⚠️ Location not supported';
+    const statusDiv = document.getElementById('ls-text');
+    const latInput = document.getElementById('lat');
+    const lngInput = document.getElementById('lng');
+    const locInput = document.getElementById('loc');
+
+    function fillAllFields(lat, lng, locText) {
+        if (latInput) latInput.value = lat;
+        if (lngInput) lngInput.value = lng;
+        if (locInput) locInput.value = locText || `${lat},${lng}`;
+
+        document.querySelectorAll('.lat-field').forEach(el => el.value = lat);
+        document.querySelectorAll('.lng-field').forEach(el => el.value = lng);
+        document.querySelectorAll('.loc-field').forEach(el => el.value = locText || `${lat},${lng}`);
+    }
+
+    if (!navigator.geolocation) {
+        if (statusDiv) statusDiv.textContent = '⚠️ Location not supported by browser';
         return;
     }
-    navigator.geolocation.getCurrentPosition(function(p) {
-        const lat = p.coords.latitude;
-        const lng = p.coords.longitude;
-        // Set coordinates immediately
-        if (la) la.value = lat;
-        if (lo) lo.value = lng;
-        if (lc) lc.value = lat + ',' + lng;
 
-        // Now try to get address (non‑blocking)
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-            .then(res => res.json())
-            .then(data => {
-                const address = data.display_name || (lat + ',' + lng);
-                if (lc) lc.value = address;
-                // Also update all hidden location fields that start with loc
-                document.querySelectorAll('[id^="loc"]').forEach(el => { el.value = address; });
-                d.textContent = '✅ ' + address.substring(0, 60) + (address.length > 60 ? '…' : '');
-                d.parentElement.style.background = '#d4f5e0';
-                d.parentElement.style.color = '#1e7e34';
-            })
-            .catch(() => {
-                // Keep lat,lng as fallback
-                d.textContent = '✅ Location captured (coordinates)';
-                d.parentElement.style.background = '#d4f5e0';
-                d.parentElement.style.color = '#1e7e34';
-            });
-    }, function(err) {
-        d.textContent = '⚠️ Location unavailable – continuing without GPS';
-        d.parentElement.style.background = '#fff3d6';
-        d.parentElement.style.color = '#b45309';
-    }, {timeout: 5000, enableHighAccuracy: false});
+    navigator.geolocation.getCurrentPosition(
+        function(pos) {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            fillAllFields(lat, lng, `${lat},${lng}`);
+
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+                .then(res => res.json())
+                .then(data => {
+                    const address = data.display_name || `${lat},${lng}`;
+                    fillAllFields(lat, lng, address);
+                    if (statusDiv) {
+                        statusDiv.innerHTML = `✅ ${address.substring(0, 60)}${address.length > 60 ? '…' : ''}`;
+                        statusDiv.parentElement.style.background = '#d4f5e0';
+                        statusDiv.parentElement.style.color = '#1e7e34';
+                    }
+                })
+                .catch(() => {
+                    if (statusDiv) {
+                        statusDiv.textContent = `✅ Location captured (coordinates)`;
+                        statusDiv.parentElement.style.background = '#d4f5e0';
+                        statusDiv.parentElement.style.color = '#1e7e34';
+                    }
+                });
+        },
+        function(err) {
+            if (statusDiv) {
+                statusDiv.textContent = '⚠️ Location unavailable – continuing without GPS';
+                statusDiv.parentElement.style.background = '#fff3d6';
+                statusDiv.parentElement.style.color = '#b45309';
+            }
+        },
+        { timeout: 5000, enableHighAccuracy: false }
+    );
 })();
 
-// Check-out confirmation
+// ---- Check-Out Confirmation ----
 function confirmCheckOut() {
-    // Copy location values to checkout hidden fields
-    document.getElementById('latCO').value = document.getElementById('lat').value || '';
-    document.getElementById('lngCO').value = document.getElementById('lng').value || '';
-    document.getElementById('locCO').value = document.getElementById('loc').value || '';
     document.getElementById('confirmModal').style.display = 'flex';
 }
 function closeConfirm() { document.getElementById('confirmModal').style.display = 'none'; }
-function submitCheckOut() { document.getElementById('checkoutForm').submit(); }
+function submitCheckOut() {
+    document.getElementById('checkoutForm').submit();
+}
 
-// Worked timer (for checked-in non‑marketers)
+// ---- Worked Timer ----
 {% if user_status == 'checked_in' and check_in_time and session.get('role') != 'Marketers' %}
 (function() {
     var parts = "{{ check_in_time }}".split(':');
