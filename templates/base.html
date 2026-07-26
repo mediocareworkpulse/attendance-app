@@ -8,7 +8,7 @@
 </head>
 <body>
     {% if session.get('user') %}
-    <aside class="sidebar" id="sidebar">
+    <aside class="sidebar">
         <div class="sidebar-header">
             <div class="brand-icon">💊</div>
             <div class="brand-info">
@@ -45,42 +45,11 @@
             <a href="/profile" class="{% if request.path == '/profile' %}active{% endif %}">👤 Profile</a>
             <a href="/logout" class="logout-link">🚪 Logout</a>
         </nav>
-        {% if lunch_active %}
-        <div class="sidebar-lunch">
-            <div class="lunch-label">Lunch Break</div>
-            <div class="lunch-timer" id="sidebar-lunch-timer">{{ lunch_remaining_str }}</div>
-            <a href="/lunch" class="btn btn-sm btn-lunch-end" style="margin-top:8px;width:100%">Return</a>
-        </div>
-        {% endif %}
     </aside>
     {% endif %}
 
-    <main class="main-content" id="mainContent">
+    <main class="main-content">
         {% block content %}{% endblock %}
     </main>
-
-    {% if lunch_active %}
-    <script>
-        (function() {
-            let remaining = {{ lunch_remaining }};
-            const display = document.getElementById('sidebar-lunch-timer');
-            function format(sec) {
-                const m = Math.floor(sec / 60);
-                const s = sec % 60;
-                return m + ':' + (s < 10 ? '0' : '') + s;
-            }
-            function tick() {
-                if (remaining <= 0) {
-                    display.textContent = '0:00';
-                    return;
-                }
-                remaining--;
-                display.textContent = format(remaining);
-            }
-            tick();
-            setInterval(tick, 1000);
-        })();
-    </script>
-    {% endif %}
 </body>
 </html>
