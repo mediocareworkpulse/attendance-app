@@ -179,7 +179,7 @@ def home():
 
     total_emp = len(safe_data(emp_r)) if emp_r else 0
     att_data = safe_data(att_r)
-    # Count as present if checked in and not checked out (ignore lunch status – treat as present)
+    # Count present: checked in and not checked out (ignore old lunch status – treat as present)
     present = sum(1 for a in att_data if a.get('check_in') and not a.get('check_out'))
     late = sum(1 for a in att_data if a.get('status')=='late')
     total_sales = sum(float(s.get('total_sales',0)) for s in safe_data(sales_r)) if show_sales_card else 0
@@ -187,8 +187,23 @@ def home():
     records = []
     for rec in att_data[:10]:
         st = rec.get('status','present')
-        # If status is 'lunch', display as 'Working'
-        label = {'present':'Working','late':'Working','lunch':'Working','checked_out':'Checked Out'}.get(st, 'Working')
+        # Unified label mapping
+        label_map = {
+            'present': 'Working',
+            'late': 'Arrived Late',
+            'checked_out': 'Checked Out',
+            'lunch': 'Working',   # treat legacy lunch as Working
+            'absent': 'Absent'
+        }
+        label = label_map.get(st, 'Working')
+        # Determine if checked out
+        if rec.get('check_out'):
+            label = 'Checked Out'
+        elif st == 'late':
+            label = 'Arrived Late'
+        else:
+            label = 'Working'
+
         try:
             emp_detail = safe_data(execute_query(supabase.table('employees').select('role,department').eq('full_name',rec['full_name'])))
         except:
@@ -209,7 +224,7 @@ def home():
             uci = bool(my[0].get('check_in'))
             uco = bool(my[0].get('check_out'))
             if uco: user_status = 'Checked Out'
-            elif uci: user_status = 'Working'   # treat any checked-in (including old lunch) as Working
+            elif uci: user_status = 'Working'
             else: user_status = 'Not Checked In'
 
     pending = len(safe_data(execute_query(supabase.table('employees').select('id').eq('status','pending')))) if role in FULL_ACCESS_ROLES else 0
@@ -362,7 +377,7 @@ def delete_branch(bid):
     supabase.table('branches').delete().eq('id',bid).execute()
     return redirect('/branches')
 
-# ---------- CHECK IN / OUT (no lunch) ----------
+# ---------- CHECK IN / OUT ----------
 @app.route('/check-in')
 @login_required
 def check_in_page():
@@ -371,7 +386,6 @@ def check_in_page():
     un = session.get('user')
     ub = session.get('branch','')
 
-    # Marketer specific
     marketer_pending = False
     marketer_approved = False
     if role == MARKETER_ROLE:
@@ -392,7 +406,6 @@ def check_in_page():
     if my_att:
         rec = my_att[0]
         if rec.get('check_out'): current_status = 'completed'
-        elif rec.get('status')=='lunch': current_status = 'checked_in'   # treat old lunch as still checked in
         elif rec.get('check_in'):
             current_status = 'checked_in'
             check_in_time = rec.get('check_in')
@@ -423,7 +436,13 @@ def check_in_page():
     records = []
     for rec in r:
         st = rec.get('status','present')
-        label = {'present':'Working','late':'Working','lunch':'Working','checked_out':'Checked Out'}.get(st, 'Working')
+        # same label mapping
+        if rec.get('check_out'):
+            label = 'Checked Out'
+        elif st == 'late':
+            label = 'Arrived Late'
+        else:
+            label = 'Working'
         try:
             emp_det = safe_data(execute_query(supabase.table('employees').select('role,department').eq('full_name',rec['full_name'])))
         except:
@@ -464,9 +483,8 @@ def process_attendance():
     if action == 'check_in':
         if role == MARKETER_ROLE: return redirect('/check-in')
         if exd and exd.get('check_in'): return redirect('/check-in')
-        status = 'present'
-        if role not in RIDER_DRIVER_ROLES + [MARKETER_ROLE]:
-            status = 'late' if now > shift_start else 'present'
+        # Set status: 'present' if on time, 'late' if after shift start
+        status = 'late' if now > shift_start else 'present'
         d = {'check_in':now,'status':status,'check_in_lat':lat,'check_in_lng':lng,'check_in_location':loc}
         if exd: supabase.table('attendance').update(d).eq('full_name',un).eq('date',today).execute()
         else:
@@ -479,7 +497,6 @@ def process_attendance():
                 'check_out_lat':lat,'check_out_lng':lng,'check_out_location':loc
             }).eq('full_name',un).eq('date',today).execute()
             return redirect('/')
-    # No lunch actions handled
     return redirect('/check-in')
 
 # ---------- JOURNEY ROUTES ----------
@@ -534,7 +551,9 @@ def attendance_history():
     records = []
     for rec in r:
         st = rec.get('status','present')
-        label = {'present':'Working','late':'Working','lunch':'Working','checked_out':'Checked Out'}.get(st, 'Working')
+        if rec.get('check_out'): label = 'Checked Out'
+        elif st == 'late': label = 'Arrived Late'
+        else: label = 'Working'
         records.append({
             'date':rec.get('date',''),'full_name':rec.get('full_name',''),
             'check_in':rec.get('check_in','—'),'check_out':rec.get('check_out','—'),
@@ -651,7 +670,9 @@ def reports():
     if rt == 'attendance':
         for rec in safe_data(execute_query(supabase.table('attendance').select('*').gte('date',fd).lte('date',td).order('date',desc=True).limit(200))):
             st = rec.get('status','present')
-            label = {'present':'Working','late':'Working','lunch':'Working','checked_out':'Checked Out'}.get(st, 'Working')
+            if rec.get('check_out'): label = 'Checked Out'
+            elif st == 'late': label = 'Arrived Late'
+            else: label = 'Working'
             records.append({'date':rec.get('date',''),'full_name':rec.get('full_name',''),'check_in':rec.get('check_in','—'),'check_out':rec.get('check_out','—'),'status':st,'label':label})
     elif rt == 'sales':
         srecs = safe_data(execute_query(supabase.table('sales').select('*').gte('date',fd).lte('date',td).order('date',desc=True).limit(200)))
