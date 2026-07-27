@@ -40,11 +40,13 @@
         <div class="stat-label">Days Present (This Month)</div>
         <div class="stat-value">{{ days_present }}</div>
     </div>
+    {% if session.get('role') not in ['Marketers', 'Sales Manager'] %}
     <div class="stat-card">
         <div class="stat-icon">💰</div>
         <div class="stat-label">My Sales (This Month)</div>
         <div class="stat-value" style="font-size:28px;">Ksh {{ "%.2f"|format(total_my_sales) }}</div>
     </div>
+    {% endif %}
 </div>
 
 {% if success_msg %}<div class="alert alert-success">{{ success_msg }}</div>{% endif %}
