@@ -2,7 +2,7 @@
 {% block content %}
 
 <h1 class="page-title">🌴 Leave Application</h1>
-<p class="page-subtitle">{{ company }} • Complete the form below</p>
+<p class="page-subtitle">{{ company }} • Complete the official leave request</p>
 
 {% if success_msg %}<div class="alert alert-success">✅ Your leave request has been submitted successfully.</div>{% endif %}
 
@@ -15,19 +15,45 @@
 
     <!-- Instructions -->
     <div class="alert alert-info" style="font-size:12px; margin-bottom:20px;">
-        <strong>Instructions:</strong> Fill all sections. Submit at least 2 weeks in advance for annual leave, or 24 hours for sick leave. Attach supporting documents if required.
+        <strong>Instructions:</strong> Please fill all sections. Submit at least 2 weeks in advance for annual leave, or 24 hours for sick leave. Attach supporting documents if required.
     </div>
 
     <form method="POST" id="leaveForm">
         <!-- ============ SECTION 1: EMPLOYEE INFORMATION ============ -->
         <div class="section-title" style="font-weight:800; font-size:13px; border-bottom:1px solid #333; margin-bottom:10px; text-transform:uppercase;">SECTION 1: EMPLOYEE INFORMATION</div>
         <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
-            <div><label>Full Name *</label><input type="text" value="{{ session.user }}" readonly style="background:#f1f3f5;"></div>
-            <div><label>Department</label><input type="text" value="{{ session.department }}" readonly style="background:#f1f3f5;"></div>
-            <div><label>Position / Job Title</label><input type="text" value="{{ session.role }}" readonly style="background:#f1f3f5;"></div>
-            <div><label>Date of Application</label><input type="text" value="{{ today }}" readonly style="background:#f1f3f5;"></div>
-            <div><label>Mobile Number *</label><input type="text" name="phone" placeholder="07XX XXX XXX" required></div>
-            <div><label>Official Email</label><input type="email" name="email" placeholder="you@example.com"></div>
+            <div>
+                <label>Full Name (as per company records) *</label>
+                <input type="text" name="full_name" value="{{ session.user }}" placeholder="Enter your full name" required>
+            </div>
+            <div>
+                <label>Department *</label>
+                <select name="department" required>
+                    {% for d in departments %}
+                    <option value="{{ d }}" {% if d == session.department %}selected{% endif %}>{{ d }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Position / Job Title *</label>
+                <select name="position" required>
+                    {% for r in roles %}
+                    <option value="{{ r }}" {% if r == session.role %}selected{% endif %}>{{ r }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Date of Application</label>
+                <input type="text" value="{{ today }}" readonly style="background:#f1f3f5;">
+            </div>
+            <div>
+                <label>Mobile Number *</label>
+                <input type="text" name="phone" placeholder="07XX XXX XXX" required>
+            </div>
+            <div>
+                <label>Official Email</label>
+                <input type="email" name="email" placeholder="you@example.com">
+            </div>
         </div>
 
         <!-- ============ SECTION 2: LEAVE DETAILS ============ -->
@@ -44,7 +70,7 @@
                     <option value="Other">Other</option>
                 </select>
             </div>
-            <div></div> <!-- spacer -->
+            <div></div>
             <div><label>Start Date *</label><input type="date" name="leave_start" id="start_date" required onchange="calcDays()"></div>
             <div><label>End Date *</label><input type="date" name="leave_end" id="end_date" required onchange="calcDays()"></div>
             <div><label>Total Days *</label><input type="number" name="total_days" id="total_days" value="1" readonly style="background:#f1f3f5;"></div>
@@ -102,7 +128,7 @@
     </form>
 </div>
 
-<!-- Previously submitted leaves (if any) -->
+<!-- Previous Leave Requests -->
 {% if leaves %}
 <div class="form-card" style="max-width:900px; margin:30px auto;">
     <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">📜 My Previous Leave Requests</h2>
