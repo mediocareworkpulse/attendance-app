@@ -13,19 +13,15 @@
         <h3 style="font-size: 16px; font-weight: 700; color: var(--text);">COMPLETE LEAVE APPLICATION FORM</h3>
     </div>
 
-    <!-- Instructions -->
     <div class="alert alert-info" style="font-size:12px; margin-bottom:20px;">
-        <strong>Instructions:</strong> Please fill all sections. Submit at least 2 weeks in advance for annual leave, or 24 hours for sick leave. Attach supporting documents if required.
+        <strong>Instructions:</strong> Fill all sections. Submit at least 2 weeks in advance for annual leave, or 24 hours for sick leave. Attach supporting documents if required.
     </div>
 
     <form method="POST" id="leaveForm">
-        <!-- ============ SECTION 1: EMPLOYEE INFORMATION ============ -->
+        <!-- SECTION 1: EMPLOYEE INFORMATION -->
         <div class="section-title" style="font-weight:800; font-size:13px; border-bottom:1px solid #333; margin-bottom:10px; text-transform:uppercase;">SECTION 1: EMPLOYEE INFORMATION</div>
         <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
-            <div>
-                <label>Full Name (as per company records) *</label>
-                <input type="text" name="full_name" value="{{ session.user }}" placeholder="Enter your full name" required>
-            </div>
+            <div><label>Full Name (as per company records) *</label><input type="text" name="full_name" value="{{ session.user }}" placeholder="Enter your full name" required></div>
             <div>
                 <label>Department *</label>
                 <select name="department" required>
@@ -42,21 +38,12 @@
                     {% endfor %}
                 </select>
             </div>
-            <div>
-                <label>Date of Application</label>
-                <input type="text" value="{{ today }}" readonly style="background:#f1f3f5;">
-            </div>
-            <div>
-                <label>Mobile Number *</label>
-                <input type="text" name="phone" placeholder="07XX XXX XXX" required>
-            </div>
-            <div>
-                <label>Official Email</label>
-                <input type="email" name="email" placeholder="you@example.com">
-            </div>
+            <div><label>Date of Application</label><input type="text" value="{{ today }}" readonly style="background:#f1f3f5;"></div>
+            <div><label>Mobile Number *</label><input type="text" name="phone" placeholder="07XX XXX XXX" required></div>
+            <div><label>Official Email</label><input type="email" name="email" placeholder="you@example.com"></div>
         </div>
 
-        <!-- ============ SECTION 2: LEAVE DETAILS ============ -->
+        <!-- SECTION 2: LEAVE DETAILS -->
         <div class="section-title" style="font-weight:800; font-size:13px; border-bottom:1px solid #333; margin:18px 0 10px; text-transform:uppercase;">SECTION 2: LEAVE DETAILS</div>
         <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
             <div>
@@ -77,46 +64,28 @@
             <div><label>Remaining Leave Balance (if known)</label><input type="text" name="remaining_balance" placeholder="e.g., 21 days"></div>
         </div>
 
-        <!-- ============ SECTION 3: REASON / PURPOSE ============ -->
+        <!-- SECTION 3: REASON / PURPOSE -->
         <div class="section-title" style="font-weight:800; font-size:13px; border-bottom:1px solid #333; margin:18px 0 10px; text-transform:uppercase;">SECTION 3: REASON / PURPOSE</div>
-        <div style="margin-bottom:12px;">
-            <label>Reason for Leave *</label>
-            <textarea name="reason" rows="4" placeholder="Explain why you are taking leave..." required></textarea>
-        </div>
-        <div style="margin-bottom:12px;">
-            <label>Additional Remarks (optional)</label>
-            <textarea name="handover_notes" rows="2" placeholder="e.g., 'I will be partially reachable by email' or 'All pending reports are completed'"></textarea>
-        </div>
+        <div style="margin-bottom:12px;"><label>Reason for Leave *</label><textarea name="reason" rows="4" placeholder="Explain why you are taking leave..." required></textarea></div>
+        <div style="margin-bottom:12px;"><label>Additional Remarks (optional)</label><textarea name="handover_notes" rows="2" placeholder="e.g., 'I will be partially reachable by email' or 'All pending reports are completed'"></textarea></div>
 
-        <!-- ============ SECTION 4: HANDOVER & BACKUP ============ -->
+        <!-- SECTION 4: HANDOVER & BACKUP -->
         <div class="section-title" style="font-weight:800; font-size:13px; border-bottom:1px solid #333; margin:18px 0 10px; text-transform:uppercase;">SECTION 4: WORK HANDOVER & BACKUP PLAN</div>
         <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
-            <div style="grid-column: span 2;">
-                <label>Name of Colleague / Backup Person covering your duties *</label>
-                <input type="text" name="backup_person" required placeholder="Who will cover for you?">
-            </div>
+            <div style="grid-column: span 2;"><label>Name of Colleague / Backup Person covering your duties *</label><input type="text" name="backup_person" required placeholder="Who will cover for you?"></div>
             <div style="grid-column: span 2;">
                 <label>Handover Confirmation (check all that apply)</label>
                 <div style="display:flex; gap:20px; flex-wrap:wrap; margin-top:4px;">
-                    <label style="font-weight:normal; display:flex; align-items:center; gap:6px;">
-                        <input type="checkbox" name="handover_email" value="1"> I have emailed relevant files/access
-                    </label>
-                    <label style="font-weight:normal; display:flex; align-items:center; gap:6px;">
-                        <input type="checkbox" name="handover_calendar" value="1"> Updated team calendar
-                    </label>
-                    <label style="font-weight:normal; display:flex; align-items:center; gap:6px;">
-                        <input type="checkbox" name="handover_autoreply" value="1"> Set email auto-reply
-                    </label>
+                    <label style="font-weight:normal; display:flex; align-items:center; gap:6px;"><input type="checkbox" name="handover_email" value="1"> I have emailed relevant files/access</label>
+                    <label style="font-weight:normal; display:flex; align-items:center; gap:6px;"><input type="checkbox" name="handover_calendar" value="1"> Updated team calendar</label>
+                    <label style="font-weight:normal; display:flex; align-items:center; gap:6px;"><input type="checkbox" name="handover_autoreply" value="1"> Set email auto-reply</label>
                 </div>
             </div>
-            <div>
-                <label>Emergency Contact Number (optional)</label>
-                <input type="text" name="emergency_contact" placeholder="Phone number for urgent matters">
-            </div>
+            <div><label>Emergency Contact Number (optional)</label><input type="text" name="emergency_contact" placeholder="Phone number for urgent matters"></div>
             <div></div>
         </div>
 
-        <!-- ============ SECTION 5: DECLARATION ============ -->
+        <!-- SECTION 5: DECLARATION -->
         <div class="section-title" style="font-weight:800; font-size:13px; border-bottom:1px solid #333; margin:18px 0 10px; text-transform:uppercase;">SECTION 5: DECLARATION</div>
         <p style="font-size:13px; margin-bottom:8px;">I declare that all information above is true, and I have made proper arrangements for work continuity.</p>
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:20px;">
@@ -143,6 +112,8 @@
                 <td>
                     {% if l.status == 'approved_final' %}<span class="badge badge-success">Approved</span>
                     {% elif l.status == 'rejected' %}<span class="badge badge-danger">Rejected</span>
+                    {% elif l.status == 'approved_by_manager' %}<span class="badge badge-info">Pending Final</span>
+                    {% elif l.status == 'approved_by_procurement' %}<span class="badge badge-warning">Pending HR</span>
                     {% else %}<span class="badge badge-warning">Pending</span>{% endif %}
                 </td>
                 <td>{{ l.approved_by or '—' }}</td>
