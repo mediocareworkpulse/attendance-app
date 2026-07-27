@@ -1,16 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="page-title">My Profile</h1>
+<h1 class="page-title">👤 My Profile</h1>
 <p class="page-subtitle">{{ company }}</p>
 
-<!-- Profile Overview Card -->
 <div class="profile-card">
     <div class="profile-header">
         <div class="profile-avatar">{{ employee.full_name[:1] | upper }}</div>
         <div class="profile-info">
             <h2>{{ employee.full_name }}</h2>
             <span class="badge badge-info">{{ employee.role }}</span>
-            {% if employee.branch %}<span class="badge badge-purple" style="background:#e8d5f5;color:#6b21a8;">{{ employee.branch }}</span>{% endif %}
+            {% if employee.branch %}<span class="badge" style="background: #f3e8ff; color: #7c3aed;">{{ employee.branch }}</span>{% endif %}
         </div>
     </div>
     <div class="profile-details">
@@ -33,7 +32,6 @@
     </div>
 </div>
 
-<!-- Stats Row -->
 <div class="stats">
     <div class="stat-card">
         <div class="stat-icon">📅</div>
@@ -51,15 +49,14 @@
 
 {% if success_msg %}<div class="alert alert-success">{{ success_msg }}</div>{% endif %}
 
-<!-- Password Change Card -->
-<div class="form-card" style="max-width:500px;">
-    <h2 style="font-size:16px; margin-bottom:12px;">🔒 Change Password</h2>
+<div class="form-card" style="max-width: 480px;">
+    <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 14px;">🔒 Change Password</h2>
     <form method="POST">
         <label>Current Password</label>
         <input type="password" name="old_password" required>
         <label>New Password</label>
         <input type="password" name="new_password" required>
-        <button type="submit" class="btn" style="margin-top:12px;">Update Password</button>
+        <button type="submit" class="btn" style="margin-top: 12px;">Update Password</button>
     </form>
 </div>
 {% endblock %}
