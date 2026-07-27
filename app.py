@@ -11,7 +11,6 @@ import pytz, time
 app = Flask(__name__)
 app.secret_key = 'mediocare-attendance-secret-2024'   # change in production
 
-# Secure session cookies
 app.config.update(
     SESSION_COOKIE_HTTPONLY = True,
     SESSION_COOKIE_SECURE = True,
@@ -32,10 +31,10 @@ EAT = timezone(timedelta(hours=3))
 
 DEPARTMENTS = ['Staff','Store','Dispatch','Sales','Stock Control','Procurement','Accounts Office','Operations','Branch Management','Management']
 ALL_ROLES = [
-    'Staff','Branch Manager','Stock Controller','Assistant Stock Controller',
+    'Staff','Branch Manager','Branch Order Processor','Stock Controller','Assistant Stock Controller',
     'Procurement Officer','Procurement Assistant','Accountant','Accountant Assistant',
     'HR','HR Assistant','Sales Manager','Marketers','Telesales','Dispatch Personnel',
-    'Operations Manager','Operations Assistant','Store Manager','Storekeeper',
+    'Operations Manager','Assistant Operations Manager','Operations Assistant','Store Manager','Storekeeper',
     'Store Personnel','Dispatch Supervisor','Dispatch Assistant','Cleaner',
     'Riders','Drivers','Security','admin','ceo'
 ]
@@ -54,7 +53,6 @@ MARKETER_ROLE = 'Marketers'
 SALES_MANAGER_ROLE = 'Sales Manager'
 TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller']
 
-# Allowed to view Directorate (contacts)
 DIRECTORATE_ROLES = ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager']
 
 COMPANY_NAME = 'Mediocare Pharmaceutical Ltd'
@@ -101,20 +99,20 @@ def get_branch_names():
 def now_eat():
     return datetime.now(EAT)
 
-# ---------- LEAVE APPROVAL CHAIN ----------
+# ---------- LEAVE APPROVAL CHAIN (with Branch Order Processor) ----------
 def get_approval_chain(employee_role):
     """Return a list of approval steps for a given employee role."""
     if employee_role in ['Drivers','Riders','Dispatch Personnel','Security','Cleaner']:
         return [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
-             'allowed_roles': ['Operations Manager','Assistant Operations Manager']},
+             'allowed_roles': ['Operations Manager','Assistant Operations Manager','Operations Assistant']},
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['HR','HR Assistant']}
         ]
     elif employee_role == 'Store Manager':
         return [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
-             'allowed_roles': ['Operations Manager','Assistant Operations Manager']},
+             'allowed_roles': ['Operations Manager','Assistant Operations Manager','Operations Assistant']},
             {'from_status': 'approved_by_manager', 'to_status': 'approved_by_procurement',
              'allowed_roles': ['Procurement Officer']},
             {'from_status': 'approved_by_procurement', 'to_status': 'approved_final',
@@ -127,7 +125,7 @@ def get_approval_chain(employee_role):
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['CEO','HR','HR Assistant']}
         ]
-    elif employee_role == 'Assistant Operations Manager':
+    elif employee_role in ['Assistant Operations Manager', 'Operations Assistant']:
         return [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
              'allowed_roles': ['Operations Manager']},
@@ -141,6 +139,13 @@ def get_approval_chain(employee_role):
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['HR','HR Assistant']}
         ]
+    elif employee_role == 'Branch Order Processor':
+        return [
+            {'from_status': 'pending', 'to_status': 'approved_by_manager',
+             'allowed_roles': ['Operations Manager','Assistant Operations Manager','Operations Assistant']},
+            {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
+             'allowed_roles': ['HR','HR Assistant']}
+        ]
     elif employee_role in ['Stock Controller','Assistant Stock Controller',
                            'Accountant','Accountant Assistant',
                            'Operations Manager','Procurement Officer','Sales Manager']:
@@ -149,7 +154,7 @@ def get_approval_chain(employee_role):
              'allowed_roles': ['CEO','HR','HR Assistant']}
         ]
     else:
-        # All other branch staff: Branch Manager → Stock Controller
+        # Branch staff: Branch Manager → Stock Controller
         return [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
              'allowed_roles': ['Branch Manager']},
@@ -264,14 +269,14 @@ def home():
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
         sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names))
         emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').in_('role',STORE_MANAGER_TEAM).eq('branch',ub))
-    elif role == 'Operations Manager':
+    elif role in ['Operations Manager', 'Assistant Operations Manager', 'Operations Assistant']:
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)))]
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
         sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names))
         emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM))
     elif role == 'Sales Manager':
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('role',MARKETER_ROLE)))]
-        team_names.append(session.get('user'))   # include manager self
+        team_names.append(session.get('user'))
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
         sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names))
         emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').in_('full_name',team_names))
@@ -508,7 +513,7 @@ def delete_branch(bid):
     supabase.table('branches').delete().eq('id',bid).execute()
     return redirect('/branches')
 
-# ---------- DIRECTORATE (Contacts) – restricted ----------
+# ---------- DIRECTORATE (Contacts) ----------
 @app.route('/contacts')
 @login_required
 def contacts_page():
@@ -573,7 +578,7 @@ def check_in_page():
     elif role == 'Store Manager':
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',STORE_MANAGER_TEAM).eq('branch',ub)))]
         r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names)))
-    elif role == 'Operations Manager':
+    elif role in ['Operations Manager', 'Assistant Operations Manager', 'Operations Assistant']:
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)))]
         r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names)))
     elif role == 'Sales Manager':
@@ -626,7 +631,6 @@ def process_attendance():
     branch = emp[0].get('branch', '') or ''
     role = emp[0].get('role', '') or ''
     shift_start = emp[0].get('shift_start', '08:00') or '08:00'
-    # Clean shift_start: ensure HH:MM format, strip seconds if present
     shift_start = shift_start.strip()
     if len(shift_start) > 5:
         shift_start = shift_start[:5]
@@ -707,7 +711,7 @@ def attendance_history():
     elif role == 'Store Manager':
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',STORE_MANAGER_TEAM).eq('branch',ub)))]
         r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).in_('full_name',team_names).order('date',desc=True).limit(200)))
-    elif role == 'Operations Manager':
+    elif role in ['Operations Manager', 'Assistant Operations Manager', 'Operations Assistant']:
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)))]
         r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).in_('full_name',team_names).order('date',desc=True).limit(200)))
     elif role == 'Sales Manager':
@@ -917,9 +921,9 @@ def approve_leaves():
     user_role = session.get('role')
     user_branch = session.get('branch','')
     approver_roles = [
-        'Operations Manager','Assistant Operations Manager','Procurement Officer',
-        'HR','HR Assistant','CEO','Branch Manager','Stock Controller','Assistant Stock Controller',
-        'Sales Manager'
+        'Operations Manager','Assistant Operations Manager','Operations Assistant',
+        'Procurement Officer','HR','HR Assistant','CEO','Branch Manager',
+        'Stock Controller','Assistant Stock Controller','Sales Manager'
     ]
     if user_role not in approver_roles and user_role not in FULL_ACCESS_ROLES:
         return redirect('/')
