@@ -1,19 +1,37 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="page-title">Approve Leaves</h1>
+<h1 class="page-title">✍️ Approve Leaves</h1>
 <p class="page-subtitle">{{ company }}</p>
 
 {% if pending %}
 <div class="table-container">
     <table>
-        <thead><tr><th>Employee</th><th>Dates</th><th>Type</th><th>Reason</th><th>Action</th></tr></thead>
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Role</th>
+                <th>Dates</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
         <tbody>
         {% for l in pending %}
         <tr>
             <td class="td-name">{{ l.full_name }}</td>
+            <td>{{ l.role }}</td>
             <td>{{ l.leave_start }} → {{ l.leave_end }}</td>
             <td>{{ l.leave_type }}</td>
-            <td>{{ l.reason or '—' }}</td>
+            <td>
+                {% if l.status == 'pending' %}
+                    <span class="badge badge-warning">Pending</span>
+                {% elif l.status == 'approved_by_manager' %}
+                    <span class="badge badge-info">Pending Final</span>
+                {% elif l.status == 'approved_by_procurement' %}
+                    <span class="badge badge-info">Pending HR</span>
+                {% endif %}
+            </td>
             <td>
                 <form method="POST" action="/approve-leaves/{{ l.id }}/approve" style="display:inline">
                     <button class="btn btn-sm" style="background:#27ae60; color:#fff;">Approve</button>
@@ -21,6 +39,7 @@
                 <form method="POST" action="/approve-leaves/{{ l.id }}/reject" style="display:inline">
                     <button class="btn btn-sm btn-danger">Reject</button>
                 </form>
+                <a href="/leave-pdf/{{ l.id }}" class="btn btn-sm">📄</a>
             </td>
         </tr>
         {% endfor %}
@@ -28,6 +47,6 @@
     </table>
 </div>
 {% else %}
-<div class="alert alert-info">No pending leave requests.</div>
+<div class="alert alert-info">No leave requests require your action at the moment.</div>
 {% endif %}
 {% endblock %}
