@@ -101,6 +101,62 @@ def get_branch_names():
 def now_eat():
     return datetime.now(EAT)
 
+# ---------- LEAVE APPROVAL CHAIN ----------
+def get_approval_chain(employee_role):
+    """Return a list of approval steps for a given employee role."""
+    if employee_role in ['Drivers','Riders','Dispatch Personnel','Security','Cleaner']:
+        return [
+            {'from_status': 'pending', 'to_status': 'approved_by_manager',
+             'allowed_roles': ['Operations Manager','Assistant Operations Manager']},
+            {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
+             'allowed_roles': ['HR','HR Assistant']}
+        ]
+    elif employee_role == 'Store Manager':
+        return [
+            {'from_status': 'pending', 'to_status': 'approved_by_manager',
+             'allowed_roles': ['Operations Manager','Assistant Operations Manager']},
+            {'from_status': 'approved_by_manager', 'to_status': 'approved_by_procurement',
+             'allowed_roles': ['Procurement Officer']},
+            {'from_status': 'approved_by_procurement', 'to_status': 'approved_final',
+             'allowed_roles': ['HR','HR Assistant']}
+        ]
+    elif employee_role == 'Branch Manager':
+        return [
+            {'from_status': 'pending', 'to_status': 'approved_by_manager',
+             'allowed_roles': ['Stock Controller','Assistant Stock Controller']},
+            {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
+             'allowed_roles': ['CEO','HR','HR Assistant']}
+        ]
+    elif employee_role == 'Assistant Operations Manager':
+        return [
+            {'from_status': 'pending', 'to_status': 'approved_by_manager',
+             'allowed_roles': ['Operations Manager']},
+            {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
+             'allowed_roles': ['CEO','HR','HR Assistant']}
+        ]
+    elif employee_role == 'Marketers':
+        return [
+            {'from_status': 'pending', 'to_status': 'approved_by_manager',
+             'allowed_roles': ['Sales Manager']},
+            {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
+             'allowed_roles': ['HR','HR Assistant']}
+        ]
+    elif employee_role in ['Stock Controller','Assistant Stock Controller',
+                           'Accountant','Accountant Assistant',
+                           'Operations Manager','Procurement Officer','Sales Manager']:
+        return [
+            {'from_status': 'pending', 'to_status': 'approved_final',
+             'allowed_roles': ['CEO','HR','HR Assistant']}
+        ]
+    else:
+        # All other branch staff: Branch Manager → Stock Controller
+        return [
+            {'from_status': 'pending', 'to_status': 'approved_by_manager',
+             'allowed_roles': ['Branch Manager']},
+            {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
+             'allowed_roles': ['Stock Controller','Assistant Stock Controller']}
+        ]
+
 # ---------- Force logout blocked users ----------
 @app.before_request
 def block_check():
@@ -799,7 +855,7 @@ def reports():
         brecs = safe_data(execute_query(supabase.table('branch_sales').select('*').gte('date',fd).lte('date',td).order('date',desc=True).limit(200)))
     return render_template('reports.html',records=records,sales_recs=srecs,branch_recs=brecs,from_date=fd,to_date=td,report_type=rt,total_sales_amount=sum(float(s.get('total_sales',0)) for s in srecs),total_branch_amount=sum(float(s.get('total_sales',0)) for s in brecs),company=COMPANY_NAME)
 
-# ---------- LEAVES (updated with department/role lists) ----------
+# ---------- LEAVES (with dropdowns for department/role) ----------
 @app.route('/leaves', methods=['GET','POST'])
 @login_required
 def leaves():
@@ -829,7 +885,7 @@ def leaves():
         today=today,
         company=COMPANY_NAME,
         success_msg=request.args.get('success',''),
-        departments=DEPARTMENTS,     # for dropdowns
+        departments=DEPARTMENTS,
         roles=ALL_ROLES
     )
 
@@ -840,38 +896,77 @@ def leave_pdf(lid):
     if not leave: return "Leave not found", 404
     return render_template('leave_pdf.html', lv=leave[0], company=COMPANY_NAME)
 
+# ---------- APPROVE LEAVES (new hierarchy) ----------
 @app.route('/approve-leaves')
 @login_required
 def approve_leaves():
-    role = session.get('role'); ub = session.get('branch','')
-    if role not in ['Store Manager','Operations Manager','Sales Manager','admin','ceo']: return redirect('/')
-    if role == 'Store Manager':
-        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',STORE_MANAGER_TEAM).eq('branch',ub)))]
-        pending = safe_data(execute_query(supabase.table('leaves').select('*').in_('full_name',team_names).eq('status','pending').order('created_at',desc=True)))
-    elif role == 'Operations Manager':
-        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)))]
-        pending = safe_data(execute_query(supabase.table('leaves').select('*').in_('full_name',team_names).in_('status',['pending','approved_by_manager']).order('created_at',desc=True)))
-    elif role == 'Sales Manager':
-        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('role',MARKETER_ROLE)))]
-        pending = safe_data(execute_query(supabase.table('leaves').select('*').in_('full_name',team_names).in_('status',['pending','approved_by_manager']).order('created_at',desc=True)))
-    else:
-        pending = safe_data(execute_query(supabase.table('leaves').select('*').in_('status',['pending','approved_by_manager']).order('created_at',desc=True).limit(100)))
-    return render_template('approve_leaves.html', pending=pending, role=role)
+    user_role = session.get('role')
+    user_branch = session.get('branch','')
+    approver_roles = [
+        'Operations Manager','Assistant Operations Manager','Procurement Officer',
+        'HR','HR Assistant','CEO','Branch Manager','Stock Controller','Assistant Stock Controller',
+        'Sales Manager'
+    ]
+    if user_role not in approver_roles and user_role not in FULL_ACCESS_ROLES:
+        return redirect('/')
+    
+    all_leaves = safe_data(execute_query(
+        supabase.table('leaves')
+               .select('*')
+               .in_('status', ['pending','approved_by_manager','approved_by_procurement'])
+               .order('created_at',desc=True)
+               .limit(200)
+    ))
+    
+    pending = []
+    for leave in all_leaves:
+        emp_role = leave.get('role','Staff')
+        chain = get_approval_chain(emp_role)
+        for stage in chain:
+            if leave['status'] == stage['from_status'] and user_role in stage['allowed_roles']:
+                if user_role == 'Branch Manager':
+                    if leave.get('branch','') == user_branch:
+                        pending.append(leave)
+                else:
+                    pending.append(leave)
+                break
+    
+    return render_template('approve_leaves.html', pending=pending, role=user_role)
 
 @app.route('/approve-leaves/<int:lid>/<action>', methods=['POST'])
 @login_required
 def process_leave(lid, action):
-    role = session.get('role')
+    user_role = session.get('role')
+    user_branch = session.get('branch','')
     leave = safe_data(execute_query(supabase.table('leaves').select('*').eq('id',lid)))
-    if not leave: return redirect('/approve-leaves')
-    leave = leave[0]; new_status = leave['status']
+    if not leave:
+        return redirect('/approve-leaves')
+    leave = leave[0]
+    emp_role = leave.get('role','Staff')
+    chain = get_approval_chain(emp_role)
+    
+    current_stage = None
+    for stage in chain:
+        if leave['status'] == stage['from_status'] and user_role in stage['allowed_roles']:
+            if user_role == 'Branch Manager' and leave.get('branch','') != user_branch:
+                continue
+            current_stage = stage
+            break
+    
+    if not current_stage:
+        return redirect('/approve-leaves')
+    
     if action == 'approve':
-        if role == 'Store Manager': new_status = 'approved_by_manager'
-        elif role in ['Operations Manager','Sales Manager','admin','ceo']: new_status = 'approved_final'
-        else: return redirect('/approve-leaves')
-    elif action == 'reject': new_status = 'rejected'
-    else: return redirect('/approve-leaves')
-    supabase.table('leaves').update({'status':new_status,'approved_by':role}).eq('id',lid).execute()
+        new_status = current_stage['to_status']
+    elif action == 'reject':
+        new_status = 'rejected'
+    else:
+        return redirect('/approve-leaves')
+    
+    supabase.table('leaves').update({
+        'status': new_status,
+        'approved_by': user_role
+    }).eq('id', lid).execute()
     return redirect('/approve-leaves')
 
 # ---------- MARKETER ROUTES ----------
@@ -911,7 +1006,6 @@ def marketer_report():
     if not customer_name:
         return redirect('/check-in?report=error')
 
-    # Prevent duplicate customer on same day
     existing = safe_data(execute_query(
         supabase.table('customer_reports')
                .select('id')
