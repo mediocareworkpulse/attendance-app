@@ -38,6 +38,7 @@
             <a href="/approvals" class="{% if request.path == '/approvals' %}active{% endif %}">✅ Approvals</a>
             <a href="/employees" class="{% if request.path == '/employees' %}active{% endif %}">👥 Employees</a>
             <a href="/branches" class="{% if request.path == '/branches' %}active{% endif %}">🏢 Branches</a>
+            <a href="/admin/sales" class="{% if request.path == '/admin/sales' %}active{% endif %}">💰 Manage Sales</a>
         {% endif %}
 
         {% if session.role in ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager'] %}
@@ -48,15 +49,15 @@
             <a href="/sales" class="{% if request.path == '/sales' %}active{% endif %}">💰 Sales</a>
         {% endif %}
 
-        <a href="/attendance-history" class="{% if request.path == '/attendance-history' %}active{% endif %}">📊 Attendance History</a>
+        <a href="/attendance-history" class="{% if request.path == '/attendance-history' %}active{% endif %}">📊 History</a>
 
         {% if session.role in ['admin','ceo','Branch Manager','Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant'] %}
             <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}">📈 Reports</a>
         {% endif %}
 
-        <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">🌴 Leave Requests</a>
+        <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">🌴 Leaves</a>
 
-        {% if session.role in ['Store Manager','Operations Manager','Sales Manager','admin','ceo'] %}
+        {% if session.role in ['Store Manager','Operations Manager','Sales Manager','admin','ceo','HR','HR Assistant','Procurement Officer','Stock Controller','Assistant Stock Controller'] %}
             <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}">✍️ Approve Leaves</a>
         {% endif %}
 
