@@ -1,150 +1,199 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="page-title">Check In / Out</h1>
-<p class="page-subtitle">{{ company }} – {{ today }}</p>
 
-<!-- User status -->
-<div class="card status-card">
-    <h3>Your Status: <span class="badge {% if user_status == 'completed' %}badge-success{% elif user_status == 'working' %}badge-primary{% else %}badge-warning{% endif %}">{{ user_status }}</span></h3>
-    {% if check_in_time %}
-        <p>Checked in at: {{ check_in_time }}</p>
-    {% endif %}
-    {% if shift_start and shift_end %}
-        <p>Shift: {{ shift_start }} – {{ shift_end }}</p>
-    {% endif %}
-    <!-- Check-in/out buttons for non-marketers -->
-    {% if role not in ['Marketers','admin','ceo'] %}
-        <form method="POST" action="/check-in" id="attendanceForm">
-            <input type="hidden" name="lat" id="att-lat">
-            <input type="hidden" name="lng" id="att-lng">
-            <input type="hidden" name="location" id="att-location">
-            {% if user_status == 'none' %}
-                <button type="submit" name="action" value="check_in" class="btn btn-success" onclick="getLocation()">Clock In</button>
-            {% elif user_status == 'checked_in' or user_status == 'working' %}
-                <button type="submit" name="action" value="check_out" class="btn btn-danger" onclick="getLocation()">Clock Out</button>
+<!-- Page Title -->
+<h1 class="page-title">Check In / Out</h1>
+<p class="page-subtitle">{{ company }} — {{ today }}</p>
+
+<!-- ═══════ Status Card (all roles) ═══════ -->
+<div class="checkin-container shift-timer-card" style="text-align:left; padding:20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <div class="timer-label">YOUR STATUS</div>
+            <div class="timer-value" style="font-size:24px;">
+                {% if user_status == 'completed' %}
+                    <span class="badge badge-success">Checked Out</span>
+                {% elif user_status in ['checked_in','working','approved'] %}
+                    <span class="badge badge-info">Working</span>
+                {% elif user_status == 'pending' %}
+                    <span class="badge badge-warning">Pending Approval</span>
+                {% else %}
+                    <span class="badge badge-danger">Not Checked In</span>
+                {% endif %}
+            </div>
+            {% if check_in_time %}
+                <small class="timer-remaining">Checked in at {{ check_in_time }}</small>
             {% endif %}
-        </form>
-    {% endif %}
+            {% if shift_start and shift_end %}
+                <br><small class="timer-label">Shift: {{ shift_start }} – {{ shift_end }}</small>
+            {% endif %}
+        </div>
+        <!-- Regular check‑in / check‑out buttons (not for marketers, admin, ceo) -->
+        {% if role not in ['Marketers','admin','ceo'] %}
+        <div>
+            <form method="POST" action="/check-in" id="attendanceForm" style="display:inline;">
+                <input type="hidden" name="lat" id="att-lat">
+                <input type="hidden" name="lng" id="att-lng">
+                <input type="hidden" name="location" id="att-location">
+                {% if user_status == 'none' %}
+                    <button type="submit" name="action" value="check_in" class="btn btn-check-in checkin-btn" onclick="getLocation()" style="width:auto;">
+                        <span>⏰</span> Clock In
+                    </button>
+                {% elif user_status in ['checked_in','working'] %}
+                    <button type="submit" name="action" value="check_out" class="btn btn-check-out checkin-btn" onclick="getLocation()" style="width:auto;">
+                        <span>🔚</span> Clock Out
+                    </button>
+                {% endif %}
+            </form>
+        </div>
+        {% endif %}
+    </div>
 </div>
 
-<!-- Marketer section: request check-in approval -->
+<!-- ═══════ Marketer Section ═══════ -->
 {% if role == 'Marketers' %}
-    <div class="card">
+    <!-- Check‑in request -->
+    <div class="form-card" style="margin-bottom:18px;">
+        <h2 style="font-size:16px; margin-bottom:12px;">📋 Marketer Check‑in</h2>
         {% if user_status == 'none' %}
-            <p>You haven't submitted a check‑in request yet.</p>
+            <p style="color:var(--text-secondary);">You haven't submitted a check‑in request yet.</p>
             <form method="POST" action="/marketer/checkin" id="marketerCheckinForm">
                 <input type="hidden" name="lat" id="m-lat">
                 <input type="hidden" name="lng" id="m-lng">
                 <input type="hidden" name="location" id="m-location">
-                <button type="submit" class="btn btn-primary" onclick="getMarketerLocation()">Send Check‑in Request</button>
+                <button type="submit" class="btn" onclick="getMarketerLocation()">📍 Send Check‑in Request</button>
             </form>
         {% elif user_status == 'pending' %}
-            <p>⏳ Check‑in request pending approval by Sales Manager.</p>
+            <div class="alert alert-warning">⏳ Your check‑in request is pending approval by your Sales Manager.</div>
         {% elif user_status == 'approved' %}
-            <p>✅ Your check‑in has been approved for today.</p>
+            <div class="alert alert-success">✅ Your check‑in has been approved for today.</div>
         {% endif %}
     </div>
 
-    <!-- Daily report form (only when check-in approved) -->
+    <!-- 🔥 DAILY REPORT – visible only after approval -->
     {% if user_status == 'approved' %}
-    <div class="card">
-        <h3>📋 Daily Report</h3>
+    <div class="form-card" style="margin-bottom:18px;">
+        <h2 style="font-size:16px; margin-bottom:14px;">📝 Submit Daily Report</h2>
         <form method="POST" action="/marketer/report" id="reportForm">
             <input type="hidden" name="lat" id="rep-lat">
             <input type="hidden" name="lng" id="rep-lng">
             <input type="hidden" name="location" id="rep-location">
 
-            <div class="form-group">
-                <label>Customer Name *</label>
-                <input type="text" name="customer_name" required>
+            <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+                <div>
+                    <label>Customer Name *</label>
+                    <input type="text" name="customer_name" required>
+                </div>
+                <div>
+                    <label>Phone</label>
+                    <input type="text" name="customer_phone">
+                </div>
+                <div>
+                    <label>Location (auto‑filled)</label>
+                    <input type="text" id="rep-location-display" readonly>
+                </div>
+                <div style="grid-column: span 2;">
+                    <label>Details / What they want</label>
+                    <textarea name="details" rows="3" style="resize:vertical;"></textarea>
+                </div>
+                <div>
+                    <label>Expected Order Date</label>
+                    <input type="date" name="expected_order_date">
+                </div>
+                <div>
+                    <label>Today's Expenses (Ksh)</label>
+                    <input type="number" step="0.01" name="expenses" value="0">
+                </div>
             </div>
-            <div class="form-group">
-                <label>Phone</label>
-                <input type="text" name="customer_phone">
-            </div>
-            <div class="form-group">
-                <label>Location (auto‑filled)</label>
-                <input type="text" id="rep-location-display" readonly>
-            </div>
-            <div class="form-group">
-                <label>Details / What they want</label>
-                <textarea name="details" rows="3"></textarea>
-            </div>
-            <div class="form-group">
-                <label>Expected Order Date (optional)</label>
-                <input type="date" name="expected_order_date">
-            </div>
-            <div class="form-group">
-                <label>Expenses today (Ksh)</label>
-                <input type="number" step="0.01" name="expenses" value="0">
-            </div>
-            <button type="submit" class="btn">Submit Report</button>
+            <button type="submit" class="btn" style="margin-top:16px; width:auto;">📤 Submit Report</button>
         </form>
 
-        <hr>
-        <!-- Location ping button -->
-        <button class="btn btn-outline" onclick="sendLocationPing()">📍 Send My Current Location</button>
-        <span id="ping-status"></span>
+        <!-- Location Ping (separate) -->
+        <div style="margin-top:16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <button class="btn" style="background:#d4a843; color:#fff;" onclick="sendLocationPing()">📍 Send My Current Location</button>
+            <span id="ping-status" style="font-size:12px; color:var(--text-secondary);"></span>
+        </div>
     </div>
     {% endif %}
 {% endif %}
 
-<!-- Riders / Drivers journey section -->
+<!-- ═══════ Riders / Drivers ═══════ -->
 {% if role in ['Riders','Drivers'] %}
-    <div class="card">
-        <h3>🚚 Journeys</h3>
-        {% if user_status in ['checked_in','working'] %}
-            <form method="POST" action="/journey/start">
-                <input type="hidden" name="lat" id="j-start-lat">
-                <input type="hidden" name="lng" id="j-start-lng">
-                <input type="hidden" name="location" id="j-start-loc">
-                <button type="submit" class="btn btn-success" onclick="getJourneyStartLocation()">Start New Journey</button>
-            </form>
-        {% endif %}
-        {% if journeys %}
-            <table class="table mt-3">
-                <tr><th>#</th><th>Start</th><th>End</th><th>Status</th></tr>
-                {% for j in journeys %}
-                <tr>
-                    <td>{{ j.journey_number }}</td>
-                    <td>{{ j.start_time }}</td>
-                    <td>{{ j.end_time or '—' }}</td>
-                    <td>{{ j.status }}</td>
-                </tr>
-                {% endfor %}
-            </table>
-        {% endif %}
+<div class="form-card">
+    <h2 style="font-size:16px; margin-bottom:12px;">🚚 Journeys</h2>
+    {% if user_status in ['checked_in','working'] %}
+        <form method="POST" action="/journey/start" style="margin-bottom:12px;">
+            <input type="hidden" name="lat" id="j-start-lat">
+            <input type="hidden" name="lng" id="j-start-lng">
+            <input type="hidden" name="location" id="j-start-loc">
+            <button type="submit" class="btn" onclick="getJourneyStartLocation()">Start New Journey</button>
+        </form>
+    {% endif %}
+    {% if journeys %}
+    <div class="table-container">
+        <table>
+            <thead><tr><th>#</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for j in journeys %}
+            <tr>
+                <td class="td-name">{{ j.journey_number }}</td>
+                <td>{{ j.start_time }}</td>
+                <td>{{ j.end_time or '—' }}</td>
+                <td>{{ j.status }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
     </div>
-{% endif %}
-
-<!-- Attendance records table (visible to managers and above) -->
-{% if records %}
-<div class="card">
-    <h3>Today's Attendance</h3>
-    <table>
-        <tr><th>Name</th><th>Department</th><th>Role</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
-        {% for r in records %}
-        <tr>
-            <td>{{ r.full_name }}</td>
-            <td>{{ r.department }}</td>
-            <td>{{ r.role }}</td>
-            <td>{{ r.check_in }}</td>
-            <td>{{ r.check_out }}</td>
-            <td><span class="badge {% if r.label == 'Working' %}badge-primary{% elif r.label == 'Arrived Late' %}badge-danger{% else %}badge-success{% endif %}">{{ r.label }}</span></td>
-        </tr>
-        {% endfor %}
-    </table>
+    {% endif %}
 </div>
 {% endif %}
 
+<!-- ═══════ Attendance Records (managers) ═══════ -->
+{% if records %}
+<div class="form-card" style="margin-top:20px;">
+    <h2 style="font-size:16px; margin-bottom:12px;">👥 Today's Attendance</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr><th>Name</th><th>Department</th><th>Role</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+            {% for r in records %}
+            <tr>
+                <td class="td-name">{{ r.full_name }}</td>
+                <td>{{ r.department }}</td>
+                <td>{{ r.role }}</td>
+                <td>{{ r.check_in }}</td>
+                <td>{{ r.check_out }}</td>
+                <td>
+                    {% if r.label == 'Working' %}
+                        <span class="badge badge-info">Working</span>
+                    {% elif r.label == 'Arrived Late' %}
+                        <span class="badge badge-danger">Late</span>
+                    {% else %}
+                        <span class="badge badge-success">Done</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
 <script>
-// generic location getters
+// ---------- generic location helpers ----------
 function getLocation() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(pos) {
             document.getElementById('att-lat').value = pos.coords.latitude;
             document.getElementById('att-lng').value = pos.coords.longitude;
-            document.getElementById('att-location').value = 'Lat:'+pos.coords.latitude+', Lng:'+pos.coords.longitude;
+            document.getElementById('att-location').value = pos.coords.latitude+', '+pos.coords.longitude;
         });
     }
 }
@@ -154,28 +203,28 @@ function getMarketerLocation() {
         navigator.geolocation.getCurrentPosition(function(pos) {
             document.getElementById('m-lat').value = pos.coords.latitude;
             document.getElementById('m-lng').value = pos.coords.longitude;
-            document.getElementById('m-location').value = 'Lat:'+pos.coords.latitude+', Lng:'+pos.coords.longitude;
+            document.getElementById('m-location').value = pos.coords.latitude+', '+pos.coords.longitude;
         });
     }
 }
 
-// for report form - set location automatically on page load
+// Auto‑fill location for report form on page load
 window.addEventListener('load', function() {
-    if (document.getElementById('rep-lat')) {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function(pos) {
-                document.getElementById('rep-lat').value = pos.coords.latitude;
-                document.getElementById('rep-lng').value = pos.coords.longitude;
-                var loc = 'Lat:'+pos.coords.latitude+', Lng:'+pos.coords.longitude;
-                document.getElementById('rep-location').value = loc;
-                document.getElementById('rep-location-display').value = loc;
-            }, function(err) {
-                document.getElementById('rep-location-display').value = 'Location unavailable';
-            });
-        }
+    const repLat = document.getElementById('rep-lat');
+    if (repLat && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            repLat.value = pos.coords.latitude;
+            document.getElementById('rep-lng').value = pos.coords.longitude;
+            const loc = pos.coords.latitude+', '+pos.coords.longitude;
+            document.getElementById('rep-location').value = loc;
+            document.getElementById('rep-location-display').value = loc;
+        }, function(err) {
+            document.getElementById('rep-location-display').value = 'Location unavailable';
+        });
     }
 });
 
+// Ping current location
 function sendLocationPing() {
     if (!navigator.geolocation) {
         alert("Geolocation not supported");
@@ -183,7 +232,7 @@ function sendLocationPing() {
     }
     document.getElementById('ping-status').innerText = 'Getting location...';
     navigator.geolocation.getCurrentPosition(function(pos) {
-        var form = document.createElement('form');
+        const form = document.createElement('form');
         form.method = 'POST';
         form.action = '/marketer/submit-location';
         form.innerHTML = '<input name="lat" value="'+pos.coords.latitude+'">'+
@@ -201,7 +250,7 @@ function getJourneyStartLocation() {
         navigator.geolocation.getCurrentPosition(function(pos) {
             document.getElementById('j-start-lat').value = pos.coords.latitude;
             document.getElementById('j-start-lng').value = pos.coords.longitude;
-            document.getElementById('j-start-loc').value = 'Lat:'+pos.coords.latitude+', Lng:'+pos.coords.longitude;
+            document.getElementById('j-start-loc').value = pos.coords.latitude+', '+pos.coords.longitude;
         });
     }
 }
