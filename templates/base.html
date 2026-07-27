@@ -8,17 +8,17 @@
 </head>
 <body>
 
-<!-- ═══════ Mobile Topbar ═══════ -->
+<!-- ═══════════ MOBILE TOP BAR ═══════════ -->
 <div class="mobile-topbar">
     <button class="hamburger" onclick="toggleSidebar()">☰</button>
     <div class="topbar-title">{{ company }}</div>
     <div class="topbar-spacer"></div>
 </div>
 
-<!-- ═══════ Sidebar Overlay ═══════ -->
+<!-- ═══════════ SIDEBAR OVERLAY ═══════════ -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
-<!-- ═══════ Sidebar ═══════ -->
+<!-- ═══════════ SIDEBAR ═══════════ -->
 <nav class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="brand-icon">💊</div>
@@ -34,7 +34,7 @@
         <a href="/profile" class="{% if request.path == '/profile' %}active{% endif %}">👤 My Profile</a>
 
         {% if session.role in ['admin','ceo'] %}
-            <a href="/admin" class="{% if request.path == '/admin' %}active{% endif %}">⚙️ Admin</a>
+            <a href="/admin" class="{% if request.path == '/admin' %}active{% endif %}">⚙️ Admin Panel</a>
             <a href="/approvals" class="{% if request.path == '/approvals' %}active{% endif %}">✅ Approvals</a>
             <a href="/employees" class="{% if request.path == '/employees' %}active{% endif %}">👥 Employees</a>
             <a href="/branches" class="{% if request.path == '/branches' %}active{% endif %}">🏢 Branches</a>
@@ -48,13 +48,13 @@
             <a href="/sales" class="{% if request.path == '/sales' %}active{% endif %}">💰 Sales</a>
         {% endif %}
 
-        <a href="/attendance-history" class="{% if request.path == '/attendance-history' %}active{% endif %}">📊 History</a>
+        <a href="/attendance-history" class="{% if request.path == '/attendance-history' %}active{% endif %}">📊 Attendance History</a>
 
         {% if session.role in ['admin','ceo','Branch Manager','Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant'] %}
             <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}">📈 Reports</a>
         {% endif %}
 
-        <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">🌴 Leaves</a>
+        <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">🌴 Leave Requests</a>
 
         {% if session.role in ['Store Manager','Operations Manager','Sales Manager','admin','ceo'] %}
             <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}">✍️ Approve Leaves</a>
@@ -62,6 +62,10 @@
 
         {% if session.role == 'Sales Manager' %}
             <a href="/sales-manager" class="{% if request.path == '/sales-manager' %}active{% endif %}">📋 Manager Dashboard</a>
+        {% endif %}
+
+        {% if session.role == 'Marketers' %}
+            <a href="/my-places" class="{% if request.path == '/my-places' %}active{% endif %}">📍 My Places</a>
         {% endif %}
 
         {% if session.role in ['Stock Controller','Assistant Stock Controller'] %}
@@ -72,13 +76,12 @@
     </div>
 </nav>
 
-<!-- ═══════ Main Content ═══════ -->
+<!-- ═══════════ MAIN CONTENT ═══════════ -->
 <div class="main-content">
     {% block content %}{% endblock %}
 </div>
 
 <script>
-    // Sidebar toggle for mobile
     function toggleSidebar() {
         document.getElementById('sidebar').classList.toggle('open');
         document.getElementById('sidebarOverlay').classList.toggle('show');
@@ -87,7 +90,6 @@
         document.getElementById('sidebar').classList.remove('open');
         document.getElementById('sidebarOverlay').classList.remove('show');
     }
-    // Auto-close sidebar when a link is clicked (mobile)
     document.querySelectorAll('.sidebar-nav a').forEach(link => {
         link.addEventListener('click', () => {
             if (window.innerWidth <= 768) closeSidebar();
