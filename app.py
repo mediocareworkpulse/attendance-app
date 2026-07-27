@@ -160,7 +160,6 @@ def get_approval_chain(employee_role):
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['Stock Controller','Assistant Stock Controller']}
         ]
-    # Admin/CEO can act on any stage and will finalise
     for stage in chain:
         if 'admin' not in stage['allowed_roles']:
             stage['allowed_roles'].append('admin')
@@ -742,96 +741,116 @@ def attendance_history():
     return render_template('attendance_history.html', records=records, period=period,
                          from_date=sd, to_date=ed, today=str(today), company=COMPANY_NAME)
 
-# ---------- SALES ----------
+# ---------- SALES (individual with expenses, branch totals auto‑computed) ----------
 @app.route('/sales', methods=['GET','POST'])
 @login_required
 def sales_page():
-    role = session.get('role'); un = session.get('user'); ub = session.get('branch',''); today = str(now_eat().date())
+    role = session.get('role'); un = session.get('user'); ub = session.get('branch','')
+    today = str(now_eat().date())
+
     if request.method == 'POST':
-        if role not in SALES_SUBMIT_ROLES: return redirect('/sales')
+        if role not in SALES_SUBMIT_ROLES:
+            return redirect('/sales')
         try:
             mpesa = float(request.form.get('mpesa_sales','0') or 0)
             cash  = float(request.form.get('cash_sales','0') or 0)
-            stype = request.form.get('sales_type','individual')
             notes = request.form.get('notes','')
+
             expense_names  = request.form.getlist('expense_name[]')
             expense_amounts = request.form.getlist('expense_amount[]')
-            expenses = []; expense_total = 0.0
+            expenses = []
+            expense_total = 0.0
             for i in range(len(expense_names)):
                 nm = expense_names[i].strip()
                 amt_str = expense_amounts[i] if i < len(expense_amounts) else '0'
                 try: amt = float(amt_str) if amt_str else 0.0
                 except: amt = 0.0
                 if nm and amt > 0:
-                    expenses.append({'name':nm,'amount':amt}); expense_total += amt
-            total = mpesa + cash + expense_total if stype == 'branch_total' else mpesa + cash
-            emp = safe_data(execute_query(supabase.table('employees').select('department,branch').eq('full_name', un)))
+                    expenses.append({'name': nm, 'amount': amt})
+                    expense_total += amt
+
+            total = mpesa + cash + expense_total
+
+            emp = safe_data(execute_query(
+                supabase.table('employees').select('department,branch').eq('full_name', un)
+            ))
             if emp and total > 0:
-                if stype == 'branch_total' and role == 'Branch Manager':
-                    supabase.table('branch_sales').upsert({
-                        'branch':ub,'date':today,'mpesa_sales':mpesa,'cash_sales':cash,
-                        'total_sales':total,'submitted_by':un,'notes':notes,'expenses':expenses
-                    }).execute()
-                else:
-                    supabase.table('sales').insert({
-                        'full_name':un,'department':emp[0].get('department',''),
-                        'branch':emp[0].get('branch',''),'date':today,
-                        'mpesa_sales':mpesa,'cash_sales':cash,'total_sales':total,
-                        'sales_type':stype,'notes':notes
-                    }).execute()
-        except: pass
+                supabase.table('sales').insert({
+                    'full_name': un,
+                    'department': emp[0].get('department',''),
+                    'branch': emp[0].get('branch',''),
+                    'date': today,
+                    'mpesa_sales': mpesa,
+                    'cash_sales': cash,
+                    'total_sales': total,
+                    'sales_type': 'individual',
+                    'notes': notes,
+                    'expenses': expenses
+                }).execute()
+        except Exception as e:
+            print(f"Sales error: {e}")
         return redirect('/sales?success=1')
 
-    branch_filter = request.args.get('branch','')
-    if role in FULL_ACCESS_ROLES:
-        if branch_filter:
-            sd = safe_data(execute_query(supabase.table('sales').select('*').eq('date',today).eq('branch',branch_filter).order('created_at',desc=True).limit(100)))
-            bd = safe_data(execute_query(supabase.table('branch_sales').select('*').eq('date',today).eq('branch',branch_filter)))
-        else:
-            sd = safe_data(execute_query(supabase.table('sales').select('*').eq('date',today).order('created_at',desc=True).limit(100)))
-            bd = safe_data(execute_query(supabase.table('branch_sales').select('*').eq('date',today)))
+    # View sales based on role
+    if role in FULL_ACCESS_ROLES or role in ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant']:
+        sd = safe_data(execute_query(
+            supabase.table('sales').select('*').eq('date',today).order('created_at',desc=True).limit(200)
+        ))
     elif role == 'Branch Manager':
-        sd = safe_data(execute_query(supabase.table('sales').select('*').eq('date',today).eq('branch',ub).order('created_at',desc=True).limit(100)))
-        bd = safe_data(execute_query(supabase.table('branch_sales').select('*').eq('date',today).eq('branch',ub)))
-    elif can_view_all():
-        sd = safe_data(execute_query(supabase.table('sales').select('*').eq('date',today).order('created_at',desc=True).limit(100)))
-        bd = safe_data(execute_query(supabase.table('branch_sales').select('*').eq('date',today)))
+        sd = safe_data(execute_query(
+            supabase.table('sales').select('*').eq('date',today).eq('branch',ub).order('created_at',desc=True).limit(200)
+        ))
     else:
-        sd = safe_data(execute_query(supabase.table('sales').select('*').eq('date',today).eq('full_name',un).order('created_at',desc=True).limit(100)))
-        bd = []
+        sd = safe_data(execute_query(
+            supabase.table('sales').select('*').eq('date',today).eq('full_name',un).order('created_at',desc=True).limit(50)
+        ))
 
-    t_mpesa = sum(float(s.get('mpesa_sales',0)) for s in sd)
-    t_cash  = sum(float(s.get('cash_sales',0)) for s in sd)
-    bt = defaultdict(lambda:{'mpesa':0,'cash':0,'total':0})
-    for s in sd:
+    # Branch totals computed from all individual sales
+    all_sales_today = safe_data(execute_query(
+        supabase.table('sales').select('*').eq('date',today)
+    ))
+    branch_totals = defaultdict(lambda: {'mpesa':0,'cash':0,'expenses':0,'total':0,'count':0})
+    for s in all_sales_today:
         br = s.get('branch','Unknown')
-        bt[br]['mpesa'] += float(s.get('mpesa_sales',0))
-        bt[br]['cash']  += float(s.get('cash_sales',0))
-        bt[br]['total'] += float(s.get('total_sales',0))
+        branch_totals[br]['mpesa'] += float(s.get('mpesa_sales',0))
+        branch_totals[br]['cash']  += float(s.get('cash_sales',0))
+        exps = s.get('expenses')
+        if isinstance(exps, list):
+            branch_totals[br]['expenses'] += sum(e.get('amount',0) for e in exps)
+        elif isinstance(exps, (int,float)):
+            branch_totals[br]['expenses'] += float(exps)
+        branch_totals[br]['total'] += float(s.get('total_sales',0))
+        branch_totals[br]['count'] += 1
 
+    # Target progress for current user
     target_progress = None
-    if role in SALES_SUBMIT_ROLES:
-        month_str = str(now_eat().date().replace(day=1))
-        target = safe_data(execute_query(supabase.table('sales_targets').select('target_amount').eq('full_name',un).eq('month',month_str).limit(1)))
-        if target:
-            target_amt = float(target[0]['target_amount'])
-            ms = today.replace(day=1)
-            my_sales = safe_data(execute_query(supabase.table('sales').select('total_sales').eq('full_name',un).gte('date',str(ms)).lte('date',today)))
-            month_total = sum(float(s['total_sales']) for s in my_sales)
-            remaining = max(0, target_amt - month_total)
-            target_progress = {
-                'target': target_amt, 'current': month_total,
-                'remaining': remaining,
-                'percent': round((month_total / target_amt * 100), 1) if target_amt > 0 else 0,
-                'achieved': month_total >= target_amt
-            }
+    month_str = str(now_eat().date().replace(day=1))
+    target = safe_data(execute_query(
+        supabase.table('sales_targets').select('target_amount').eq('full_name',un).eq('month',month_str).limit(1)
+    ))
+    if target:
+        target_amt = float(target[0]['target_amount'])
+        ms = today.replace(day=1)
+        my_sales = safe_data(execute_query(
+            supabase.table('sales').select('total_sales').eq('full_name',un).gte('date',str(ms)).lte('date',today)
+        ))
+        month_total = sum(float(s['total_sales']) for s in my_sales)
+        remaining = max(0, target_amt - month_total)
+        target_progress = {
+            'target': target_amt,
+            'current': month_total,
+            'remaining': remaining,
+            'percent': round((month_total / target_amt * 100), 1) if target_amt > 0 else 0,
+            'achieved': month_total >= target_amt
+        }
 
     return render_template('sales.html',
-        sales=sd, branch_sales=bd, branch_totals=dict(bt),
-        total_mpesa=t_mpesa, total_cash=t_cash, total_all=t_mpesa+t_cash,
-        today=today, company=COMPANY_NAME, success_msg=request.args.get('success',''),
-        target_progress=target_progress, branches=get_branch_names(),
-        branch_filter=branch_filter)
+        sales=sd,
+        branch_totals=dict(branch_totals),
+        today=today,
+        company=COMPANY_NAME,
+        success_msg=request.args.get('success',''),
+        target_progress=target_progress)
 
 # ---------- PROFILE ----------
 @app.route('/profile', methods=['GET','POST'])
@@ -980,7 +999,6 @@ def process_leave(lid, action):
         return redirect('/approve-leaves')
     
     if action == 'approve':
-        # CEO/Admin always finalise
         if user_role in ['admin','ceo']:
             new_status = 'approved_final'
         else:
