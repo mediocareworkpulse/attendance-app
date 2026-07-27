@@ -9,7 +9,7 @@ from flask_limiter.util import get_remote_address
 import pytz, time
 
 app = Flask(__name__)
-app.secret_key = 'mediocare-attendance-secret-2024'   # change this to a random string in production
+app.secret_key = 'mediocare-attendance-secret-2024'   # change in production
 
 # Secure session cookies
 app.config.update(
@@ -18,7 +18,6 @@ app.config.update(
     SESSION_COOKIE_SAMESITE = 'Lax'
 )
 
-# Rate limiter
 limiter = Limiter(
     get_remote_address,
     app=app,
@@ -55,8 +54,8 @@ MARKETER_ROLE = 'Marketers'
 SALES_MANAGER_ROLE = 'Sales Manager'
 TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller']
 
-# Allowed to view the Directorate (contacts)
-DIRECTORATE_ROLES = ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager']
+# Allowed to view Directorate (contacts)
+DIRECTORATE_ROLES = ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager']
 
 COMPANY_NAME = 'Mediocare Pharmaceutical Ltd'
 LATE_GRACE_MINUTES = 30
@@ -127,11 +126,9 @@ def login():
             if emp.get('blocked') == True:
                 return render_template('login.html', error='Account suspended. Contact admin.')
             stored_pw = emp.get('password','')
-            # Try hashed check first; if that fails, try plain text (legacy)
             if check_password_hash(stored_pw, pw):
-                pass  # password is correct
+                pass
             elif stored_pw == pw:   # plain text fallback
-                # Upgrade to hash automatically
                 supabase.table('employees').update({'password': generate_password_hash(pw)}).eq('id', emp['id']).execute()
             else:
                 return render_template('login.html', error='Invalid credentials.')
@@ -184,7 +181,6 @@ def signup():
             'department':dept,'branch':branch,'role':role,
             'status':'pending','shift_start':shift_start,'shift_end':shift_end
         }).execute()
-        # Also add to contacts (only if authorised roles – not needed here, contacts are populated later)
         return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS, roles=signup_roles,
             success='Registration submitted! Welcome to {}!'.format(COMPANY_NAME))
     return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS, roles=signup_roles)
@@ -219,9 +215,10 @@ def home():
         emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM))
     elif role == 'Sales Manager':
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('role',MARKETER_ROLE)))]
+        team_names.append(session.get('user'))   # include manager self
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
         sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names))
-        emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').eq('role',MARKETER_ROLE))
+        emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').in_('full_name',team_names))
     elif role in ['Stock Controller','Assistant Stock Controller']:
         emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').neq('department','Management'))
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50))
@@ -322,7 +319,6 @@ def admin_panel():
                          blocked_count=blocked_count, total_branches=total_branches,
                          att_today=att_today, company=COMPANY_NAME)
 
-# ---------- BLOCK / UNBLOCK ----------
 @app.route('/admin/block/<int:eid>', methods=['POST'])
 @login_required
 @admin_required
@@ -337,7 +333,6 @@ def unblock_employee(eid):
     supabase.table('employees').update({'blocked':False}).eq('id',eid).execute()
     return redirect('/employees')
 
-# ---------- APPROVALS ----------
 @app.route('/approvals')
 @login_required
 @admin_required
@@ -359,7 +354,6 @@ def reject(eid):
     supabase.table('employees').delete().eq('id',eid).execute()
     return redirect('/approvals')
 
-# ---------- EMPLOYEES ----------
 @app.route('/employees')
 @login_required
 @admin_required
@@ -399,6 +393,7 @@ def delete_employee(eid):
         supabase.table('journeys').delete().eq('full_name',n).execute()
         supabase.table('marketer_checkins').delete().eq('full_name',n).execute()
         supabase.table('customer_reports').delete().eq('full_name',n).execute()
+        supabase.table('marketer_locations').delete().eq('full_name',n).execute()
         supabase.table('contacts').delete().eq('full_name',n).execute()
     supabase.table('employees').delete().eq('id',eid).execute()
     return redirect('/employees')
@@ -422,7 +417,6 @@ def edit_employee(eid):
     if data['full_name']: supabase.table('employees').update(data).eq('id',eid).execute()
     return redirect('/employees')
 
-# ---------- BRANCHES ----------
 @app.route('/branches')
 @login_required
 @admin_required
@@ -462,11 +456,25 @@ def delete_branch(bid):
 @app.route('/contacts')
 @login_required
 def contacts_page():
-    if session.get('role') not in DIRECTORATE_ROLES: return redirect('/')
-    contacts = safe_data(execute_query(supabase.table('contacts').select('*').order('full_name')))
+    allowed_roles = DIRECTORATE_ROLES   # includes Sales Manager now
+    if session.get('role') not in allowed_roles:
+        return redirect('/')
+
+    if session.get('role') == 'Sales Manager':
+        # Sales Manager sees only marketers
+        contacts = safe_data(execute_query(
+            supabase.table('contacts')
+                   .select('*')
+                   .eq('role', 'Marketers')
+                   .order('full_name')
+        ))
+    else:
+        contacts = safe_data(execute_query(
+            supabase.table('contacts').select('*').order('full_name')
+        ))
     return render_template('contacts.html', contacts=contacts, company=COMPANY_NAME)
 
-# ---------- CHECK IN / OUT (30-min late rule) ----------
+# ---------- CHECK IN / OUT ----------
 @app.route('/check-in')
 @login_required
 def check_in_page():
@@ -515,6 +523,7 @@ def check_in_page():
         r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names)))
     elif role == 'Sales Manager':
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('role',MARKETER_ROLE)))]
+        team_names.append(un)  # include self
         r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names)))
     elif role in ['Stock Controller','Assistant Stock Controller']:
         r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50)))
@@ -633,6 +642,7 @@ def attendance_history():
         r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).in_('full_name',team_names).order('date',desc=True).limit(200)))
     elif role == 'Sales Manager':
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('role',MARKETER_ROLE)))]
+        team_names.append(un)   # include self
         r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).in_('full_name',team_names).order('date',desc=True).limit(200)))
     elif role in ['Stock Controller','Assistant Stock Controller']:
         r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).order('date',desc=True).limit(200)))
@@ -653,7 +663,7 @@ def attendance_history():
     return render_template('attendance_history.html', records=records, period=period,
                          from_date=sd, to_date=ed, today=str(today), company=COMPANY_NAME)
 
-# ---------- SALES (with target progress) ----------
+# ---------- SALES ----------
 @app.route('/sales', methods=['GET','POST'])
 @login_required
 def sales_page():
@@ -744,7 +754,7 @@ def sales_page():
         target_progress=target_progress, branches=get_branch_names(),
         branch_filter=branch_filter)
 
-# ---------- PROFILE (with old password check) ----------
+# ---------- PROFILE ----------
 @app.route('/profile', methods=['GET','POST'])
 @login_required
 def profile():
@@ -756,7 +766,7 @@ def profile():
             emp = safe_data(execute_query(supabase.table('employees').select('password').eq('full_name',un).limit(1)))
             if emp:
                 stored = emp[0]['password']
-                if check_password_hash(stored, old_pw) or stored == old_pw:   # fallback for legacy
+                if check_password_hash(stored, old_pw) or stored == old_pw:
                     supabase.table('employees').update({'password': generate_password_hash(new_pw)}).eq('full_name',un).execute()
                     sm = 'Password updated!'
                 else:
@@ -873,20 +883,74 @@ def marketer_checkin():
 @app.route('/marketer/report', methods=['POST'])
 @login_required
 def marketer_report():
-    if session.get('role') != MARKETER_ROLE: return redirect('/check-in')
-    un = session.get('user'); today = str(now_eat().date())
-    customer = request.form.get('customer_name','').strip()
-    phone = request.form.get('customer_phone','').strip()
-    details = request.form.get('details','').strip()
-    expenses = request.form.get('expenses','0')
-    try: exp = float(expenses)
-    except: exp = 0.0
-    if customer:
-        supabase.table('customer_reports').insert({
-            'full_name': un, 'date': today, 'customer_name': customer,
-            'customer_phone': phone, 'details': details, 'expenses': exp
-        }).execute()
+    if session.get('role') != MARKETER_ROLE:
+        return redirect('/check-in')
+    un = session.get('user')
+    today = str(now_eat().date())
+    customer_name = request.form.get('customer_name', '').strip()
+    customer_phone = request.form.get('customer_phone', '').strip()
+    details = request.form.get('details', '').strip()
+    expenses = request.form.get('expenses', '0')
+    expected_order_date = request.form.get('expected_order_date', '').strip()
+    lat = request.form.get('lat', '')
+    lng = request.form.get('lng', '')
+    location = request.form.get('location', '').strip()
+
+    try:
+        exp = float(expenses)
+    except:
+        exp = 0.0
+
+    if not customer_name:
+        return redirect('/check-in?report=error')
+
+    # Prevent duplicate customer on same day
+    existing = safe_data(execute_query(
+        supabase.table('customer_reports')
+               .select('id')
+               .eq('full_name', un)
+               .eq('date', today)
+               .eq('customer_name', customer_name)
+               .limit(1)
+    ))
+    if existing:
+        return redirect('/check-in?report=duplicate')
+
+    supabase.table('customer_reports').insert({
+        'full_name': un,
+        'date': today,
+        'customer_name': customer_name,
+        'customer_phone': customer_phone,
+        'details': details,
+        'expenses': exp,
+        'expected_order_date': expected_order_date if expected_order_date else None,
+        'lat': lat,
+        'lng': lng,
+        'location': location
+    }).execute()
     return redirect('/check-in?report=1')
+
+# ---------- MARKETER LOCATION SUBMISSION ----------
+@app.route('/marketer/submit-location', methods=['POST'])
+@login_required
+def submit_marketer_location():
+    if session.get('role') != MARKETER_ROLE:
+        return redirect('/check-in')
+    un = session.get('user')
+    today = str(now_eat().date())
+    now = now_eat().strftime('%H:%M:%S')
+    lat = request.form.get('lat', '')
+    lng = request.form.get('lng', '')
+    loc = request.form.get('location', '')
+    supabase.table('marketer_locations').insert({
+        'full_name': un,
+        'date': today,
+        'time': now,
+        'lat': lat,
+        'lng': lng,
+        'location': loc
+    }).execute()
+    return redirect('/check-in?location=ok')
 
 # ---------- SALES MANAGER DASHBOARD ----------
 @app.route('/sales-manager')
@@ -894,11 +958,33 @@ def marketer_report():
 def sales_manager_dashboard():
     if session.get('role') != SALES_MANAGER_ROLE: return redirect('/')
     today = str(now_eat().date())
-    pending_checkins = safe_data(execute_query(supabase.table('marketer_checkins').select('*').eq('date',today).eq('status','pending').order('created_at',desc=True).limit(50)))
-    approved_checkins = safe_data(execute_query(supabase.table('marketer_checkins').select('*').eq('date',today).eq('status','approved').order('check_in_time').limit(50)))
-    reports = safe_data(execute_query(supabase.table('customer_reports').select('*').eq('date',today).order('created_at',desc=True).limit(50)))
-    assigned = safe_data(execute_query(supabase.table('assigned_places').select('*').order('date_assigned',desc=True).limit(100)))
-    return render_template('sales_manager.html', pending_checkins=pending_checkins, approved_checkins=approved_checkins, reports=reports, assigned=assigned, today=today, company=COMPANY_NAME)
+    pending_checkins = safe_data(execute_query(
+        supabase.table('marketer_checkins').select('*').eq('date',today).eq('status','pending').order('created_at',desc=True).limit(50)
+    ))
+    approved_checkins = safe_data(execute_query(
+        supabase.table('marketer_checkins').select('*').eq('date',today).eq('status','approved').order('check_in_time').limit(50)
+    ))
+    reports = safe_data(execute_query(
+        supabase.table('customer_reports').select('*').eq('date',today).order('created_at',desc=True).limit(50)
+    ))
+    assigned = safe_data(execute_query(
+        supabase.table('assigned_places').select('*').order('date_assigned',desc=True).limit(100)
+    ))
+    location_pings = safe_data(execute_query(
+        supabase.table('marketer_locations')
+               .select('*')
+               .eq('date', today)
+               .order('time')
+               .limit(200)
+    ))
+    return render_template('sales_manager.html',
+        pending_checkins=pending_checkins,
+        approved_checkins=approved_checkins,
+        reports=reports,
+        assigned=assigned,
+        location_pings=location_pings,
+        today=today,
+        company=COMPANY_NAME)
 
 @app.route('/sales-manager/approve/<int:cid>', methods=['POST'])
 @login_required
@@ -965,7 +1051,6 @@ def targets_page():
     targets = safe_data(execute_query(supabase.table('sales_targets').select('*').order('month', desc=True).order('full_name').limit(100)))
     return render_template('targets.html', employees=employees, targets=targets, today=str(now_eat().date()), company=COMPANY_NAME)
 
-# ---------- ERROR HANDLER ----------
 @app.errorhandler(Exception)
 def handle_exception(e):
     print(f"Unhandled error: {e}")
