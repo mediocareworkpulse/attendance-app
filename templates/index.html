@@ -3,7 +3,7 @@
 <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
     <div>
         <h1 class="page-title">👋 Welcome back, {{ session.user }}</h1>
-        <p class="page-subtitle">{{ company }} • {{ now_eat().strftime('%A, %d %B %Y') }}</p>
+        <p class="page-subtitle">{{ company }} • Attendance System</p>
     </div>
     {% if session.role in ['admin','ceo'] and pending_count > 0 %}
         <a href="/approvals" class="btn" style="background: var(--accent); color: #fff;">⚠️ {{ pending_count }} Pending</a>
@@ -78,7 +78,6 @@
 </div>
 {% endif %}
 
-<!-- Recent Attendance Table -->
 {% if recent_records %}
 <div class="form-card" style="margin-top: 20px;">
     <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 14px;">📋 Recent Attendance</h2>
