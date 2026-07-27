@@ -1,24 +1,72 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Reports</h1>
-<p style="color:#999;font-size:13px;margin-bottom:20px;">{{ company }}</p>
-<form method="GET" style="margin-bottom:20px;display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
-    <div class="form-group"><label>From</label><input type="date" name="from_date" value="{{ from_date }}"></div>
-    <div class="form-group"><label>To</label><input type="date" name="to_date" value="{{ to_date }}"></div>
-    <div class="form-group"><label>Type</label><select name="type"><option value="attendance" {% if report_type=='attendance' %}selected{% endif %}>Attendance</option><option value="sales" {% if report_type=='sales' %}selected{% endif %}>Sales</option></select></div>
-    <div class="form-group"><button type="submit">View</button></div>
+<h1 class="page-title">Reports</h1>
+<p class="page-subtitle">{{ company }}</p>
+
+<form method="GET" class="form-grid">
+    <div><input type="date" name="from_date" value="{{ from_date }}"></div>
+    <div><input type="date" name="to_date" value="{{ to_date }}"></div>
+    <div>
+        <select name="type">
+            <option value="attendance" {% if report_type == 'attendance' %}selected{% endif %}>Attendance</option>
+            <option value="sales" {% if report_type == 'sales' %}selected{% endif %}>Sales</option>
+        </select>
+    </div>
+    <div><button type="submit" class="btn">Generate</button></div>
 </form>
 
-{% if report_type=='attendance' and records %}
-<h2>Attendance ({{ records|length }} records)</h2>
-<table><tr><th>Date</th><th>Name</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
-{% for r in records %}<tr><td>{{ r.date }}</td><td><strong>{{ r.full_name }}</strong></td><td>{{ r.check_in }}</td><td>{{ r.check_out }}</td><td><span class="badge {% if r.status=='present' %}badge-success{% else %}badge-warning{% endif %}">{{ r.label }}</span></td></tr>{% endfor %}</table>
-{% elif report_type=='sales' %}
-{% if sales_recs %}<h2>Individual Sales</h2><table><tr><th>Date</th><th>Name</th><th>Branch</th><th>M-Pesa</th><th>Cash</th><th>Total</th></tr>
-{% for s in sales_recs %}<tr><td>{{ s.date }}</td><td>{{ s.full_name }}</td><td>{{ s.branch }}</td><td>{{ "%.2f"|format(s.mpesa_sales|float) }}</td><td>{{ "%.2f"|format(s.cash_sales|float) }}</td><td><strong>{{ "%.2f"|format(s.total_sales|float) }}</strong></td></tr>{% endfor %}</table>
-<p><strong>Total Sales:</strong> Ksh {{ "%.2f"|format(total_sales_amount) }}</p>{% endif %}
-{% if branch_recs %}<h2>Branch Totals</h2><table><tr><th>Date</th><th>Branch</th><th>M-Pesa</th><th>Cash</th><th>Total</th><th>By</th></tr>
-{% for s in branch_recs %}<tr><td>{{ s.date }}</td><td>{{ s.branch }}</td><td>{{ "%.2f"|format(s.mpesa_sales|float) }}</td><td>{{ "%.2f"|format(s.cash_sales|float) }}</td><td><strong>{{ "%.2f"|format(s.total_sales|float) }}</strong></td><td>{{ s.submitted_by }}</td></tr>{% endfor %}</table>
-<p><strong>Branch Total:</strong> Ksh {{ "%.2f"|format(total_branch_amount) }}</p>{% endif %}
+{% if report_type == 'attendance' %}
+    <div class="table-container" style="margin-top:16px;">
+        <table>
+            <thead><tr><th>Date</th><th>Name</th><th>Check In</th><th>Check Out</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for r in records %}
+            <tr>
+                <td>{{ r.date }}</td>
+                <td class="td-name">{{ r.full_name }}</td>
+                <td>{{ r.check_in }}</td>
+                <td>{{ r.check_out }}</td>
+                <td>{{ r.label }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% elif report_type == 'sales' %}
+    <h3 style="margin-top:20px;">Total Sales: Ksh {{ total_sales_amount|round(2) }}</h3>
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Date</th><th>Name</th><th>M‑Pesa</th><th>Cash</th><th>Total</th></tr></thead>
+            <tbody>
+            {% for s in sales_recs %}
+            <tr>
+                <td>{{ s.date }}</td>
+                <td class="td-name">{{ s.full_name }}</td>
+                <td>{{ s.mpesa_sales }}</td>
+                <td>{{ s.cash_sales }}</td>
+                <td>{{ s.total_sales }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if branch_recs %}
+    <h3 style="margin-top:20px;">Branch Totals: Ksh {{ total_branch_amount|round(2) }}</h3>
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Date</th><th>Branch</th><th>Total</th><th>Submitted By</th></tr></thead>
+            <tbody>
+            {% for b in branch_recs %}
+            <tr>
+                <td>{{ b.date }}</td>
+                <td class="td-name">{{ b.branch }}</td>
+                <td>{{ b.total_sales }}</td>
+                <td>{{ b.submitted_by }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
 {% endif %}
 {% endblock %}
