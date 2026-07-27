@@ -1,91 +1,108 @@
 {% extends "base.html" %}
 {% block content %}
 <h1 class="page-title">Dashboard</h1>
-<div class="welcome-text" style="margin-bottom:20px;">
-    <span style="font-weight:600;">👋 Welcome, {{ session.get('user') }}</span>
-    <span class="badge badge-info" style="margin-left:10px;">{{ session.get('role')|upper }}</span>
-    {% if session.get('branch') %}<span style="margin-left:10px;color:var(--text-secondary);">· {{ session.get('branch') }}</span>{% endif %}
-</div>
+<p class="page-subtitle">{{ company }}</p>
 
-<!-- Leave countdown -->
-{% if leave_remaining %}
-<div class="alert alert-info" style="background:#e0ecf9;border-left:4px solid #1e40af;">
-    📅 You are on leave — <strong>{{ leave_remaining.days }} day(s)</strong> remaining. Return by <strong>{{ leave_remaining.end_date }}</strong>
-</div>
-{% endif %}
-
+<!-- Stats Row -->
 <div class="stats">
+    {% if session.role in ['admin','ceo','Store Manager','Operations Manager','Sales Manager','Stock Controller','Assistant Stock Controller'] %}
     <div class="stat-card">
         <div class="stat-icon">👥</div>
-        <div class="stat-label">Team Members</div>
+        <div class="stat-label">Total Employees</div>
         <div class="stat-value">{{ total_employees }}</div>
     </div>
+    {% endif %}
     <div class="stat-card">
-        <div class="stat-icon">✅</div>
+        <div class="stat-icon">🏃</div>
         <div class="stat-label">Working</div>
         <div class="stat-value">{{ working }}</div>
     </div>
     <div class="stat-card">
-        <div class="stat-icon">🚪</div>
+        <div class="stat-icon">✅</div>
         <div class="stat-label">Checked Out</div>
         <div class="stat-value">{{ checked_out }}</div>
     </div>
     <div class="stat-card">
-        <div class="stat-icon">🏖️</div>
-        <div class="stat-label">On Leave</div>
-        <div class="stat-value">{{ on_leave_count }}</div>
+        <div class="stat-icon">⏰</div>
+        <div class="stat-label">Late</div>
+        <div class="stat-value">{{ late_count }}</div>
     </div>
     <div class="stat-card">
-        <div class="stat-icon">⏰</div>
-        <div class="stat-label">Arrived Late</div>
-        <div class="stat-value">{{ late_count }}</div>
+        <div class="stat-icon">🌴</div>
+        <div class="stat-label">On Leave</div>
+        <div class="stat-value">{{ on_leave_count }}</div>
     </div>
     {% if show_sales_card %}
     <div class="stat-card">
         <div class="stat-icon">💰</div>
-        <div class="stat-label">Sales Today</div>
-        <div class="stat-value" style="font-size:24px;">Ksh {{ "%.0f"|format(total_sales) }}</div>
+        <div class="stat-label">Today's Sales</div>
+        <div class="stat-value">Ksh {{ "%.2f"|format(total_sales) }}</div>
     </div>
     {% endif %}
 </div>
 
+<!-- Pending approvals (admin only) -->
+{% if session.role in ['admin','ceo'] and pending_count > 0 %}
+<div class="alert alert-warning" style="margin-bottom:16px;">⚠️ {{ pending_count }} employee(s) pending approval. <a href="/approvals" style="font-weight:600;">Review</a></div>
+{% endif %}
+
+<!-- Leave remaining alert -->
+{% if leave_remaining %}
+<div class="alert alert-info" style="margin-bottom:16px;">📅 Your leave ends on {{ leave_remaining.end_date }} ({{ leave_remaining.days }} day(s) left).</div>
+{% endif %}
+
+<!-- Target achieved message -->
 {% if target_achieved %}
-<div class="alert alert-success" style="font-size:16px; font-weight:700;">
-    🎉 Congratulations! You have achieved your monthly sales target!
+<div class="alert alert-success" style="margin-bottom:16px;">🎉 Congratulations! You’ve achieved your monthly sales target.</div>
+{% endif %}
+
+<!-- Current user status -->
+{% if user_status %}
+<div class="checkin-container shift-timer-card" style="text-align:left; padding:20px;">
+    <div class="timer-label">YOUR STATUS</div>
+    <div class="timer-value" style="font-size:24px;">
+        {% if user_status == 'Checked Out' %}
+            <span class="badge badge-success">Checked Out</span>
+        {% elif user_status == 'Working' %}
+            <span class="badge badge-info">Working</span>
+        {% else %}
+            <span class="badge badge-danger">Not Checked In</span>
+        {% endif %}
+    </div>
 </div>
 {% endif %}
 
-{% if session.get('role') in ['admin','ceo'] and pending_count > 0 %}
-<div class="alert alert-error">⚠️ {{ pending_count }} pending approvals — <a href="/approvals" style="color:#c0392b;font-weight:700;">Review Now</a></div>
-{% endif %}
-
-{% if session.get('role') not in ['admin','ceo'] %}
-<div style="margin-top:20px;">
-    {% if not user_checked_in %}
-    <a href="/check-in" class="checkin-btn btn-check-in">✅ Check In Now</a>
-    {% elif not user_checked_out %}
-    <a href="/check-in" class="checkin-btn btn-check-out">🚪 Check Out Now</a>
-    {% else %}
-    <div class="btn-done">✅ Shift Complete — Great work!</div>
-    {% endif %}
-</div>
-{% endif %}
-
+<!-- Recent Attendance Records -->
 {% if recent_records %}
-<h2>Today's Attendance <span class="count">{{ recent_records|length }}</span></h2>
-<div class="table-container">
-<table>
-    <tr><th>Name</th><th>Dept / Role</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
-    {% for r in recent_records %}
-    <tr>
-        <td class="td-name">{{ r.full_name }}</td>
-        <td><span class="dept-role">{{ r.department }} / {{ r.role }}</span></td>
-        <td>{{ r.check_in }}</td>
-        <td>{{ r.check_out }}</td>
-        <td><span class="badge {% if r.label == 'Working' %}badge-success{% elif r.label == 'Arrived Late' %}badge-warning{% elif r.label == 'Checked Out' %}badge-danger{% else %}badge-info{% endif %}">{{ r.label }}</span></td>
-    </tr>
-    {% endfor %}
-</table>
+<div class="form-card">
+    <h2 style="font-size:16px; margin-bottom:12px;">📋 Recent Attendance</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr><th>Name</th><th>Department</th><th>Role</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+            {% for r in recent_records %}
+            <tr>
+                <td class="td-name">{{ r.full_name }}</td>
+                <td>{{ r.department }}</td>
+                <td>{{ r.role }}</td>
+                <td>{{ r.check_in }}</td>
+                <td>{{ r.check_out }}</td>
+                <td>
+                    {% if r.label == 'Working' %}
+                        <span class="badge badge-info">Working</span>
+                    {% elif r.label == 'Arrived Late' %}
+                        <span class="badge badge-danger">Late</span>
+                    {% else %}
+                        <span class="badge badge-success">Done</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endif %}
 {% endblock %}
