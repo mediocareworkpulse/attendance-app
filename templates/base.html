@@ -4,47 +4,97 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ company }}</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Custom CSS -->
     <link rel="stylesheet" href="/static/style.css">
-    <!-- Bootstrap Icons (optional) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 </head>
-<body class="bg-light">
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4 shadow">
-        <div class="container">
-            <a class="navbar-brand fw-bold" href="/">{{ company }}</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    {% if session.user %}
-                    <li class="nav-item"><a class="nav-link" href="/">Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/check-in">Check In/Out</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/profile">Profile</a></li>
-                    {% if session.role in ['admin','ceo'] %}
-                    <li class="nav-item"><a class="nav-link" href="/admin">Admin</a></li>
-                    {% endif %}
-                    {% if session.role == 'Sales Manager' %}
-                    <li class="nav-item"><a class="nav-link" href="/sales-manager">Manager Dashboard</a></li>
-                    {% endif %}
-                    <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
-                    {% endif %}
-                </ul>
-            </div>
+<body>
+
+<!-- ═══════ Mobile Topbar ═══════ -->
+<div class="mobile-topbar">
+    <button class="hamburger" onclick="toggleSidebar()">☰</button>
+    <div class="topbar-title">{{ company }}</div>
+    <div class="topbar-spacer"></div>
+</div>
+
+<!-- ═══════ Sidebar Overlay ═══════ -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ═══════ Sidebar ═══════ -->
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="brand-icon">💊</div>
+        <div>
+            <div class="brand-name">{{ company }}</div>
+            <div class="brand-sub">Attendance System</div>
         </div>
-    </nav>
+    </div>
 
-    <!-- Main Content -->
-    <main class="container">
-        {% block content %}{% endblock %}
-    </main>
+    <div class="sidebar-nav">
+        <a href="/" class="{% if request.path == '/' %}active{% endif %}">🏠 Dashboard</a>
+        <a href="/check-in" class="{% if request.path == '/check-in' %}active{% endif %}">⏱ Check In/Out</a>
+        <a href="/profile" class="{% if request.path == '/profile' %}active{% endif %}">👤 My Profile</a>
 
-    <!-- Bootstrap JS Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    {% block scripts %}{% endblock %}
+        {% if session.role in ['admin','ceo'] %}
+            <a href="/admin" class="{% if request.path == '/admin' %}active{% endif %}">⚙️ Admin</a>
+            <a href="/approvals" class="{% if request.path == '/approvals' %}active{% endif %}">✅ Approvals</a>
+            <a href="/employees" class="{% if request.path == '/employees' %}active{% endif %}">👥 Employees</a>
+            <a href="/branches" class="{% if request.path == '/branches' %}active{% endif %}">🏢 Branches</a>
+        {% endif %}
+
+        {% if session.role in ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager'] %}
+            <a href="/contacts" class="{% if request.path == '/contacts' %}active{% endif %}">📇 Directorate</a>
+        {% endif %}
+
+        {% if session.role in ['Staff','Branch Manager','admin','ceo','Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant'] %}
+            <a href="/sales" class="{% if request.path == '/sales' %}active{% endif %}">💰 Sales</a>
+        {% endif %}
+
+        <a href="/attendance-history" class="{% if request.path == '/attendance-history' %}active{% endif %}">📊 History</a>
+
+        {% if session.role in ['admin','ceo','Branch Manager','Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant'] %}
+            <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}">📈 Reports</a>
+        {% endif %}
+
+        <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">🌴 Leaves</a>
+
+        {% if session.role in ['Store Manager','Operations Manager','Sales Manager','admin','ceo'] %}
+            <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}">✍️ Approve Leaves</a>
+        {% endif %}
+
+        {% if session.role == 'Sales Manager' %}
+            <a href="/sales-manager" class="{% if request.path == '/sales-manager' %}active{% endif %}">📋 Manager Dashboard</a>
+        {% endif %}
+
+        {% if session.role in ['Stock Controller','Assistant Stock Controller'] %}
+            <a href="/targets" class="{% if request.path == '/targets' %}active{% endif %}">🎯 Sales Targets</a>
+        {% endif %}
+
+        <a href="/logout" class="logout-link">🚪 Logout</a>
+    </div>
+</nav>
+
+<!-- ═══════ Main Content ═══════ -->
+<div class="main-content">
+    {% block content %}{% endblock %}
+</div>
+
+<script>
+    // Sidebar toggle for mobile
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+        document.getElementById('sidebarOverlay').classList.toggle('show');
+    }
+    function closeSidebar() {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebarOverlay').classList.remove('show');
+    }
+    // Auto-close sidebar when a link is clicked (mobile)
+    document.querySelectorAll('.sidebar-nav a').forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth <= 768) closeSidebar();
+        });
+    });
+</script>
+
+{% block scripts %}{% endblock %}
 </body>
 </html>
