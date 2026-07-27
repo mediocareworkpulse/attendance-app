@@ -1,45 +1,115 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="page-title">💰 Sales</h1>
-<p class="page-subtitle">{{ company }} — {{ today }}</p>
+<h1 class="page-title">💰 Sales Center</h1>
+<p class="page-subtitle">{{ company }} — Full Sales Management</p>
 
-<!-- Submission Card (only for Staff / Branch Manager) -->
-{% if session.role in ['Staff','Branch Manager'] %}
-<div class="form-card" style="border-left: 5px solid var(--accent);">
-    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">📝 Submit Individual Sale</h2>
-    <form method="POST">
-        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 14px;">
-            <div>
-                <label>M‑Pesa Sales</label>
-                <input type="number" step="0.01" name="mpesa_sales" value="0">
-            </div>
-            <div>
-                <label>Cash Sales</label>
-                <input type="number" step="0.01" name="cash_sales" value="0">
-            </div>
-            <div>
-                <label>Notes</label>
-                <input type="text" name="notes" placeholder="Optional">
-            </div>
-        </div>
+{% if success_msg %}<div class="alert alert-success">✅ Sales submitted successfully.</div>{% endif %}
 
-        <!-- Expenses Section -->
-        <div style="margin-top: 16px;">
-            <h3 style="font-size:14px; font-weight:600;">💸 Expenses</h3>
-            <div id="expenseList">
-                <div class="expense-row" style="display: flex; gap: 10px; margin-bottom: 8px;">
-                    <input type="text" name="expense_name[]" placeholder="Expense name" style="flex:2;">
-                    <input type="number" step="0.01" name="expense_amount[]" placeholder="Amount" style="flex:1;">
-                    <button type="button" class="btn btn-sm" style="background:#e74c3c; color:#fff; width:auto;" onclick="removeExpense(this)">✕</button>
+<!-- Submission Forms (Individual & Branch) -->
+<div style="display:flex; flex-wrap:wrap; gap:16px; margin-bottom:20px;">
+    {% if session.role in ['Staff','Branch Manager'] %}
+    <!-- Individual Sale Form -->
+    <div class="form-card" style="flex:1; min-width:300px; border-left: 5px solid var(--accent);">
+        <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">📝 Submit Individual Sale</h2>
+        <form method="POST">
+            <input type="hidden" name="sales_type" value="individual">
+            <div class="form-grid" style="grid-template-columns:1fr 1fr; gap:12px;">
+                <div><label>M‑Pesa</label><input type="number" step="0.01" name="mpesa_sales" value="0"></div>
+                <div><label>Cash</label><input type="number" step="0.01" name="cash_sales" value="0"></div>
+                <div style="grid-column:span 2;"><label>Notes</label><input type="text" name="notes" placeholder="Optional"></div>
+            </div>
+            <div style="margin-top:12px;">
+                <h4 style="font-size:13px;">💸 Expenses</h4>
+                <div id="indExpenseList">
+                    <div class="expense-row" style="display:flex; gap:8px; margin-bottom:6px;">
+                        <input type="text" name="expense_name[]" placeholder="Name" style="flex:2;">
+                        <input type="number" step="0.01" name="expense_amount[]" placeholder="Amount" style="flex:1;">
+                        <button type="button" class="btn btn-sm" style="background:#e74c3c;color:#fff;width:auto;" onclick="removeExpense(this)">✕</button>
+                    </div>
                 </div>
+                <button type="button" class="btn btn-sm" style="background:var(--accent);color:#fff;width:auto;" onclick="addIndExpense()">+ Add</button>
             </div>
-            <button type="button" class="btn btn-sm" style="background:var(--accent); color:#fff; width:auto;" onclick="addExpense()">+ Add Expense</button>
-        </div>
+            <button type="submit" class="btn" style="margin-top:12px;">Submit Individual Sale</button>
+        </form>
+    </div>
+    {% endif %}
 
-        <button type="submit" class="btn" style="margin-top: 16px;">Submit Sale</button>
-    </form>
+    {% if session.role == 'Branch Manager' %}
+    <!-- Branch Sale Form -->
+    <div class="form-card" style="flex:1; min-width:300px; border-left: 5px solid var(--primary);">
+        <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">🏢 Submit Branch Sale</h2>
+        <form method="POST">
+            <input type="hidden" name="sales_type" value="branch">
+            <p style="font-size:12px; color:var(--text-secondary);">Branch: {{ session.branch }}</p>
+            <div class="form-grid" style="grid-template-columns:1fr 1fr; gap:12px;">
+                <div><label>M‑Pesa</label><input type="number" step="0.01" name="mpesa_sales" value="0"></div>
+                <div><label>Cash</label><input type="number" step="0.01" name="cash_sales" value="0"></div>
+                <div style="grid-column:span 2;"><label>Notes</label><input type="text" name="notes" placeholder="Optional"></div>
+            </div>
+            <div style="margin-top:12px;">
+                <h4 style="font-size:13px;">💸 Branch Expenses</h4>
+                <div id="brExpenseList">
+                    <div class="expense-row" style="display:flex; gap:8px; margin-bottom:6px;">
+                        <input type="text" name="expense_name[]" placeholder="Name" style="flex:2;">
+                        <input type="number" step="0.01" name="expense_amount[]" placeholder="Amount" style="flex:1;">
+                        <button type="button" class="btn btn-sm" style="background:#e74c3c;color:#fff;width:auto;" onclick="removeExpense(this)">✕</button>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-sm" style="background:var(--accent);color:#fff;width:auto;" onclick="addBrExpense()">+ Add</button>
+            </div>
+            <button type="submit" class="btn" style="margin-top:12px;">Submit Branch Sale</button>
+        </form>
+    </div>
+    {% endif %}
 </div>
-{% endif %}
+
+<!-- Filter & View Section -->
+<div class="form-card">
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">🔍 Filter Sales</h2>
+    <form method="GET" class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap:12px;">
+        <div>
+            <label>View Type</label>
+            <select name="view_type" onchange="this.form.submit()">
+                <option value="individual" {% if view_type == 'individual' %}selected{% endif %}>Individual Sales</option>
+                <option value="branch" {% if view_type == 'branch' %}selected{% endif %}>Branch Sales</option>
+            </select>
+        </div>
+        <div>
+            <label>Branch</label>
+            <select name="branch">
+                <option value="">All</option>
+                {% for b in branches %}
+                <option value="{{ b }}" {% if filter_branch == b %}selected{% endif %}>{{ b }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Employee</label>
+            <select name="employee">
+                <option value="">All</option>
+                {% for e in employees %}
+                <option value="{{ e.full_name }}" {% if filter_employee == e.full_name %}selected{% endif %}>{{ e.full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>From</label>
+            <input type="date" name="from_date" value="{{ filter_from }}">
+        </div>
+        <div>
+            <label>To</label>
+            <input type="date" name="to_date" value="{{ filter_to }}">
+        </div>
+        <div style="display:flex; align-items:end;">
+            <button type="submit" class="btn" style="width:100%;">Apply</button>
+        </div>
+    </form>
+    <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+        <a href="?view_type={{ view_type }}&branch={{ filter_branch }}&employee={{ filter_employee }}&period=week" class="filter-btn {% if period == 'week' %}active{% endif %}">This Week</a>
+        <a href="?view_type={{ view_type }}&branch={{ filter_branch }}&employee={{ filter_employee }}&period=month" class="filter-btn {% if period == 'month' %}active{% endif %}">This Month</a>
+        <a href="?view_type={{ view_type }}&branch={{ filter_branch }}&employee={{ filter_employee }}&period=year" class="filter-btn {% if period == 'year' %}active{% endif %}">This Year</a>
+    </div>
+</div>
 
 <!-- Target Progress (if user has a target) -->
 {% if target_progress %}
@@ -59,25 +129,29 @@
 {% endif %}
 
 <!-- Individual Sales Table -->
-<div class="form-card" style="margin-top: 20px;">
-    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">📋 Today's Individual Sales</h2>
+{% if view_type == 'individual' %}
+<div class="form-card" style="margin-top:20px;">
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">📋 Individual Sales</h2>
     <div class="table-container">
         <table>
             <thead>
                 <tr>
-                    <th>Name</th>
+                    <th>Date</th>
+                    <th>Employee</th>
+                    <th>Branch</th>
                     <th>M‑Pesa</th>
                     <th>Cash</th>
                     <th>Expenses</th>
                     <th>Total</th>
-                    <th>Branch</th>
                     <th>Notes</th>
                 </tr>
             </thead>
             <tbody>
-            {% for s in sales %}
+            {% for s in individual_sales %}
             <tr>
+                <td>{{ s.date }}</td>
                 <td class="td-name">{{ s.full_name }}</td>
+                <td>{{ s.branch }}</td>
                 <td>{{ s.mpesa_sales }}</td>
                 <td>{{ s.cash_sales }}</td>
                 <td>
@@ -85,12 +159,9 @@
                         {% for exp in s.expenses %}
                             {{ exp.name }}: Ksh {{ exp.amount }}<br>
                         {% endfor %}
-                    {% else %}
-                        —
-                    {% endif %}
+                    {% else %}—{% endif %}
                 </td>
                 <td>{{ s.total_sales }}</td>
-                <td>{{ s.branch }}</td>
                 <td>{{ s.notes or '—' }}</td>
             </tr>
             {% endfor %}
@@ -98,32 +169,41 @@
         </table>
     </div>
 </div>
-
-<!-- Branch Totals (computed) -->
-{% if branch_totals %}
-<div class="form-card" style="margin-top: 20px;">
-    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">🏢 Branch Totals (Today)</h2>
+{% elif view_type == 'branch' %}
+<!-- Branch Sales Table -->
+<div class="form-card" style="margin-top:20px;">
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">🏢 Branch Sales</h2>
     <div class="table-container">
         <table>
             <thead>
                 <tr>
+                    <th>Date</th>
                     <th>Branch</th>
                     <th>M‑Pesa</th>
                     <th>Cash</th>
                     <th>Expenses</th>
-                    <th>Total Sales</th>
-                    <th>Entries</th>
+                    <th>Total</th>
+                    <th>Submitted By</th>
+                    <th>Notes</th>
                 </tr>
             </thead>
             <tbody>
-            {% for branch, data in branch_totals.items() %}
+            {% for s in branch_sales %}
             <tr>
-                <td class="td-name">{{ branch }}</td>
-                <td>{{ data.mpesa }}</td>
-                <td>{{ data.cash }}</td>
-                <td>{{ data.expenses }}</td>
-                <td>{{ data.total }}</td>
-                <td>{{ data.count }}</td>
+                <td>{{ s.date }}</td>
+                <td class="td-name">{{ s.branch }}</td>
+                <td>{{ s.mpesa_sales }}</td>
+                <td>{{ s.cash_sales }}</td>
+                <td>
+                    {% if s.expenses %}
+                        {% for exp in s.expenses %}
+                            {{ exp.name }}: Ksh {{ exp.amount }}<br>
+                        {% endfor %}
+                    {% else %}—{% endif %}
+                </td>
+                <td>{{ s.total_sales }}</td>
+                <td>{{ s.submitted_by }}</td>
+                <td>{{ s.notes or '—' }}</td>
             </tr>
             {% endfor %}
             </tbody>
@@ -135,18 +215,28 @@
 
 {% block scripts %}
 <script>
-    function addExpense() {
+    function addIndExpense() {
         const div = document.createElement('div');
         div.className = 'expense-row';
-        div.style.cssText = 'display:flex; gap:10px; margin-bottom:8px;';
+        div.style.cssText = 'display:flex; gap:8px; margin-bottom:6px;';
         div.innerHTML = `
-            <input type="text" name="expense_name[]" placeholder="Expense name" style="flex:2;">
+            <input type="text" name="expense_name[]" placeholder="Name" style="flex:2;">
             <input type="number" step="0.01" name="expense_amount[]" placeholder="Amount" style="flex:1;">
-            <button type="button" class="btn btn-sm" style="background:#e74c3c; color:#fff; width:auto;" onclick="removeExpense(this)">✕</button>
+            <button type="button" class="btn btn-sm" style="background:#e74c3c;color:#fff;width:auto;" onclick="removeExpense(this)">✕</button>
         `;
-        document.getElementById('expenseList').appendChild(div);
+        document.getElementById('indExpenseList').appendChild(div);
     }
-
+    function addBrExpense() {
+        const div = document.createElement('div');
+        div.className = 'expense-row';
+        div.style.cssText = 'display:flex; gap:8px; margin-bottom:6px;';
+        div.innerHTML = `
+            <input type="text" name="expense_name[]" placeholder="Name" style="flex:2;">
+            <input type="number" step="0.01" name="expense_amount[]" placeholder="Amount" style="flex:1;">
+            <button type="button" class="btn btn-sm" style="background:#e74c3c;color:#fff;width:auto;" onclick="removeExpense(this)">✕</button>
+        `;
+        document.getElementById('brExpenseList').appendChild(div);
+    }
     function removeExpense(btn) {
         btn.parentElement.remove();
     }
