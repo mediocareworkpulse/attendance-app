@@ -741,88 +741,177 @@ def attendance_history():
     return render_template('attendance_history.html', records=records, period=period,
                          from_date=sd, to_date=ed, today=str(today), company=COMPANY_NAME)
 
-# ---------- SALES (individual with expenses, branch totals auto‑computed) ----------
+# ---------- SALES (individual & branch modules with full filtering) ----------
 @app.route('/sales', methods=['GET','POST'])
 @login_required
 def sales_page():
     role = session.get('role'); un = session.get('user'); ub = session.get('branch','')
     today = str(now_eat().date())
 
+    # ---------- POST: handle submissions ----------
     if request.method == 'POST':
-        if role not in SALES_SUBMIT_ROLES:
-            return redirect('/sales')
-        try:
-            mpesa = float(request.form.get('mpesa_sales','0') or 0)
-            cash  = float(request.form.get('cash_sales','0') or 0)
-            notes = request.form.get('notes','')
-
-            expense_names  = request.form.getlist('expense_name[]')
-            expense_amounts = request.form.getlist('expense_amount[]')
-            expenses = []
-            expense_total = 0.0
-            for i in range(len(expense_names)):
-                nm = expense_names[i].strip()
-                amt_str = expense_amounts[i] if i < len(expense_amounts) else '0'
-                try: amt = float(amt_str) if amt_str else 0.0
-                except: amt = 0.0
-                if nm and amt > 0:
-                    expenses.append({'name': nm, 'amount': amt})
-                    expense_total += amt
-
-            total = mpesa + cash + expense_total
-
-            emp = safe_data(execute_query(
-                supabase.table('employees').select('department,branch').eq('full_name', un)
-            ))
-            if emp and total > 0:
-                supabase.table('sales').insert({
-                    'full_name': un,
-                    'department': emp[0].get('department',''),
-                    'branch': emp[0].get('branch',''),
-                    'date': today,
-                    'mpesa_sales': mpesa,
-                    'cash_sales': cash,
-                    'total_sales': total,
-                    'sales_type': 'individual',
-                    'notes': notes,
-                    'expenses': expenses
-                }).execute()
-        except Exception as e:
-            print(f"Sales error: {e}")
+        sales_type = request.form.get('sales_type','individual')
+        # Individual sale submission (Staff / Branch Manager)
+        if sales_type == 'individual' and role in SALES_SUBMIT_ROLES:
+            try:
+                mpesa = float(request.form.get('mpesa_sales','0') or 0)
+                cash  = float(request.form.get('cash_sales','0') or 0)
+                notes = request.form.get('notes','')
+                expense_names  = request.form.getlist('expense_name[]')
+                expense_amounts = request.form.getlist('expense_amount[]')
+                expenses = []
+                expense_total = 0.0
+                for i in range(len(expense_names)):
+                    nm = expense_names[i].strip()
+                    amt_str = expense_amounts[i] if i < len(expense_amounts) else '0'
+                    try: amt = float(amt_str) if amt_str else 0.0
+                    except: amt = 0.0
+                    if nm and amt > 0:
+                        expenses.append({'name': nm, 'amount': amt})
+                        expense_total += amt
+                total = mpesa + cash + expense_total
+                emp = safe_data(execute_query(
+                    supabase.table('employees').select('department,branch').eq('full_name', un)
+                ))
+                if emp and total > 0:
+                    supabase.table('sales').insert({
+                        'full_name': un,
+                        'department': emp[0].get('department',''),
+                        'branch': emp[0].get('branch',''),
+                        'date': today,
+                        'mpesa_sales': mpesa,
+                        'cash_sales': cash,
+                        'total_sales': total,
+                        'sales_type': 'individual',
+                        'notes': notes,
+                        'expenses': expenses
+                    }).execute()
+            except Exception as e:
+                print(f"Individual sale error: {e}")
+        # Branch sale submission (Branch Manager only)
+        elif sales_type == 'branch' and role == 'Branch Manager':
+            try:
+                mpesa = float(request.form.get('mpesa_sales','0') or 0)
+                cash  = float(request.form.get('cash_sales','0') or 0)
+                notes = request.form.get('notes','')
+                expense_names  = request.form.getlist('expense_name[]')
+                expense_amounts = request.form.getlist('expense_amount[]')
+                expenses = []
+                expense_total = 0.0
+                for i in range(len(expense_names)):
+                    nm = expense_names[i].strip()
+                    amt_str = expense_amounts[i] if i < len(expense_amounts) else '0'
+                    try: amt = float(amt_str) if amt_str else 0.0
+                    except: amt = 0.0
+                    if nm and amt > 0:
+                        expenses.append({'name': nm, 'amount': amt})
+                        expense_total += amt
+                total = mpesa + cash + expense_total
+                if total > 0:
+                    supabase.table('branch_sales').insert({
+                        'branch': ub,
+                        'date': today,
+                        'mpesa_sales': mpesa,
+                        'cash_sales': cash,
+                        'total_sales': total,
+                        'submitted_by': un,
+                        'notes': notes,
+                        'expenses': expenses
+                    }).execute()
+            except Exception as e:
+                print(f"Branch sale error: {e}")
         return redirect('/sales?success=1')
 
-    # View sales based on role
-    if role in FULL_ACCESS_ROLES or role in ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant']:
-        sd = safe_data(execute_query(
-            supabase.table('sales').select('*').eq('date',today).order('created_at',desc=True).limit(200)
-        ))
-    elif role == 'Branch Manager':
-        sd = safe_data(execute_query(
-            supabase.table('sales').select('*').eq('date',today).eq('branch',ub).order('created_at',desc=True).limit(200)
-        ))
+    # ---------- GET: filter & view ----------
+    # Allowed branch list for filter (Branch Manager sees only own branch, others see all)
+    if role == 'Branch Manager':
+        allowed_branches = [ub]
     else:
-        sd = safe_data(execute_query(
-            supabase.table('sales').select('*').eq('date',today).eq('full_name',un).order('created_at',desc=True).limit(50)
+        allowed_branches = get_branch_names()
+
+    # Get filter parameters
+    view_type = request.args.get('view_type','individual')   # 'individual' or 'branch'
+    filter_branch = request.args.get('branch','')             # '' means all (within allowed)
+    filter_employee = request.args.get('employee','')         # '' means all
+    filter_from = request.args.get('from_date','')
+    filter_to = request.args.get('to_date','')
+    period = request.args.get('period','')                     # 'week','month','year' – overrides from/to
+
+    today_date = now_eat().date()
+    # Set date range from period if provided
+    if period == 'week':
+        filter_from = str(today_date - timedelta(days=7))
+        filter_to = str(today_date)
+    elif period == 'month':
+        filter_from = str(today_date.replace(day=1))
+        filter_to = str(today_date)
+    elif period == 'year':
+        filter_from = str(today_date.replace(month=1, day=1))
+        filter_to = str(today_date)
+    elif not filter_from:
+        # default to today if nothing provided
+        filter_from = str(today_date)
+    if not filter_to:
+        filter_to = str(today_date)
+
+    # Build query for individual sales
+    ind_query = supabase.table('sales').select('*')
+    if view_type == 'individual':
+        if filter_branch and filter_branch in allowed_branches:
+            ind_query = ind_query.eq('branch', filter_branch)
+        elif role == 'Branch Manager':
+            ind_query = ind_query.eq('branch', ub)   # force own branch
+        if filter_employee:
+            ind_query = ind_query.eq('full_name', filter_employee)
+        if not (role in FULL_ACCESS_ROLES or role in ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant']):
+            if role == 'Branch Manager':
+                # already filtered by branch
+                pass
+            else:
+                # Staff / others see only own
+                ind_query = ind_query.eq('full_name', un)
+        ind_query = ind_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
+        individual_sales = safe_data(execute_query(ind_query))
+    else:
+        individual_sales = []
+
+    # Build query for branch sales
+    br_query = supabase.table('branch_sales').select('*')
+    if view_type == 'branch':
+        if filter_branch and filter_branch in allowed_branches:
+            br_query = br_query.eq('branch', filter_branch)
+        elif role == 'Branch Manager':
+            br_query = br_query.eq('branch', ub)
+        # Filter by employee? Not needed for branch sales, but we could filter by submitted_by? Not required.
+        if filter_employee:
+            br_query = br_query.eq('submitted_by', filter_employee)
+        if not (role in FULL_ACCESS_ROLES or role in ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant']):
+            if role == 'Branch Manager':
+                pass
+            else:
+                if role not in ['Branch Manager','Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant'] + FULL_ACCESS_ROLES:
+                    br_query = br_query.eq('branch', '__none__')   # force empty
+        br_query = br_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
+        branch_sales = safe_data(execute_query(br_query))
+    else:
+        branch_sales = []
+
+    # For branch filter dropdown – list of employees for the branch (if a branch selected) else all employees
+    employee_list = []
+    if filter_branch or (role == 'Branch Manager'):
+        b = filter_branch if filter_branch else ub
+        employee_list = safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').eq('branch', b).order('full_name')
+        ))
+    elif role in FULL_ACCESS_ROLES or role in ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant']:
+        employee_list = safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').order('full_name')
         ))
 
-    # Branch totals computed from all individual sales
-    all_sales_today = safe_data(execute_query(
-        supabase.table('sales').select('*').eq('date',today)
-    ))
-    branch_totals = defaultdict(lambda: {'mpesa':0,'cash':0,'expenses':0,'total':0,'count':0})
-    for s in all_sales_today:
-        br = s.get('branch','Unknown')
-        branch_totals[br]['mpesa'] += float(s.get('mpesa_sales',0))
-        branch_totals[br]['cash']  += float(s.get('cash_sales',0))
-        exps = s.get('expenses')
-        if isinstance(exps, list):
-            branch_totals[br]['expenses'] += sum(e.get('amount',0) for e in exps)
-        elif isinstance(exps, (int,float)):
-            branch_totals[br]['expenses'] += float(exps)
-        branch_totals[br]['total'] += float(s.get('total_sales',0))
-        branch_totals[br]['count'] += 1
+    # Also fetch all branches for the filter dropdown (only allowed ones)
+    branches_for_filter = allowed_branches
 
-    # Target progress for current user
+    # Target progress for current user (individual sales only)
     target_progress = None
     month_str = str(now_eat().date().replace(day=1))
     target = safe_data(execute_query(
@@ -845,12 +934,20 @@ def sales_page():
         }
 
     return render_template('sales.html',
-        sales=sd,
-        branch_totals=dict(branch_totals),
+        individual_sales=individual_sales,
+        branch_sales=branch_sales,
+        view_type=view_type,
+        filter_branch=filter_branch,
+        filter_employee=filter_employee,
+        filter_from=filter_from,
+        filter_to=filter_to,
+        period=period,
+        branches=branches_for_filter,
+        employees=employee_list,
+        target_progress=target_progress,
         today=today,
         company=COMPANY_NAME,
-        success_msg=request.args.get('success',''),
-        target_progress=target_progress)
+        success_msg=request.args.get('success',''))
 
 # ---------- PROFILE ----------
 @app.route('/profile', methods=['GET','POST'])
