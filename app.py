@@ -512,12 +512,11 @@ def delete_branch(bid):
 @app.route('/contacts')
 @login_required
 def contacts_page():
-    allowed_roles = DIRECTORATE_ROLES   # includes Sales Manager now
+    allowed_roles = DIRECTORATE_ROLES
     if session.get('role') not in allowed_roles:
         return redirect('/')
 
     if session.get('role') == 'Sales Manager':
-        # Sales Manager sees only marketers
         contacts = safe_data(execute_query(
             supabase.table('contacts')
                    .select('*')
@@ -579,7 +578,7 @@ def check_in_page():
         r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names)))
     elif role == 'Sales Manager':
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('role',MARKETER_ROLE)))]
-        team_names.append(un)  # include self
+        team_names.append(un)
         r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names)))
     elif role in ['Stock Controller','Assistant Stock Controller']:
         r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50)))
@@ -611,36 +610,51 @@ def check_in_page():
 @app.route('/check-in', methods=['POST'])
 @login_required
 def process_attendance():
-    if session.get('role') in NO_CHECKIN_ROLES: return redirect('/')
+    if session.get('role') in NO_CHECKIN_ROLES:
+        return redirect('/')
     un = session.get('user')
     action = request.form.get('action')
     today = str(now_eat().date())
     now = now_eat().strftime('%H:%M:%S')
-    lat = request.form.get('lat',''); lng = request.form.get('lng',''); loc = request.form.get('location','')
-    emp = safe_data(execute_query(supabase.table('employees').select('department,branch,shift_start,role').eq('full_name',un)))
-    if not emp: return redirect('/check-in')
-    dept = emp[0].get('department',''); branch = emp[0].get('branch','')
-    role = emp[0].get('role',''); shift_start = emp[0].get('shift_start','09:00')
+    lat = request.form.get('lat', '') or '0'
+    lng = request.form.get('lng', '') or '0'
+    loc = request.form.get('location', '') or 'Not provided'
+    emp = safe_data(execute_query(supabase.table('employees').select('department,branch,shift_start,role').eq('full_name', un)))
+    if not emp:
+        return redirect('/check-in')
+    dept = emp[0].get('department', '') or ''
+    branch = emp[0].get('branch', '') or ''
+    role = emp[0].get('role', '') or ''
+    shift_start = emp[0].get('shift_start', '08:00') or '08:00'
+    # Clean shift_start: ensure HH:MM format, strip seconds if present
+    shift_start = shift_start.strip()
+    if len(shift_start) > 5:
+        shift_start = shift_start[:5]
+    if not shift_start or ':' not in shift_start:
+        shift_start = '08:00'
 
-    existing = safe_data(execute_query(supabase.table('attendance').select('*').eq('full_name',un).eq('date',today)))
+    existing = safe_data(execute_query(supabase.table('attendance').select('*').eq('full_name', un).eq('date', today)))
     exd = existing[0] if existing else None
 
     if action == 'check_in':
-        if role == MARKETER_ROLE: return redirect('/check-in')
-        if exd and exd.get('check_in'): return redirect('/check-in')
+        if role == MARKETER_ROLE:
+            return redirect('/check-in')
+        if exd and exd.get('check_in'):
+            return redirect('/check-in')
         late_threshold = (datetime.strptime(shift_start, '%H:%M') + timedelta(minutes=LATE_GRACE_MINUTES)).strftime('%H:%M')
-        status = 'late' if now > late_threshold else 'present'
-        d = {'check_in':now,'status':status,'check_in_lat':lat,'check_in_lng':lng,'check_in_location':loc}
-        if exd: supabase.table('attendance').update(d).eq('full_name',un).eq('date',today).execute()
+        status = 'late' if now[:5] > late_threshold else 'present'
+        d = {'check_in': now, 'status': status, 'check_in_lat': lat, 'check_in_lng': lng, 'check_in_location': loc}
+        if exd:
+            supabase.table('attendance').update(d).eq('full_name', un).eq('date', today).execute()
         else:
-            d.update({'full_name':un,'department':dept,'branch':branch,'date':today})
+            d.update({'full_name': un, 'department': dept, 'branch': branch, 'date': today})
             supabase.table('attendance').insert(d).execute()
     elif action == 'check_out':
         if exd and exd.get('check_in') and not exd.get('check_out'):
             supabase.table('attendance').update({
-                'check_out':now,'status':'checked_out',
-                'check_out_lat':lat,'check_out_lng':lng,'check_out_location':loc
-            }).eq('full_name',un).eq('date',today).execute()
+                'check_out': now, 'status': 'checked_out',
+                'check_out_lat': lat, 'check_out_lng': lng, 'check_out_location': loc
+            }).eq('full_name', un).eq('date', today).execute()
             return redirect('/')
     return redirect('/check-in')
 
@@ -698,7 +712,7 @@ def attendance_history():
         r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).in_('full_name',team_names).order('date',desc=True).limit(200)))
     elif role == 'Sales Manager':
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('role',MARKETER_ROLE)))]
-        team_names.append(un)   # include self
+        team_names.append(un)
         r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).in_('full_name',team_names).order('date',desc=True).limit(200)))
     elif role in ['Stock Controller','Assistant Stock Controller']:
         r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).order('date',desc=True).limit(200)))
@@ -855,7 +869,7 @@ def reports():
         brecs = safe_data(execute_query(supabase.table('branch_sales').select('*').gte('date',fd).lte('date',td).order('date',desc=True).limit(200)))
     return render_template('reports.html',records=records,sales_recs=srecs,branch_recs=brecs,from_date=fd,to_date=td,report_type=rt,total_sales_amount=sum(float(s.get('total_sales',0)) for s in srecs),total_branch_amount=sum(float(s.get('total_sales',0)) for s in brecs),company=COMPANY_NAME)
 
-# ---------- LEAVES (with dropdowns for department/role) ----------
+# ---------- LEAVES ----------
 @app.route('/leaves', methods=['GET','POST'])
 @login_required
 def leaves():
@@ -896,7 +910,7 @@ def leave_pdf(lid):
     if not leave: return "Leave not found", 404
     return render_template('leave_pdf.html', lv=leave[0], company=COMPANY_NAME)
 
-# ---------- APPROVE LEAVES (new hierarchy) ----------
+# ---------- APPROVE LEAVES ----------
 @app.route('/approve-leaves')
 @login_required
 def approve_leaves():
@@ -998,10 +1012,8 @@ def marketer_report():
     lng = request.form.get('lng', '')
     location = request.form.get('location', '').strip()
 
-    try:
-        exp = float(expenses)
-    except:
-        exp = 0.0
+    try: exp = float(expenses)
+    except: exp = 0.0
 
     if not customer_name:
         return redirect('/check-in?report=error')
