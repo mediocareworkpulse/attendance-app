@@ -1,22 +1,215 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Leave Request – {{ company }}</title>
+    <title>Leave Application – Mediocare Pharmaceutical Ltd</title>
     <style>
-        body { font-family: 'Inter', sans-serif; padding: 40px; max-width: 600px; margin: auto; color: #1a1a2e; }
-        h2 { color: #0b2b4a; } table { width:100%; border-collapse: collapse; margin-top:20px; }
-        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        @page {
+            size: A4;
+            margin: 2cm 2.5cm;
+        }
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            color: #1a1a2e;
+            line-height: 1.6;
+            font-size: 13px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #0b2b4a;
+            padding-bottom: 16px;
+        }
+        .header .company-name {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            color: #0b2b4a;
+            text-transform: uppercase;
+        }
+        .header .form-title {
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-top: 4px;
+            color: #5c6b7a;
+        }
+
+        .form-section { margin-bottom: 20px; }
+        .field-row { display: flex; margin-bottom: 10px; align-items: baseline; }
+        .field-label { width: 180px; font-weight: 600; color: #0b2b4a; }
+        .field-value { flex: 1; border-bottom: 1px solid #666; min-height: 18px; padding-left: 6px; }
+
+        .checkbox-group { display: flex; gap: 20px; margin-left: 180px; }
+        .checkbox-item { display: flex; align-items: center; gap: 6px; }
+        .checkbox-box { width: 16px; height: 16px; border: 1.5px solid #555; display: inline-block; margin-right: 4px; border-radius: 2px; }
+        .checkbox-item.checked .checkbox-box { background: #0b2b4a; }
+
+        .reason-box {
+            width: 100%;
+            min-height: 60px;
+            border: 1px solid #ccc;
+            padding: 8px;
+            margin-top: 4px;
+            border-radius: 6px;
+        }
+        .signature-line { display: flex; gap: 40px; margin-top: 30px; }
+        .sig-item { flex: 1; }
+        .sig-item .sig-line { border-bottom: 1px solid #333; width: 100%; margin-top: 25px; margin-bottom: 4px; }
+        .sig-item .sig-label { font-size: 11px; font-weight: 600; color: #555; }
+
+        .supervisor-section, .hr-section { margin-top: 30px; border-top: 2px dashed #ccc; padding-top: 16px; }
+        .supervisor-title, .hr-title { font-weight: 700; color: #0b2b4a; font-size: 13px; margin-bottom: 10px; }
+
+        @media print {
+            body { padding: 0; margin: 0; }
+            .no-print { display: none; }
+        }
     </style>
 </head>
 <body>
-    <h2>{{ company }} – Leave Request</h2>
-    <table>
-        <tr><th>Employee</th><td>{{ lv.full_name }}</td></tr>
-        <tr><th>Leave Type</th><td>{{ lv.leave_type }}</td></tr>
-        <tr><th>Dates</th><td>{{ lv.leave_start }} to {{ lv.leave_end }} ({{ lv.total_days }} days)</td></tr>
-        <tr><th>Status</th><td>{{ lv.status }}</td></tr>
-        <tr><th>Approved By</th><td>{{ lv.approved_by or 'Pending' }}</td></tr>
-    </table>
+
+    <div class="header">
+        <div class="company-name">Mediocare Pharmaceutical Ltd</div>
+        <div class="form-title">Leave Application Form</div>
+    </div>
+
+    <!-- Employee Details -->
+    <div class="form-section">
+        <div class="field-row">
+            <span class="field-label">Employee Name:</span>
+            <span class="field-value">{{ lv.full_name }}</span>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Employee ID:</span>
+            <span class="field-value">{{ lv.id }}</span>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Department:</span>
+            <span class="field-value">{{ lv.department or '—' }}</span>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Position:</span>
+            <span class="field-value">{{ lv.position or lv.role or '—' }}</span>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Date of Application:</span>
+            <span class="field-value">{{ lv.created_at[:10] if lv.created_at else '—' }}</span>
+        </div>
+    </div>
+
+    <!-- Leave Type -->
+    <div class="form-section">
+        <div class="field-row">
+            <span class="field-label">Leave Type:</span>
+            <div class="checkbox-group">
+                <div class="checkbox-item {% if lv.leave_type == 'Annual Leave' %}checked{% endif %}">
+                    <span class="checkbox-box"></span> Annual
+                </div>
+                <div class="checkbox-item {% if lv.leave_type == 'Sick Leave' %}checked{% endif %}">
+                    <span class="checkbox-box"></span> Sick
+                </div>
+                <div class="checkbox-item {% if lv.leave_type == 'Unpaid' %}checked{% endif %}">
+                    <span class="checkbox-box"></span> Unpaid
+                </div>
+                <div class="checkbox-item {% if lv.leave_type not in ['Annual Leave','Sick Leave','Unpaid'] %}checked{% endif %}">
+                    <span class="checkbox-box"></span> Other: {{ lv.leave_type }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Dates -->
+    <div class="form-section">
+        <div class="field-row">
+            <span class="field-label">Start Date:</span>
+            <span class="field-value">{{ lv.leave_start }}</span>
+        </div>
+        <div class="field-row">
+            <span class="field-label">End Date:</span>
+            <span class="field-value">{{ lv.leave_end }}</span>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Total Days:</span>
+            <span class="field-value">{{ lv.total_days }}</span>
+        </div>
+    </div>
+
+    <!-- Reason -->
+    <div class="form-section">
+        <div class="field-row" style="flex-direction: column;">
+            <span class="field-label" style="margin-bottom: 4px;">Reason for Leave:</span>
+            <div class="reason-box">{{ lv.reason or '—' }}</div>
+        </div>
+    </div>
+
+    <!-- Backup Person & Handover -->
+    <div class="form-section">
+        <div class="field-row">
+            <span class="field-label">Backup Person:</span>
+            <span class="field-value">{{ lv.backup_person or '—' }}</span>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Handover Confirmed:</span>
+            <span class="field-value">{{ 'Yes' if lv.handover_notes else 'No' }}</span>
+        </div>
+    </div>
+
+    <!-- Signatures -->
+    <div class="signature-line">
+        <div class="sig-item">
+            <div class="sig-label">Applicant Signature</div>
+            <div class="sig-line"></div>
+            <div style="font-size:11px;">Date: _______________</div>
+        </div>
+        <div class="sig-item">
+            <div class="sig-label">Supervisor</div>
+            <div class="sig-line"></div>
+            <div style="font-size:11px;">Date: _______________</div>
+        </div>
+    </div>
+
+    <!-- Supervisor Approval Status -->
+    <div class="supervisor-section">
+        <div class="supervisor-title">For Supervisor:</div>
+        <div style="display: flex; gap: 30px; margin-bottom: 8px;">
+            <div>{% if lv.status == 'approved_final' or lv.status == 'approved_by_manager' %}
+                <strong>[✓] Approved</strong>
+            {% else %}
+                [ ] Approved
+            {% endif %}</div>
+            <div>{% if lv.status == 'rejected' %}
+                <strong>[✓] Rejected</strong>
+            {% else %}
+                [ ] Rejected
+            {% endif %}</div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Supervisor Name:</span>
+            <span class="field-value">{{ lv.approved_by if lv.approved_by else '—' }}</span>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Supervisor Signature:</span>
+            <span class="field-value"></span>
+        </div>
+    </div>
+
+    <!-- HR Section -->
+    <div class="hr-section">
+        <div class="hr-title">For HR Department:</div>
+        <div class="field-row">
+            <span class="field-label">Date Processed:</span>
+            <span class="field-value">{{ lv.updated_at[:10] if lv.updated_at else '—' }}</span>
+        </div>
+        <div class="field-row">
+            <span class="field-label">HR Signature:</span>
+            <span class="field-value"></span>
+        </div>
+    </div>
+
+    <div class="no-print" style="text-align:center; margin-top:30px;">
+        <button onclick="window.print()" style="padding:10px 20px; background:#0b2b4a; color:#fff; border:none; border-radius:8px; cursor:pointer;">🖨️ Print / Save as PDF</button>
+    </div>
+
 </body>
 </html>
