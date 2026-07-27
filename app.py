@@ -398,6 +398,28 @@ def unblock_employee(eid):
     supabase.table('employees').update({'blocked':False}).eq('id',eid).execute()
     return redirect('/employees')
 
+# ---------- APPROVALS (employee registration) ----------
+@app.route('/approvals')
+@login_required
+@admin_required
+def approvals_page():
+    pending = safe_data(execute_query(supabase.table('employees').select('*').eq('status','pending').order('created_at',desc=True).limit(50)))
+    return render_template('approvals.html', pending=pending)
+
+@app.route('/approvals/approve/<int:eid>', methods=['POST'])
+@login_required
+@admin_required
+def approve(eid):
+    supabase.table('employees').update({'status':'approved'}).eq('id',eid).execute()
+    return redirect('/approvals')
+
+@app.route('/approvals/reject/<int:eid>', methods=['POST'])
+@login_required
+@admin_required
+def reject(eid):
+    supabase.table('employees').delete().eq('id',eid).execute()
+    return redirect('/approvals')
+
 # ---------- ADMIN SALES MANAGEMENT ----------
 @app.route('/admin/sales')
 @login_required
