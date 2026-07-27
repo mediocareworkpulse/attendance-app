@@ -1,10 +1,33 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Pending Approvals</h1>
+<h1 class="page-title">Pending Approvals</h1>
+<p class="page-subtitle">{{ company }}</p>
+
 {% if pending %}
-<table><tr><th>#</th><th>Name</th><th>Phone</th><th>Department</th><th>Branch</th><th>Date</th><th>Actions</th></tr>
-{% for p in pending %}<tr><td>{{ loop.index }}</td><td><strong>{{ p.full_name }}</strong></td><td>{{ p.phone or '—' }}</td><td>{{ p.department }}</td><td>{{ p.branch or '—' }}</td><td>{{ p.created_at[:10] if p.created_at else '—' }}</td><td>
-<form method="POST" action="/approvals/approve/{{ p.id }}" style="display:inline;"><button type="submit" style="background:#27ae60;padding:5px 15px;font-size:12px;">Approve</button></form>
-<form method="POST" action="/approvals/reject/{{ p.id }}" style="display:inline;"><button type="submit" style="background:#c0392b;padding:5px 15px;font-size:12px;">Reject</button></form></td></tr>{% endfor %}</table>
-{% else %}<p style="color:#888;">No pending approvals.</p>{% endif %}
+<div class="table-container">
+    <table>
+        <thead><tr><th>Name</th><th>Role</th><th>Department</th><th>Branch</th><th>Action</th></tr></thead>
+        <tbody>
+        {% for p in pending %}
+        <tr>
+            <td class="td-name">{{ p.full_name }}</td>
+            <td>{{ p.role }}</td>
+            <td>{{ p.department }}</td>
+            <td>{{ p.branch }}</td>
+            <td>
+                <form method="POST" action="/approvals/approve/{{ p.id }}" style="display:inline">
+                    <button class="btn btn-sm" style="background:#27ae60; color:#fff;">Approve</button>
+                </form>
+                <form method="POST" action="/approvals/reject/{{ p.id }}" style="display:inline">
+                    <button class="btn btn-sm btn-danger">Reject</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">No pending approvals.</div>
+{% endif %}
 {% endblock %}
