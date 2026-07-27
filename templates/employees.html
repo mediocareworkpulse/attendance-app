@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="page-title">Employees</h1>
+<h1 class="page-title">👥 Employees</h1>
 <p class="page-subtitle">{{ company }}</p>
 
 <!-- Add Employee Form -->
@@ -49,8 +49,9 @@
                 {% endif %}
             </td>
             <td>
+                <button class="btn btn-sm" style="background:var(--accent); color:#fff;" onclick="openEditModal({{ e.id }}, '{{ e.full_name|e }}', '{{ e.role|e }}', '{{ e.department|e }}', '{{ e.branch|e }}', '{{ e.shift_start|default('08:00') }}', '{{ e.shift_end|default('17:00') }}')">Edit</button>
                 <form method="POST" action="/employees/delete/{{ e.id }}" style="display:inline">
-                    <button class="btn btn-sm btn-danger">Delete</button>
+                    <button class="btn btn-sm btn-danger" onclick="return confirm('Delete {{ e.full_name }}?')">Delete</button>
                 </form>
                 {% if e.blocked %}
                 <form method="POST" action="/admin/unblock/{{ e.id }}" style="display:inline">
@@ -61,11 +62,61 @@
                     <button class="btn btn-sm" style="background:#e67e22; color:#fff;">Block</button>
                 </form>
                 {% endif %}
-                <!-- Edit Button triggers modal (simplified – can be added later) -->
             </td>
         </tr>
         {% endfor %}
         </tbody>
     </table>
 </div>
+
+<!-- Edit Employee Modal -->
+<div id="editModal" class="modal-overlay" style="display: none;">
+    <div class="modal-box">
+        <h3>Edit Employee</h3>
+        <form id="editForm" method="POST">
+            <input type="hidden" name="employee_id" id="edit-id">
+            <label>Full Name</label>
+            <input type="text" name="full_name" id="edit-name" required>
+            <label>Role</label>
+            <select name="role" id="edit-role">
+                {% for r in roles %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+            </select>
+            <label>Department</label>
+            <select name="department" id="edit-dept">
+                {% for d in departments %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+            </select>
+            <label>Branch</label>
+            <select name="branch" id="edit-branch">
+                {% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+            </select>
+            <label>Shift Start</label>
+            <input type="time" name="shift_start" id="edit-start">
+            <label>Shift End</label>
+            <input type="time" name="shift_end" id="edit-end">
+            <label>New Password (leave blank to keep)</label>
+            <input type="password" name="password">
+            <div class="modal-actions" style="margin-top:16px;">
+                <button type="button" class="btn btn-danger" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditModal(id, name, role, dept, branch, start, end) {
+        document.getElementById('edit-id').value = id;
+        document.getElementById('edit-name').value = name;
+        document.getElementById('edit-role').value = role;
+        document.getElementById('edit-dept').value = dept;
+        document.getElementById('edit-branch').value = branch;
+        document.getElementById('edit-start').value = start;
+        document.getElementById('edit-end').value = end;
+        document.getElementById('editForm').action = '/employees/edit/' + id;
+        document.getElementById('editModal').style.display = 'flex';
+    }
+    function closeEditModal() {
+        document.getElementById('editModal').style.display = 'none';
+    }
+</script>
 {% endblock %}
