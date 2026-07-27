@@ -799,7 +799,7 @@ def reports():
         brecs = safe_data(execute_query(supabase.table('branch_sales').select('*').gte('date',fd).lte('date',td).order('date',desc=True).limit(200)))
     return render_template('reports.html',records=records,sales_recs=srecs,branch_recs=brecs,from_date=fd,to_date=td,report_type=rt,total_sales_amount=sum(float(s.get('total_sales',0)) for s in srecs),total_branch_amount=sum(float(s.get('total_sales',0)) for s in brecs),company=COMPANY_NAME)
 
-# ---------- LEAVES ----------
+# ---------- LEAVES (updated with department/role lists) ----------
 @app.route('/leaves', methods=['GET','POST'])
 @login_required
 def leaves():
@@ -824,7 +824,14 @@ def leaves():
             }).execute()
         return redirect('/leaves?success=1')
     my_leaves = safe_data(execute_query(supabase.table('leaves').select('*').eq('full_name',un).order('created_at',desc=True).limit(50)))
-    return render_template('leaves.html', leaves=my_leaves, today=today, company=COMPANY_NAME, success_msg=request.args.get('success',''))
+    return render_template('leaves.html',
+        leaves=my_leaves,
+        today=today,
+        company=COMPANY_NAME,
+        success_msg=request.args.get('success',''),
+        departments=DEPARTMENTS,     # for dropdowns
+        roles=ALL_ROLES
+    )
 
 @app.route('/leave-pdf/<int:lid>')
 @login_required
@@ -1051,6 +1058,7 @@ def targets_page():
     targets = safe_data(execute_query(supabase.table('sales_targets').select('*').order('month', desc=True).order('full_name').limit(100)))
     return render_template('targets.html', employees=employees, targets=targets, today=str(now_eat().date()), company=COMPANY_NAME)
 
+# ---------- ERROR HANDLER ----------
 @app.errorhandler(Exception)
 def handle_exception(e):
     print(f"Unhandled error: {e}")
