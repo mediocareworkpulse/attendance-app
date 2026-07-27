@@ -6,209 +6,230 @@
     <style>
         @page {
             size: A4;
-            margin: 2cm 2.5cm;
+            margin: 1.8cm 2cm;
         }
         body {
             font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
             color: #1a1a2e;
-            line-height: 1.6;
-            font-size: 13px;
+            font-size: 11px;
+            line-height: 1.45;
         }
         .header {
             text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 3px solid #0b2b4a;
-            padding-bottom: 16px;
+            margin-bottom: 6px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 8px;
         }
-        .header .company-name {
-            font-size: 22px;
+        .header .company {
+            font-size: 18px;
             font-weight: 800;
-            letter-spacing: 0.5px;
-            color: #0b2b4a;
+            letter-spacing: 0.3px;
             text-transform: uppercase;
         }
         .header .form-title {
-            font-size: 14px;
-            font-weight: 600;
-            letter-spacing: 1px;
-            margin-top: 4px;
-            color: #5c6b7a;
+            font-size: 13px;
+            font-weight: 700;
+            margin-top: 2px;
         }
-
-        .form-section { margin-bottom: 20px; }
-        .field-row { display: flex; margin-bottom: 10px; align-items: baseline; }
-        .field-label { width: 180px; font-weight: 600; color: #0b2b4a; }
-        .field-value { flex: 1; border-bottom: 1px solid #666; min-height: 18px; padding-left: 6px; }
-
-        .checkbox-group { display: flex; gap: 20px; margin-left: 180px; }
-        .checkbox-item { display: flex; align-items: center; gap: 6px; }
-        .checkbox-box { width: 16px; height: 16px; border: 1.5px solid #555; display: inline-block; margin-right: 4px; border-radius: 2px; }
-        .checkbox-item.checked .checkbox-box { background: #0b2b4a; }
-
+        .instructions {
+            background: #f8f8f8;
+            border: 1px solid #ddd;
+            padding: 6px 10px;
+            font-size: 9px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .section-title {
+            font-weight: 800;
+            font-size: 11px;
+            border-bottom: 1px solid #333;
+            margin: 8px 0 4px;
+            padding-bottom: 2px;
+            text-transform: uppercase;
+        }
+        .field {
+            display: flex;
+            margin-bottom: 3px;
+            align-items: baseline;
+        }
+        .field .label {
+            width: 200px;
+            font-weight: 600;
+            color: #000;
+        }
+        .field .value {
+            flex: 1;
+            border-bottom: 1px solid #888;
+            min-height: 14px;
+            padding-left: 4px;
+        }
+        .checkbox-list {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-left: 200px;
+        }
+        .checkbox-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .check-box {
+            font-size: 13px;
+            font-weight: bold;
+        }
         .reason-box {
             width: 100%;
-            min-height: 60px;
-            border: 1px solid #ccc;
-            padding: 8px;
-            margin-top: 4px;
-            border-radius: 6px;
+            min-height: 50px;
+            border: 1px solid #888;
+            padding: 4px 8px;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            background: #fdfdfd;
         }
-        .signature-line { display: flex; gap: 40px; margin-top: 30px; }
-        .sig-item { flex: 1; }
-        .sig-item .sig-line { border-bottom: 1px solid #333; width: 100%; margin-top: 25px; margin-bottom: 4px; }
-        .sig-item .sig-label { font-size: 11px; font-weight: 600; color: #555; }
-
-        .supervisor-section, .hr-section { margin-top: 30px; border-top: 2px dashed #ccc; padding-top: 16px; }
-        .supervisor-title, .hr-title { font-weight: 700; color: #0b2b4a; font-size: 13px; margin-bottom: 10px; }
-
+        .two-cols {
+            display: flex;
+            gap: 20px;
+        }
+        .col {
+            flex: 1;
+        }
+        .sign-line {
+            border-bottom: 1px solid #333;
+            width: 100%;
+            margin-top: 20px;
+            margin-bottom: 2px;
+        }
+        .signature-table {
+            width: 100%;
+            margin-top: 8px;
+            border-collapse: collapse;
+        }
+        .signature-table td {
+            padding: 4px 8px;
+            vertical-align: top;
+            border: 1px solid #ccc;
+        }
+        .print-btn {
+            text-align: center;
+            margin-top: 20px;
+        }
         @media print {
-            body { padding: 0; margin: 0; }
-            .no-print { display: none; }
+            .print-btn { display: none; }
+            body { margin: 0; }
         }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <div class="company-name">Mediocare Pharmaceutical Ltd</div>
-        <div class="form-title">Leave Application Form</div>
+        <div class="company">MEDIOCARE PHARMACEUTICAL LTD</div>
+        <div class="form-title">COMPLETE LEAVE APPLICATION FORM</div>
+        <div style="font-size:10px;">(Instructions + Template – Fill in the blank fields)</div>
     </div>
 
-    <!-- Employee Details -->
-    <div class="form-section">
-        <div class="field-row">
-            <span class="field-label">Employee Name:</span>
-            <span class="field-value">{{ lv.full_name }}</span>
-        </div>
-        <div class="field-row">
-            <span class="field-label">Employee ID:</span>
-            <span class="field-value">{{ lv.id }}</span>
-        </div>
-        <div class="field-row">
-            <span class="field-label">Department:</span>
-            <span class="field-value">{{ lv.department or '—' }}</span>
-        </div>
-        <div class="field-row">
-            <span class="field-label">Position:</span>
-            <span class="field-value">{{ lv.position or lv.role or '—' }}</span>
-        </div>
-        <div class="field-row">
-            <span class="field-label">Date of Application:</span>
-            <span class="field-value">{{ lv.created_at[:10] if lv.created_at else '—' }}</span>
-        </div>
+    <div class="instructions">
+        <strong>INSTRUCTIONS:</strong> Please read the guidelines below, then fill in all sections marked with [________]. Submit this completed form to your supervisor or HR at least 2 weeks in advance for annual leave, or 24 hours in advance for sick leave (where possible). Attach supporting documents (e.g., medical certificate, travel itinerary) if required.
     </div>
 
-    <!-- Leave Type -->
-    <div class="form-section">
-        <div class="field-row">
-            <span class="field-label">Leave Type:</span>
-            <div class="checkbox-group">
-                <div class="checkbox-item {% if lv.leave_type == 'Annual Leave' %}checked{% endif %}">
-                    <span class="checkbox-box"></span> Annual
-                </div>
-                <div class="checkbox-item {% if lv.leave_type == 'Sick Leave' %}checked{% endif %}">
-                    <span class="checkbox-box"></span> Sick
-                </div>
-                <div class="checkbox-item {% if lv.leave_type == 'Unpaid' %}checked{% endif %}">
-                    <span class="checkbox-box"></span> Unpaid
-                </div>
-                <div class="checkbox-item {% if lv.leave_type not in ['Annual Leave','Sick Leave','Unpaid'] %}checked{% endif %}">
-                    <span class="checkbox-box"></span> Other: {{ lv.leave_type }}
-                </div>
-            </div>
+    <!-- SECTION 1: EMPLOYEE INFORMATION -->
+    <div class="section-title">SECTION 1: EMPLOYEE INFORMATION</div>
+    <div class="field"><span class="label">Full Name (as per company records):</span><span class="value">{{ lv.full_name }}</span></div>
+    <div class="field"><span class="label">Employee ID:</span><span class="value">{{ lv.id }}</span></div>
+    <div class="field"><span class="label">Department:</span><span class="value">{{ lv.department or '—' }}</span></div>
+    <div class="field"><span class="label">Position / Job Title:</span><span class="value">{{ lv.position or lv.role or '—' }}</span></div>
+    <div class="field"><span class="label">Date of this Application:</span><span class="value">{{ lv.created_at[:10] if lv.created_at else '—' }}</span></div>
+    <div class="field"><span class="label">Contact Mobile Number:</span><span class="value">{{ lv.phone or '—' }}</span></div>
+    <div class="field"><span class="label">Official Email Address:</span><span class="value">{{ lv.email or '—' }}</span></div>
+
+    <!-- SECTION 2: LEAVE DETAILS -->
+    <div class="section-title">SECTION 2: LEAVE DETAILS</div>
+    <div class="field">
+        <span class="label">Type of Leave (select one):</span>
+        <div class="checkbox-list">
+            {% set lt = lv.leave_type or 'Annual Leave' %}
+            <span class="checkbox-item"><span class="check-box">{{ '☑' if lt == 'Annual Leave' else '☐' }}</span> Annual Leave</span>
+            <span class="checkbox-item"><span class="check-box">{{ '☑' if lt == 'Sick Leave' else '☐' }}</span> Sick Leave</span>
+            <span class="checkbox-item"><span class="check-box">{{ '☑' if lt == 'Unpaid' else '☐' }}</span> Unpaid Leave</span>
+            <span class="checkbox-item"><span class="check-box">{{ '☑' if lt in ['Maternity / Paternity Leave','Maternity','Paternity'] else '☐' }}</span> Maternity / Paternity</span>
+            <span class="checkbox-item"><span class="check-box">{{ '☑' if lt == 'Compassionate / Bereavement Leave' else '☐' }}</span> Compassionate / Bereavement</span>
+            <span class="checkbox-item"><span class="check-box">{{ '☑' if lt not in ['Annual Leave','Sick Leave','Unpaid','Maternity / Paternity Leave','Compassionate / Bereavement Leave'] else '☐' }}</span> Other: <span style="border-bottom:1px solid #888; min-width:60px; display:inline-block;">{{ lt if lt not in ['Annual Leave','Sick Leave','Unpaid','Maternity / Paternity Leave','Compassionate / Bereavement Leave'] else '' }}</span></span>
         </div>
     </div>
+    <div class="field"><span class="label">Leave Start Date (DD/MM/YYYY):</span><span class="value">{{ lv.leave_start }}</span></div>
+    <div class="field"><span class="label">Leave End Date (DD/MM/YYYY):</span><span class="value">{{ lv.leave_end }}</span></div>
+    <div class="field"><span class="label">Total Number of Working Days Requested:</span><span class="value">{{ lv.total_days }}</span></div>
+    <div class="field"><span class="label">Your Remaining Leave Balance (if known):</span><span class="value">{{ lv.remaining_balance or '—' }}</span></div>
 
-    <!-- Leave Dates -->
-    <div class="form-section">
-        <div class="field-row">
-            <span class="field-label">Start Date:</span>
-            <span class="field-value">{{ lv.leave_start }}</span>
-        </div>
-        <div class="field-row">
-            <span class="field-label">End Date:</span>
-            <span class="field-value">{{ lv.leave_end }}</span>
-        </div>
-        <div class="field-row">
-            <span class="field-label">Total Days:</span>
-            <span class="field-value">{{ lv.total_days }}</span>
-        </div>
+    <!-- SECTION 3: REASON / PURPOSE -->
+    <div class="section-title">SECTION 3: REASON / PURPOSE OF LEAVE</div>
+    <div class="field" style="flex-direction: column;">
+        <div class="label" style="margin-bottom:4px;">Reason for Leave (e.g., travel, medical appointment, personal errand, family event, court appearance, rest, etc.):</div>
+        <div class="reason-box">{{ lv.reason or '—' }}</div>
+    </div>
+    <div class="field" style="flex-direction: column;">
+        <div class="label" style="margin-bottom:4px;">Additional Remarks (e.g., "I will be partially reachable by email" or "I have completed all pending reports"):</div>
+        <div class="reason-box">{{ lv.handover_notes or '—' }}</div>
     </div>
 
-    <!-- Reason -->
-    <div class="form-section">
-        <div class="field-row" style="flex-direction: column;">
-            <span class="field-label" style="margin-bottom: 4px;">Reason for Leave:</span>
-            <div class="reason-box">{{ lv.reason or '—' }}</div>
-        </div>
+    <!-- SECTION 4: WORK HANDOVER & BACKUP PLAN -->
+    <div class="section-title">SECTION 4: WORK HANDOVER & BACKUP PLAN</div>
+    <div class="field" style="flex-direction: column;">
+        <div class="label" style="margin-bottom:4px;">List any ongoing projects / pending tasks that need attention during your absence:</div>
+        <div class="reason-box">—</div>
+    </div>
+    <div class="field"><span class="label">Name of Colleague / Backup Person covering your duties:</span><span class="value">{{ lv.backup_person or '—' }}</span></div>
+    <div class="field" style="margin-left:200px;">
+        <span class="checkbox-item"><span class="check-box">☐</span> I have emailed all relevant files and access info to my backup.</span><br>
+        <span class="checkbox-item"><span class="check-box">☐</span> I have updated the team calendar and shared my out-of-office date.</span><br>
+        <span class="checkbox-item"><span class="check-box">☐</span> I have set my email auto-reply with the backup person's contact.</span>
+    </div>
+    <div class="field"><span class="label">Emergency Contact Number for urgent work matters:</span><span class="value">{{ lv.emergency_contact or '—' }}</span></div>
+
+    <!-- SECTION 5: DECLARATION -->
+    <div class="section-title">SECTION 5: DECLARATION</div>
+    <p style="font-size:10px;">I, the undersigned, declare that all information provided above is true and correct. I understand that any false statement may lead to disciplinary action, and I have made proper arrangements for the continuity of my work during my leave.</p>
+    <div class="field">
+        <span class="label">Applicant Signature:</span>
+        <span class="value" style="min-height:25px;"></span>
+        <span class="label" style="width:auto; margin-left:20px;">Date:</span>
+        <span class="value" style="width:100px;"></span>
     </div>
 
-    <!-- Backup Person & Handover -->
-    <div class="form-section">
-        <div class="field-row">
-            <span class="field-label">Backup Person:</span>
-            <span class="field-value">{{ lv.backup_person or '—' }}</span>
-        </div>
-        <div class="field-row">
-            <span class="field-label">Handover Confirmed:</span>
-            <span class="field-value">{{ 'Yes' if lv.handover_notes else 'No' }}</span>
-        </div>
-    </div>
-
-    <!-- Signatures -->
-    <div class="signature-line">
-        <div class="sig-item">
-            <div class="sig-label">Applicant Signature</div>
-            <div class="sig-line"></div>
-            <div style="font-size:11px;">Date: _______________</div>
-        </div>
-        <div class="sig-item">
-            <div class="sig-label">Supervisor</div>
-            <div class="sig-line"></div>
-            <div style="font-size:11px;">Date: _______________</div>
+    <!-- SECTION 6: FOR SUPERVISOR / MANAGER USE ONLY -->
+    <div class="section-title">SECTION 6: FOR SUPERVISOR / MANAGER USE ONLY</div>
+    <div class="field">
+        <span class="label">Supervisor's Recommendation:</span>
+        <div class="checkbox-list" style="margin-left:0;">
+            <span class="checkbox-item"><span class="check-box">{{ '☑' if lv.status == 'approved_final' or lv.status == 'approved_by_manager' else '☐' }}</span> Approved</span>
+            <span class="checkbox-item"><span class="check-box">{{ '☑' if lv.status == 'rejected' else '☐' }}</span> Rejected</span>
+            <span class="checkbox-item"><span class="check-box">☐</span> Conditional</span>
         </div>
     </div>
-
-    <!-- Supervisor Approval Status -->
-    <div class="supervisor-section">
-        <div class="supervisor-title">For Supervisor:</div>
-        <div style="display: flex; gap: 30px; margin-bottom: 8px;">
-            <div>{% if lv.status == 'approved_final' or lv.status == 'approved_by_manager' %}
-                <strong>[✓] Approved</strong>
-            {% else %}
-                [ ] Approved
-            {% endif %}</div>
-            <div>{% if lv.status == 'rejected' %}
-                <strong>[✓] Rejected</strong>
-            {% else %}
-                [ ] Rejected
-            {% endif %}</div>
-        </div>
-        <div class="field-row">
-            <span class="field-label">Supervisor Name:</span>
-            <span class="field-value">{{ lv.approved_by if lv.approved_by else '—' }}</span>
-        </div>
-        <div class="field-row">
-            <span class="field-label">Supervisor Signature:</span>
-            <span class="field-value"></span>
-        </div>
+    <div class="field"><span class="label">Conditions / Comments:</span><span class="value"></span></div>
+    <div class="field"><span class="label">Supervisor's Name:</span><span class="value">{{ lv.approved_by if lv.approved_by else '—' }}</span></div>
+    <div class="field">
+        <span class="label">Supervisor's Signature:</span>
+        <span class="value" style="min-height:25px;"></span>
+        <span class="label" style="width:auto; margin-left:20px;">Date:</span>
+        <span class="value" style="width:100px;">{{ lv.updated_at[:10] if lv.updated_at else '' }}</span>
     </div>
 
-    <!-- HR Section -->
-    <div class="hr-section">
-        <div class="hr-title">For HR Department:</div>
-        <div class="field-row">
-            <span class="field-label">Date Processed:</span>
-            <span class="field-value">{{ lv.updated_at[:10] if lv.updated_at else '—' }}</span>
-        </div>
-        <div class="field-row">
-            <span class="field-label">HR Signature:</span>
-            <span class="field-value"></span>
-        </div>
+    <!-- SECTION 7: FOR HR / FINAL APPROVAL USE ONLY -->
+    <div class="section-title">SECTION 7: FOR HR / FINAL APPROVAL USE ONLY</div>
+    <div class="field"><span class="label">HR Remarks (check leave balance, policy compliance):</span><span class="value"></span></div>
+    <div class="field">
+        <span class="label">Final Authorizer Name & Signature:</span>
+        <span class="value" style="min-height:25px;"></span>
+    </div>
+    <div class="field"><span class="label">Date Processed in System:</span><span class="value">{{ lv.updated_at[:10] if lv.updated_at else '—' }}</span></div>
+
+    <div style="text-align:center; margin-top:15px; border-top:2px solid #000; padding-top:6px; font-size:10px; font-weight:700;">
+        END OF FORM – SAVE A COPY FOR YOUR RECORDS BEFORE SUBMITTING
     </div>
 
-    <div class="no-print" style="text-align:center; margin-top:30px;">
-        <button onclick="window.print()" style="padding:10px 20px; background:#0b2b4a; color:#fff; border:none; border-radius:8px; cursor:pointer;">🖨️ Print / Save as PDF</button>
+    <div class="print-btn">
+        <button onclick="window.print()" style="padding:10px 24px; background:#0b2b4a; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:600;">🖨️ Print / Save as PDF</button>
     </div>
 
 </body>
