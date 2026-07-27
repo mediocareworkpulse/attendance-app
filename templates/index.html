@@ -1,9 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="page-title">Dashboard</h1>
-<p class="page-subtitle">{{ company }}</p>
+<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <div>
+        <h1 class="page-title">👋 Welcome back, {{ session.user }}</h1>
+        <p class="page-subtitle">{{ company }} • {{ now_eat().strftime('%A, %d %B %Y') }}</p>
+    </div>
+    {% if session.role in ['admin','ceo'] and pending_count > 0 %}
+        <a href="/approvals" class="btn" style="background: var(--accent); color: #fff;">⚠️ {{ pending_count }} Pending</a>
+    {% endif %}
+</div>
 
-<!-- Stats Row -->
+<!-- Stats Grid -->
 <div class="stats">
     {% if session.role in ['admin','ceo','Store Manager','Operations Manager','Sales Manager','Stock Controller','Assistant Stock Controller'] %}
     <div class="stat-card">
@@ -14,7 +21,7 @@
     {% endif %}
     <div class="stat-card">
         <div class="stat-icon">🏃</div>
-        <div class="stat-label">Working</div>
+        <div class="stat-label">Currently Working</div>
         <div class="stat-value">{{ working }}</div>
     </div>
     <div class="stat-card">
@@ -24,7 +31,7 @@
     </div>
     <div class="stat-card">
         <div class="stat-icon">⏰</div>
-        <div class="stat-label">Late</div>
+        <div class="stat-label">Late Arrivals</div>
         <div class="stat-value">{{ late_count }}</div>
     </div>
     <div class="stat-card">
@@ -41,46 +48,43 @@
     {% endif %}
 </div>
 
-<!-- Pending approvals (admin only) -->
-{% if session.role in ['admin','ceo'] and pending_count > 0 %}
-<div class="alert alert-warning" style="margin-bottom:16px;">⚠️ {{ pending_count }} employee(s) pending approval. <a href="/approvals" style="font-weight:600;">Review</a></div>
-{% endif %}
-
-<!-- Leave remaining alert -->
 {% if leave_remaining %}
-<div class="alert alert-info" style="margin-bottom:16px;">📅 Your leave ends on {{ leave_remaining.end_date }} ({{ leave_remaining.days }} day(s) left).</div>
+<div class="alert" style="background: #e8f0fe; color: #1e40af; border-left: 4px solid #2563eb;">
+    📅 Your leave ends on <strong>{{ leave_remaining.end_date }}</strong> ({{ leave_remaining.days }} day(s) left).
+</div>
 {% endif %}
 
-<!-- Target achieved message -->
 {% if target_achieved %}
-<div class="alert alert-success" style="margin-bottom:16px;">🎉 Congratulations! You’ve achieved your monthly sales target.</div>
+<div class="alert alert-success">🎉 Congratulations! You’ve hit your monthly sales target!</div>
 {% endif %}
 
-<!-- Current user status -->
 {% if user_status %}
-<div class="checkin-container shift-timer-card" style="text-align:left; padding:20px;">
-    <div class="timer-label">YOUR STATUS</div>
-    <div class="timer-value" style="font-size:24px;">
-        {% if user_status == 'Checked Out' %}
-            <span class="badge badge-success">Checked Out</span>
-        {% elif user_status == 'Working' %}
-            <span class="badge badge-info">Working</span>
-        {% else %}
-            <span class="badge badge-danger">Not Checked In</span>
-        {% endif %}
+<div class="checkin-container shift-timer-card" style="padding: 20px; border-radius: 16px; background: linear-gradient(135deg, #ffffff, #f9fafc); border-left: 6px solid var(--primary); margin-bottom: 20px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 28px;">📍</span>
+        <div>
+            <div class="timer-label">Your Status</div>
+            <div class="timer-value" style="font-size: 22px;">
+                {% if user_status == 'Checked Out' %}
+                    <span class="badge badge-success">Checked Out</span>
+                {% elif user_status == 'Working' %}
+                    <span class="badge" style="background: #e0ecf9; color: #1e40af;">Working</span>
+                {% else %}
+                    <span class="badge badge-danger">Not Checked In</span>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 {% endif %}
 
-<!-- Recent Attendance Records -->
+<!-- Recent Attendance Table -->
 {% if recent_records %}
-<div class="form-card">
-    <h2 style="font-size:16px; margin-bottom:12px;">📋 Recent Attendance</h2>
+<div class="form-card" style="margin-top: 20px;">
+    <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 14px;">📋 Recent Attendance</h2>
     <div class="table-container">
         <table>
-            <thead>
-                <tr><th>Name</th><th>Department</th><th>Role</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
-            </thead>
+            <thead><tr><th>Name</th><th>Department</th><th>Role</th><th>Check In</th><th>Check Out</th><th>Status</th></tr></thead>
             <tbody>
             {% for r in recent_records %}
             <tr>
@@ -91,7 +95,7 @@
                 <td>{{ r.check_out }}</td>
                 <td>
                     {% if r.label == 'Working' %}
-                        <span class="badge badge-info">Working</span>
+                        <span class="badge" style="background: #e0ecf9; color: #1e40af;">Working</span>
                     {% elif r.label == 'Arrived Late' %}
                         <span class="badge badge-danger">Late</span>
                     {% else %}
