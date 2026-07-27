@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">💰 Manage Sales</h1>
+<p class="page-subtitle">{{ company }} — All Sales Entries</p>
+
+<form method="GET" class="form-grid" style="margin-bottom: 16px;">
+    <div><input type="date" name="from_date" value="{{ from_date }}"></div>
+    <div><input type="date" name="to_date" value="{{ to_date }}"></div>
+    <div><button type="submit" class="btn">Filter</button></div>
+</form>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Date</th>
+                <th>Employee</th>
+                <th>M‑Pesa</th>
+                <th>Cash</th>
+                <th>Total</th>
+                <th>Branch</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for s in sales %}
+        <tr>
+            <td>{{ s.id }}</td>
+            <td>{{ s.date }}</td>
+            <td class="td-name">{{ s.full_name }}</td>
+            <td>{{ s.mpesa_sales }}</td>
+            <td>{{ s.cash_sales }}</td>
+            <td>{{ s.total_sales }}</td>
+            <td>{{ s.branch }}</td>
+            <td>
+                <form method="POST" action="/admin/sales/delete/{{ s.id }}" onsubmit="return confirm('Delete this sale?');">
+                    <button class="btn btn-sm btn-danger">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
