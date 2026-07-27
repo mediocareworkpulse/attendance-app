@@ -1,126 +1,65 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="page-title">Sales Manager Dashboard</h1>
-<p class="page-subtitle">{{ company }} — {{ today }}</p>
+<h1 class="page-title">📋 Sales Manager Dashboard</h1>
+<p class="page-subtitle">{{ company }} • {{ today }}</p>
 
-<!-- Pending Check‑ins -->
-<div class="sm-card">
-    <div class="sm-card-header"><h2>⏳ Pending Check‑ins</h2></div>
-    {% if pending_checkins %}
-    <div class="table-container">
-        <table>
-            <thead><tr><th>Marketer</th><th>Time</th><th>Location</th><th>Action</th></tr></thead>
-            <tbody>
-            {% for c in pending_checkins %}
-            <tr>
-                <td class="td-name">{{ c.full_name }}</td>
-                <td>{{ c.check_in_time }}</td>
-                <td>{{ c.location or '—' }}</td>
-                <td>
-                    <form method="POST" action="/sales-manager/approve/{{ c.id }}" style="display:inline">
-                        <button class="btn btn-sm" style="background:#27ae60; color:#fff;">Approve</button>
-                    </form>
-                    <form method="POST" action="/sales-manager/reject/{{ c.id }}" style="display:inline">
-                        <button class="btn btn-sm btn-danger">Reject</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+<div class="sm-grid">
+    <!-- Pending Check‑ins -->
+    <div class="sm-card">
+        <div class="sm-card-header"><h2>⏳ Pending Check‑ins</h2></div>
+        {% if pending_checkins %}
+        <div class="table-container"><table><thead><tr><th>Marketer</th><th>Time</th><th>Action</th></tr></thead><tbody>
+        {% for c in pending_checkins %}<tr><td class="td-name">{{ c.full_name }}</td><td>{{ c.check_in_time }}</td><td>
+            <form method="POST" action="/sales-manager/approve/{{ c.id }}" style="display:inline"><button class="btn btn-sm" style="background:#27ae60;color:#fff;">Approve</button></form>
+            <form method="POST" action="/sales-manager/reject/{{ c.id }}" style="display:inline"><button class="btn btn-sm btn-danger">Reject</button></form>
+        </td></tr>{% endfor %}
+        </tbody></table></div>
+        {% else %}<p style="color: var(--text-secondary);">No pending requests.</p>{% endif %}
     </div>
-    {% else %}
-    <p style="color:var(--text-secondary);">No pending check‑ins.</p>
-    {% endif %}
+
+    <!-- Approved -->
+    <div class="sm-card">
+        <div class="sm-card-header"><h2>✅ Approved</h2></div>
+        {% if approved_checkins %}
+        <div class="table-container"><table><thead><tr><th>Marketer</th><th>Check‑in</th></tr></thead><tbody>
+        {% for c in approved_checkins %}<tr><td class="td-name">{{ c.full_name }}</td><td>{{ c.check_in_time }}</td></tr>{% endfor %}
+        </tbody></table></div>
+        {% else %}<p style="color: var(--text-secondary);">None yet.</p>{% endif %}
+    </div>
 </div>
 
-<!-- Approved Check‑ins -->
-<div class="sm-card">
-    <div class="sm-card-header"><h2>✅ Approved Check‑ins</h2></div>
-    {% if approved_checkins %}
-    <div class="table-container">
-        <table>
-            <thead><tr><th>Marketer</th><th>Check‑in Time</th></tr></thead>
-            <tbody>
-            {% for c in approved_checkins %}
-            <tr><td class="td-name">{{ c.full_name }}</td><td>{{ c.check_in_time }}</td></tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <p style="color:var(--text-secondary);">No approved check‑ins yet.</p>
-    {% endif %}
-</div>
-
-<!-- Customer Reports -->
-<div class="sm-card">
-    <div class="sm-card-header"><h2>📋 Today's Reports</h2></div>
+<!-- Reports -->
+<div class="sm-card" style="grid-column: span 2; margin-top: 10px;">
+    <div class="sm-card-header"><h2>📝 Today's Customer Reports</h2></div>
     {% if reports %}
-    <div class="table-container">
-        <table>
-            <thead><tr><th>Marketer</th><th>Customer</th><th>Phone</th><th>Details</th><th>Expenses</th><th>Expected Order</th></tr></thead>
-            <tbody>
-            {% for r in reports %}
-            <tr>
-                <td class="td-name">{{ r.full_name }}</td>
-                <td>{{ r.customer_name }}</td>
-                <td>{{ r.customer_phone or '—' }}</td>
-                <td>{{ r.details or '—' }}</td>
-                <td>{{ r.expenses }}</td>
-                <td>{{ r.expected_order_date or '—' }}</td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <p style="color:var(--text-secondary);">No reports submitted today.</p>
-    {% endif %}
+    <div class="table-container"><table><thead><tr><th>Marketer</th><th>Customer</th><th>Phone</th><th>Needs</th><th>Expenses</th><th>Order Date</th></tr></thead><tbody>
+    {% for r in reports %}<tr><td class="td-name">{{ r.full_name }}</td><td>{{ r.customer_name }}</td><td>{{ r.customer_phone or '—' }}</td><td>{{ r.details or '—' }}</td><td>{{ r.expenses }}</td><td>{{ r.expected_order_date or '—' }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% else %}<p style="color: var(--text-secondary);">No reports submitted today.</p>{% endif %}
 </div>
 
 <!-- Location Pings -->
-<div class="sm-card">
+<div class="sm-card" style="grid-column: span 2;">
     <div class="sm-card-header"><h2>📍 Location Pings</h2></div>
     {% if location_pings %}
-    <div class="table-container">
-        <table>
-            <thead><tr><th>Marketer</th><th>Time</th><th>Coordinates</th></tr></thead>
-            <tbody>
-            {% for ping in location_pings %}
-            <tr>
-                <td class="td-name">{{ ping.full_name }}</td>
-                <td>{{ ping.time }}</td>
-                <td>{{ ping.lat }}, {{ ping.lng }}</td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <p style="color:var(--text-secondary);">No location pings yet.</p>
-    {% endif %}
+    <div class="table-container"><table><thead><tr><th>Marketer</th><th>Time</th><th>Coordinates</th></tr></thead><tbody>
+    {% for ping in location_pings %}<tr><td class="td-name">{{ ping.full_name }}</td><td>{{ ping.time }}</td><td>{{ ping.lat }}, {{ ping.lng }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% else %}<p style="color: var(--text-secondary);">No pings yet.</p>{% endif %}
 </div>
 
 <!-- Assign Places -->
-<div class="sm-card">
+<div class="sm-card" style="grid-column: span 2;">
     <div class="sm-card-header"><h2>🗺️ Assign Places</h2></div>
     <form method="POST" action="/sales-manager/assign" class="form-grid" style="margin-bottom:12px;">
-        <div><input type="text" name="marketer_name" placeholder="Marketer name" required></div>
+        <div><input type="text" name="marketer_name" placeholder="Marketer" required></div>
         <div><input type="text" name="place_name" placeholder="Place" required></div>
         <div><button type="submit" class="btn">Assign</button></div>
     </form>
     {% if assigned %}
-    <div class="table-container">
-        <table>
-            <thead><tr><th>Marketer</th><th>Place</th><th>Date</th></tr></thead>
-            <tbody>
-            {% for a in assigned %}
-            <tr><td class="td-name">{{ a.marketer_name }}</td><td>{{ a.place_name }}</td><td>{{ a.date_assigned }}</td></tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    <div class="table-container"><table><thead><tr><th>Marketer</th><th>Place</th><th>Date</th></tr></thead><tbody>
+    {% for a in assigned %}<tr><td class="td-name">{{ a.marketer_name }}</td><td>{{ a.place_name }}</td><td>{{ a.date_assigned }}</td></tr>{% endfor %}
+    </tbody></table></div>
     {% endif %}
 </div>
 {% endblock %}
