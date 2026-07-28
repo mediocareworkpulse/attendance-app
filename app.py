@@ -267,6 +267,7 @@ def keep_alive():
 def favicon():
     return '', 204
 
+# ---------- SIGNUP (now enforces branch) ----------
 @app.route('/signup', methods=['GET','POST'])
 def signup():
     signup_roles = [r for r in ALL_ROLES if r not in ['admin','ceo']]
@@ -279,20 +280,29 @@ def signup():
         role = request.form.get('role','').strip()
         shift_start = request.form.get('shift_start','08:00').strip()
         shift_end = request.form.get('shift_end','17:00').strip()
-        if role not in signup_roles: role = 'Staff'
-        if not name or not phone or not pw:
-            return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS, roles=signup_roles, error='All fields required.')
+        if role not in signup_roles:
+            role = 'Staff'
+        if not name or not phone or not pw or not branch:
+            return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS,
+                roles=signup_roles, error='All fields are required, including Branch.')
+        # Ensure branch is a valid branch name
+        if branch not in get_branch_names():
+            return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS,
+                roles=signup_roles, error='Please select a valid branch.')
         check = execute_query(supabase.table('employees').select('id').eq('full_name',name))
         if safe_data(check):
-            return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS, roles=signup_roles, error='Name already exists.')
+            return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS,
+                roles=signup_roles, error='Name already exists.')
         supabase.table('employees').insert({
             'full_name':name,'phone':phone,'password': generate_password_hash(pw),
             'department':dept,'branch':branch,'role':role,
             'status':'pending','shift_start':shift_start,'shift_end':shift_end
         }).execute()
-        return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS, roles=signup_roles,
+        return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS,
+            roles=signup_roles,
             success='Registration submitted! Welcome to {}!'.format(COMPANY_NAME))
-    return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS, roles=signup_roles)
+    return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS,
+        roles=signup_roles)
 
 # ---------- DASHBOARD ----------
 @app.route('/')
