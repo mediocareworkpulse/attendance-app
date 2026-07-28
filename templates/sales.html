@@ -64,10 +64,11 @@
     {% endif %}
 </div>
 
-<!-- Filter & View Section -->
+<!-- Filter Section -->
 <div class="form-card">
     <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">🔍 Filter Sales</h2>
     <form method="GET" class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap:12px;">
+        {% if role_lower not in ['staff','branch manager'] %}
         <div>
             <label>View Type</label>
             <select name="view_type" onchange="this.form.submit()">
@@ -75,15 +76,23 @@
                 <option value="branch" {% if view_type == 'branch' %}selected{% endif %}>Branch Sales</option>
             </select>
         </div>
+        {% endif %}
+        {% if role_lower != 'staff' %}
         <div>
             <label>Branch</label>
-            <select name="branch">
+            <select name="branch" {% if role_lower == 'branch manager' %}disabled{% endif %}>
+                {% if role_lower == 'branch manager' %}
+                <option>{{ session.branch }}</option>
+                {% else %}
                 <option value="">All</option>
                 {% for b in branches %}
                 <option value="{{ b }}" {% if filter_branch == b %}selected{% endif %}>{{ b }}</option>
                 {% endfor %}
+                {% endif %}
             </select>
         </div>
+        {% endif %}
+        {% if role_lower != 'staff' %}
         <div>
             <label>Employee</label>
             <select name="employee">
@@ -93,6 +102,7 @@
                 {% endfor %}
             </select>
         </div>
+        {% endif %}
         <div>
             <label>From</label>
             <input type="date" name="from_date" value="{{ filter_from }}">
@@ -130,7 +140,7 @@
 {% endif %}
 
 <!-- Individual Sales Table -->
-{% if view_type == 'individual' %}
+{% if view_type == 'individual' or role_lower in ['staff','branch manager'] %}
 <div class="form-card" style="margin-top:20px;">
     <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">📋 Individual Sales</h2>
     <div class="table-container">
@@ -170,8 +180,10 @@
         </table>
     </div>
 </div>
-{% elif view_type == 'branch' %}
-<!-- Branch Sales Table -->
+{% endif %}
+
+<!-- Branch Sales Table (only for Branch Manager and above) -->
+{% if (view_type == 'branch' and role_lower != 'staff') or role_lower == 'branch manager' %}
 <div class="form-card" style="margin-top:20px;">
     <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">🏢 Branch Sales</h2>
     <div class="table-container">
