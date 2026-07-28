@@ -32,7 +32,7 @@ EAT = timezone(timedelta(hours=3))
 DEPARTMENTS = ['Staff','Store','Dispatch','Sales','Stock Control','Procurement','Accounts Office','Operations','Branch Management','Management']
 ALL_ROLES = [
     'Staff','Branch Manager','Branch Order Processor','Stock Controller','Assistant Stock Controller',
-    'Procurement Officer','Procurement Assistant','Accountant','Accountant Assistant',
+    'Procurement Officer','Accountant','Accountant Assistant',
     'HR','HR Assistant','Sales Manager','Marketers','Telesales','Dispatch Personnel',
     'Operations Manager','Assistant Operations Manager','Store Manager','Storekeeper',
     'Store Personnel','Dispatch Supervisor','Dispatch Assistant','Cleaner',
@@ -42,18 +42,19 @@ NO_CHECKIN_ROLES = ['admin','ceo']
 FULL_ACCESS_ROLES = ['admin','ceo']
 SALES_SUBMIT_ROLES = ['Staff','Branch Manager']
 SALES_VIEW_ROLES = ['admin','ceo','Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant']
-STORE_MANAGER_TEAM = ['Store Assistant','Store Personnel']
+STORE_MANAGER_TEAM = ['Store Assistant','Store Personnel','Storekeeper']
 OPERATIONS_MANAGER_TEAM = [
-    'Store Manager','Store Assistant','Store Personnel',
+    'Store Manager','Store Assistant','Store Personnel','Storekeeper',
     'Dispatch Supervisor','Dispatch Assistant','Dispatch Personnel',
     'Riders','Drivers','Security','Cleaner'
 ]
 RIDER_DRIVER_ROLES = ['Riders','Drivers']
 MARKETER_ROLE = 'Marketers'
 SALES_MANAGER_ROLE = 'Sales Manager'
-TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller']
+TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller','Sales Manager']   # Sales Manager can also set targets
 
-DIRECTORATE_ROLES = ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager']
+# Contacts visible to: admin, ceo, HR, HR Assistant, Stock Controllers, Operations Manager, Sales Manager, Asst Ops Manager
+DIRECTORATE_ROLES = ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager','Assistant Operations Manager']
 
 COMPANY_NAME = 'Mediocare Pharmaceutical Ltd'
 LATE_GRACE_MINUTES = 30
@@ -99,7 +100,7 @@ def get_branch_names():
 def now_eat():
     return datetime.now(EAT)
 
-# ---------- LEAVE APPROVAL CHAIN (admin/ceo can approve any step) ----------
+# ---------- LEAVE APPROVAL CHAIN (fully corrected) ----------
 def get_approval_chain(employee_role):
     chain = []
     if employee_role in ['Drivers','Riders','Dispatch Personnel','Security','Cleaner']:
@@ -139,11 +140,28 @@ def get_approval_chain(employee_role):
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['HR','HR Assistant']}
         ]
+    elif employee_role == 'Telesales':
+        chain = [
+            {'from_status': 'pending', 'to_status': 'approved_by_manager',
+             'allowed_roles': ['Sales Manager']},
+            {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
+             'allowed_roles': ['HR','HR Assistant']}
+        ]
     elif employee_role == 'Branch Order Processor':
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
              'allowed_roles': ['Operations Manager','Assistant Operations Manager']},
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
+             'allowed_roles': ['HR','HR Assistant']}
+        ]
+    # Store team (Store Personnel, Storekeeper, Store Assistant)
+    elif employee_role in ['Store Personnel','Storekeeper','Store Assistant']:
+        chain = [
+            {'from_status': 'pending', 'to_status': 'approved_by_manager',
+             'allowed_roles': ['Store Manager']},
+            {'from_status': 'approved_by_manager', 'to_status': 'approved_by_ops',
+             'allowed_roles': ['Operations Manager','Assistant Operations Manager']},
+            {'from_status': 'approved_by_ops', 'to_status': 'approved_final',
              'allowed_roles': ['HR','HR Assistant']}
         ]
     elif employee_role in ['Stock Controller','Assistant Stock Controller',
@@ -153,13 +171,20 @@ def get_approval_chain(employee_role):
             {'from_status': 'pending', 'to_status': 'approved_final',
              'allowed_roles': ['CEO','HR','HR Assistant']}
         ]
+    elif employee_role in ['HR','HR Assistant']:
+        chain = [
+            {'from_status': 'pending', 'to_status': 'approved_final',
+             'allowed_roles': ['CEO']}
+        ]
     else:
+        # Generic branch staff
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
              'allowed_roles': ['Branch Manager']},
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['Stock Controller','Assistant Stock Controller']}
         ]
+    # Admin/CEO can always act and will finalise
     for stage in chain:
         if 'admin' not in stage['allowed_roles']:
             stage['allowed_roles'].append('admin')
@@ -264,30 +289,30 @@ def home():
         session.get('department','') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant']
     )
 
-    if role in FULL_ACCESS_ROLES or can_view_all():
+    # Attendance data logic
+    if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant'] or can_view_all():
         emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').eq('blocked',False))
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50))
         sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today))
-    elif role == 'Store Manager':
-        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',STORE_MANAGER_TEAM).eq('branch',ub)))]
-        att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
-        sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names))
-        emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').in_('role',STORE_MANAGER_TEAM).eq('branch',ub))
-    elif role in ['Operations Manager', 'Assistant Operations Manager']:
+    elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
+        # Ops team (includes store team) – all branches
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)))]
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
-        sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names))
+        sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names)) if show_sales_card else []
         emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM))
     elif role == 'Sales Manager':
-        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('role',MARKETER_ROLE)))]
-        team_names.append(session.get('user'))
+        # Marketers + Telesales
+        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',[MARKETER_ROLE,'Telesales'])))]
+        team_names.append(un)   # include self
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
-        sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names))
+        sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names)) if show_sales_card else []
         emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').in_('full_name',team_names))
-    elif role in ['Stock Controller','Assistant Stock Controller']:
-        emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').neq('department','Management'))
-        att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50))
-        sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today))
+    elif role == 'Branch Manager':
+        # All employees in own branch
+        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('branch',ub)))]
+        att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
+        sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names)) if show_sales_card else []
+        emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').eq('branch',ub))
     else:
         emp_r = None
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).eq('full_name',un))
@@ -552,12 +577,20 @@ def contacts_page():
     allowed_roles = DIRECTORATE_ROLES
     if session.get('role') not in allowed_roles:
         return redirect('/')
-    if session.get('role') == 'Sales Manager':
+    user_role = session.get('role')
+    if user_role == 'Sales Manager':
         contacts = safe_data(execute_query(
             supabase.table('contacts').select('*').eq('role', 'Marketers').order('full_name')
         ))
+    elif user_role == 'Assistant Operations Manager':
+        # Show only the operations team (same as OPERATIONS_MANAGER_TEAM)
+        contacts = safe_data(execute_query(
+            supabase.table('contacts').select('*').in_('role', OPERATIONS_MANAGER_TEAM).order('full_name')
+        ))
     else:
-        contacts = safe_data(execute_query(supabase.table('contacts').select('*').order('full_name')))
+        contacts = safe_data(execute_query(
+            supabase.table('contacts').select('*').order('full_name')
+        ))
     return render_template('contacts.html', contacts=contacts, company=COMPANY_NAME)
 
 # ---------- CHECK IN / OUT ----------
@@ -599,17 +632,18 @@ def check_in_page():
     if role in RIDER_DRIVER_ROLES:
         journeys = safe_data(execute_query(supabase.table('journeys').select('*').eq('full_name',un).eq('date',today).order('journey_number')))
 
-    if role in FULL_ACCESS_ROLES:
+    # Attendance records to display
+    if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant']:
         r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50)))
-    elif role == 'Store Manager':
-        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',STORE_MANAGER_TEAM).eq('branch',ub)))]
-        r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names)))
-    elif role in ['Operations Manager', 'Assistant Operations Manager']:
+    elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)))]
         r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names)))
     elif role == 'Sales Manager':
-        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('role',MARKETER_ROLE)))]
+        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',[MARKETER_ROLE,'Telesales'])))]
         team_names.append(un)
+        r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names)))
+    elif role == 'Branch Manager':
+        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('branch',ub)))]
         r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names)))
     elif role in ['Stock Controller','Assistant Stock Controller']:
         r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50)))
@@ -732,17 +766,17 @@ def attendance_history():
         sd = str(last_month_start); ed = str(last_month_end)
     else: sd = str(today - timedelta(days=30)); ed = str(today)
 
-    if role in FULL_ACCESS_ROLES:
+    if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant']:
         r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).order('date',desc=True).limit(200)))
-    elif role == 'Store Manager':
-        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',STORE_MANAGER_TEAM).eq('branch',ub)))]
-        r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).in_('full_name',team_names).order('date',desc=True).limit(200)))
-    elif role in ['Operations Manager', 'Assistant Operations Manager']:
+    elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)))]
         r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).in_('full_name',team_names).order('date',desc=True).limit(200)))
     elif role == 'Sales Manager':
-        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('role',MARKETER_ROLE)))]
+        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',[MARKETER_ROLE,'Telesales'])))]
         team_names.append(un)
+        r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).in_('full_name',team_names).order('date',desc=True).limit(200)))
+    elif role == 'Branch Manager':
+        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('branch',ub)))]
         r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).in_('full_name',team_names).order('date',desc=True).limit(200)))
     elif role in ['Stock Controller','Assistant Stock Controller']:
         r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).order('date',desc=True).limit(200)))
@@ -770,10 +804,8 @@ def sales_page():
     role = session.get('role'); un = session.get('user'); ub = session.get('branch','')
     today = str(now_eat().date())
 
-    # ---------- POST: handle submissions ----------
     if request.method == 'POST':
         sales_type = request.form.get('sales_type','individual')
-        # Individual sale submission (Staff / Branch Manager)
         if sales_type == 'individual' and role in SALES_SUBMIT_ROLES:
             try:
                 mpesa = float(request.form.get('mpesa_sales','0') or 0)
@@ -810,7 +842,6 @@ def sales_page():
                     }).execute()
             except Exception as e:
                 print(f"Individual sale error: {e}")
-        # Branch sale submission (Branch Manager only)
         elif sales_type == 'branch' and role == 'Branch Manager':
             try:
                 mpesa = float(request.form.get('mpesa_sales','0') or 0)
@@ -844,23 +875,20 @@ def sales_page():
                 print(f"Branch sale error: {e}")
         return redirect('/sales?success=1')
 
-    # ---------- GET: filter & view ----------
-    # Allowed branch list for filter (Branch Manager sees only own branch, others see all)
+    # View sales
     if role == 'Branch Manager':
         allowed_branches = [ub]
     else:
         allowed_branches = get_branch_names()
 
-    # Get filter parameters
-    view_type = request.args.get('view_type','individual')   # 'individual' or 'branch'
-    filter_branch = request.args.get('branch','')             # '' means all (within allowed)
-    filter_employee = request.args.get('employee','')         # '' means all
+    view_type = request.args.get('view_type','individual')
+    filter_branch = request.args.get('branch','')
+    filter_employee = request.args.get('employee','')
     filter_from = request.args.get('from_date','')
     filter_to = request.args.get('to_date','')
-    period = request.args.get('period','')                     # 'week','month','year' – overrides from/to
+    period = request.args.get('period','')
 
     today_date = now_eat().date()
-    # Set date range from period if provided
     if period == 'week':
         filter_from = str(today_date - timedelta(days=7))
         filter_to = str(today_date)
@@ -871,69 +899,53 @@ def sales_page():
         filter_from = str(today_date.replace(month=1, day=1))
         filter_to = str(today_date)
     elif not filter_from:
-        # default to today if nothing provided
         filter_from = str(today_date)
     if not filter_to:
         filter_to = str(today_date)
 
-    # Build query for individual sales
     ind_query = supabase.table('sales').select('*')
     if view_type == 'individual':
         if filter_branch and filter_branch in allowed_branches:
             ind_query = ind_query.eq('branch', filter_branch)
         elif role == 'Branch Manager':
-            ind_query = ind_query.eq('branch', ub)   # force own branch
+            ind_query = ind_query.eq('branch', ub)
         if filter_employee:
             ind_query = ind_query.eq('full_name', filter_employee)
-        if not (role in FULL_ACCESS_ROLES or role in ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant']):
-            if role == 'Branch Manager':
-                # already filtered by branch
-                pass
-            else:
-                # Staff / others see only own
-                ind_query = ind_query.eq('full_name', un)
+        if role not in (FULL_ACCESS_ROLES + ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant','Branch Manager']):
+            ind_query = ind_query.eq('full_name', un)
         ind_query = ind_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
         individual_sales = safe_data(execute_query(ind_query))
     else:
         individual_sales = []
 
-    # Build query for branch sales
     br_query = supabase.table('branch_sales').select('*')
     if view_type == 'branch':
         if filter_branch and filter_branch in allowed_branches:
             br_query = br_query.eq('branch', filter_branch)
         elif role == 'Branch Manager':
             br_query = br_query.eq('branch', ub)
-        # Filter by employee? Not needed for branch sales, but we could filter by submitted_by? Not required.
         if filter_employee:
             br_query = br_query.eq('submitted_by', filter_employee)
-        if not (role in FULL_ACCESS_ROLES or role in ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant']):
-            if role == 'Branch Manager':
-                pass
-            else:
-                if role not in ['Branch Manager','Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant'] + FULL_ACCESS_ROLES:
-                    br_query = br_query.eq('branch', '__none__')   # force empty
+        if role not in (FULL_ACCESS_ROLES + ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant','Branch Manager']):
+            br_query = br_query.eq('branch', '__none__')
         br_query = br_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
         branch_sales = safe_data(execute_query(br_query))
     else:
         branch_sales = []
 
-    # For branch filter dropdown – list of employees for the branch (if a branch selected) else all employees
     employee_list = []
     if filter_branch or (role == 'Branch Manager'):
         b = filter_branch if filter_branch else ub
         employee_list = safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved').eq('branch', b).order('full_name')
         ))
-    elif role in FULL_ACCESS_ROLES or role in ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant']:
+    elif role in (FULL_ACCESS_ROLES + ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant']):
         employee_list = safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved').order('full_name')
         ))
 
-    # Also fetch all branches for the filter dropdown (only allowed ones)
     branches_for_filter = allowed_branches
 
-    # Target progress for current user (individual sales only)
     target_progress = None
     month_str = str(now_eat().date().replace(day=1))
     target = safe_data(execute_query(
@@ -1057,7 +1069,7 @@ def leave_pdf(lid):
     if not leave: return "Leave not found", 404
     return render_template('leave_pdf.html', lv=leave[0], company=COMPANY_NAME)
 
-# ---------- APPROVE LEAVES (admin/ceo finalise directly) ----------
+# ---------- APPROVE LEAVES (updated approver list) ----------
 @app.route('/approve-leaves')
 @login_required
 def approve_leaves():
@@ -1066,7 +1078,8 @@ def approve_leaves():
     approver_roles = [
         'Operations Manager','Assistant Operations Manager',
         'Procurement Officer','HR','HR Assistant','CEO','Branch Manager',
-        'Stock Controller','Assistant Stock Controller','Sales Manager','admin','ceo'
+        'Stock Controller','Assistant Stock Controller','Sales Manager','Store Manager',
+        'admin','ceo'
     ]
     if user_role not in approver_roles and user_role not in FULL_ACCESS_ROLES:
         return redirect('/')
@@ -1074,7 +1087,7 @@ def approve_leaves():
     all_leaves = safe_data(execute_query(
         supabase.table('leaves')
                .select('*')
-               .in_('status', ['pending','approved_by_manager','approved_by_procurement'])
+               .in_('status', ['pending','approved_by_manager','approved_by_procurement','approved_by_ops'])
                .order('created_at',desc=True)
                .limit(200)
     ))
@@ -1294,11 +1307,12 @@ def my_places():
     places = safe_data(execute_query(supabase.table('assigned_places').select('*').eq('marketer_name',un).order('date_assigned',desc=True).limit(50)))
     return render_template('my_places.html', places=places, company=COMPANY_NAME)
 
-# ---------- TARGET SETTING ----------
+# ---------- TARGET SETTING (Sales Manager can set targets for marketers) ----------
 @app.route('/targets', methods=['GET','POST'])
 @login_required
 def targets_page():
     if session.get('role') not in TARGET_SETTER_ROLES: return redirect('/')
+    user_role = session.get('role')
     if request.method == 'POST':
         employee = request.form.get('employee_name','').strip()
         month = request.form.get('month',''); amount = request.form.get('amount','0')
@@ -1310,7 +1324,15 @@ def targets_page():
                 }, on_conflict='full_name,month').execute()
         except: pass
         return redirect('/targets')
-    employees = safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').order('full_name')))
+    # Fetch employees – if Sales Manager, only show marketers; otherwise all approved
+    if user_role == 'Sales Manager':
+        employees = safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').eq('role','Marketers').order('full_name')
+        ))
+    else:
+        employees = safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').order('full_name')
+        ))
     targets = safe_data(execute_query(supabase.table('sales_targets').select('*').order('month', desc=True).order('full_name').limit(100)))
     return render_template('targets.html', employees=employees, targets=targets, today=str(now_eat().date()), company=COMPANY_NAME)
 
