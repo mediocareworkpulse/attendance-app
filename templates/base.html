@@ -41,7 +41,7 @@
             <a href="/admin/sales" class="{% if request.path == '/admin/sales' %}active{% endif %}">💰 Manage Sales</a>
         {% endif %}
 
-        {% if session.role in ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager'] %}
+        {% if session.role in DIRECTORATE_ROLES %}
             <a href="/contacts" class="{% if request.path == '/contacts' %}active{% endif %}">📇 Directorate</a>
         {% endif %}
 
@@ -57,7 +57,6 @@
 
         <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">🌴 Leaves</a>
 
-        {# Allow all managers who can approve leaves to see the Approve Leaves link #}
         {% if session.role in ['Store Manager','Operations Manager','Assistant Operations Manager','Sales Manager','admin','ceo','HR','HR Assistant','Procurement Officer','Stock Controller','Assistant Stock Controller'] %}
             <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}">✍️ Approve Leaves</a>
         {% endif %}
@@ -70,7 +69,7 @@
             <a href="/my-places" class="{% if request.path == '/my-places' %}active{% endif %}">📍 My Places</a>
         {% endif %}
 
-        {% if session.role in ['Stock Controller','Assistant Stock Controller'] %}
+        {% if session.role in TARGET_SETTER_ROLES %}
             <a href="/targets" class="{% if request.path == '/targets' %}active{% endif %}">🎯 Sales Targets</a>
         {% endif %}
 
