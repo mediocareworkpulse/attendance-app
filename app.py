@@ -51,9 +51,8 @@ OPERATIONS_MANAGER_TEAM = [
 RIDER_DRIVER_ROLES = ['Riders','Drivers']
 MARKETER_ROLE = 'Marketers'
 SALES_MANAGER_ROLE = 'Sales Manager'
-TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller','Sales Manager']   # Sales Manager can also set targets
+TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller','Sales Manager']
 
-# Contacts visible to: admin, ceo, HR, HR Assistant, Stock Controllers, Operations Manager, Sales Manager, Asst Ops Manager
 DIRECTORATE_ROLES = ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager','Assistant Operations Manager']
 
 COMPANY_NAME = 'Mediocare Pharmaceutical Ltd'
@@ -100,7 +99,32 @@ def get_branch_names():
 def now_eat():
     return datetime.now(EAT)
 
-# ---------- LEAVE APPROVAL CHAIN (fully corrected) ----------
+# ---------- DELEGATION HELPERS ----------
+def get_active_delegation(user_id):
+    """Return the role this user is currently delegated (if any), else None."""
+    data = safe_data(execute_query(
+        supabase.table('role_delegations')
+               .select('role')
+               .eq('delegate_id', user_id)
+               .eq('active', True)
+               .maybe_single()
+    ))
+    return data.get('role') if data else None
+
+def get_effective_roles():
+    """Return a list of roles the current user effectively has (own + delegated)."""
+    own_role = session.get('role','')
+    roles = [own_role]
+    emp = safe_data(execute_query(
+        supabase.table('employees').select('id').eq('full_name', session.get('user')).limit(1)
+    ))
+    if emp:
+        del_role = get_active_delegation(emp[0]['id'])
+        if del_role:
+            roles.append(del_role)
+    return roles
+
+# ---------- LEAVE APPROVAL CHAIN ----------
 def get_approval_chain(employee_role):
     chain = []
     if employee_role in ['Drivers','Riders','Dispatch Personnel','Security','Cleaner']:
@@ -154,7 +178,6 @@ def get_approval_chain(employee_role):
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['HR','HR Assistant']}
         ]
-    # Store team (Store Personnel, Storekeeper, Store Assistant)
     elif employee_role in ['Store Personnel','Storekeeper','Store Assistant']:
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
@@ -177,14 +200,12 @@ def get_approval_chain(employee_role):
              'allowed_roles': ['CEO']}
         ]
     else:
-        # Generic branch staff
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
              'allowed_roles': ['Branch Manager']},
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['Stock Controller','Assistant Stock Controller']}
         ]
-    # Admin/CEO can always act and will finalise
     for stage in chain:
         if 'admin' not in stage['allowed_roles']:
             stage['allowed_roles'].append('admin')
@@ -289,26 +310,22 @@ def home():
         session.get('department','') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant']
     )
 
-    # Attendance data logic
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant'] or can_view_all():
         emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').eq('blocked',False))
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50))
         sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today))
     elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
-        # Ops team (includes store team) – all branches
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)))]
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
         sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names)) if show_sales_card else []
         emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM))
     elif role == 'Sales Manager':
-        # Marketers + Telesales
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',[MARKETER_ROLE,'Telesales'])))]
-        team_names.append(un)   # include self
+        team_names.append(un)
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
         sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names)) if show_sales_card else []
         emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').in_('full_name',team_names))
     elif role == 'Branch Manager':
-        # All employees in own branch
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('branch',ub)))]
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
         sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names)) if show_sales_card else []
@@ -574,7 +591,7 @@ def delete_branch(bid):
 @app.route('/contacts')
 @login_required
 def contacts_page():
-    allowed_roles = DIRECTORATE_ROLES
+    allowed_roles = DIRECTORATE_ROLES + ['Procurement Officer']
     if session.get('role') not in allowed_roles:
         return redirect('/')
     user_role = session.get('role')
@@ -583,9 +600,12 @@ def contacts_page():
             supabase.table('contacts').select('*').eq('role', 'Marketers').order('full_name')
         ))
     elif user_role == 'Assistant Operations Manager':
-        # Show only the operations team (same as OPERATIONS_MANAGER_TEAM)
         contacts = safe_data(execute_query(
             supabase.table('contacts').select('*').in_('role', OPERATIONS_MANAGER_TEAM).order('full_name')
+        ))
+    elif user_role == 'Procurement Officer':
+        contacts = safe_data(execute_query(
+            supabase.table('contacts').select('*').eq('role', 'Branch Manager').order('full_name')
         ))
     else:
         contacts = safe_data(execute_query(
@@ -632,7 +652,6 @@ def check_in_page():
     if role in RIDER_DRIVER_ROLES:
         journeys = safe_data(execute_query(supabase.table('journeys').select('*').eq('full_name',un).eq('date',today).order('journey_number')))
 
-    # Attendance records to display
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant']:
         r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50)))
     elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
@@ -1069,10 +1088,11 @@ def leave_pdf(lid):
     if not leave: return "Leave not found", 404
     return render_template('leave_pdf.html', lv=leave[0], company=COMPANY_NAME)
 
-# ---------- APPROVE LEAVES (updated approver list) ----------
+# ---------- APPROVE LEAVES (delegation aware) ----------
 @app.route('/approve-leaves')
 @login_required
 def approve_leaves():
+    effective_roles = get_effective_roles()
     user_role = session.get('role')
     user_branch = session.get('branch','')
     approver_roles = [
@@ -1081,7 +1101,7 @@ def approve_leaves():
         'Stock Controller','Assistant Stock Controller','Sales Manager','Store Manager',
         'admin','ceo'
     ]
-    if user_role not in approver_roles and user_role not in FULL_ACCESS_ROLES:
+    if not any(r in approver_roles or r in FULL_ACCESS_ROLES for r in effective_roles):
         return redirect('/')
     
     all_leaves = safe_data(execute_query(
@@ -1097,7 +1117,7 @@ def approve_leaves():
         emp_role = leave.get('role','Staff')
         chain = get_approval_chain(emp_role)
         for stage in chain:
-            if leave['status'] == stage['from_status'] and user_role in stage['allowed_roles']:
+            if leave['status'] == stage['from_status'] and any(r in stage['allowed_roles'] for r in effective_roles):
                 if user_role == 'Branch Manager':
                     if leave.get('branch','') == user_branch:
                         pending.append(leave)
@@ -1112,6 +1132,7 @@ def approve_leaves():
 def process_leave(lid, action):
     user_role = session.get('role')
     user_branch = session.get('branch','')
+    effective_roles = get_effective_roles()
     leave = safe_data(execute_query(supabase.table('leaves').select('*').eq('id',lid)))
     if not leave:
         return redirect('/approve-leaves')
@@ -1121,7 +1142,7 @@ def process_leave(lid, action):
     
     current_stage = None
     for stage in chain:
-        if leave['status'] == stage['from_status'] and user_role in stage['allowed_roles']:
+        if leave['status'] == stage['from_status'] and any(r in stage['allowed_roles'] for r in effective_roles):
             if user_role == 'Branch Manager' and leave.get('branch','') != user_branch:
                 continue
             current_stage = stage
@@ -1130,8 +1151,16 @@ def process_leave(lid, action):
     if not current_stage:
         return redirect('/approve-leaves')
     
+    acting_role = None
+    for r in effective_roles:
+        if r in current_stage['allowed_roles']:
+            acting_role = r
+            break
+    if not acting_role:
+        acting_role = user_role
+    
     if action == 'approve':
-        if user_role in ['admin','ceo']:
+        if acting_role in ['admin','ceo'] or user_role in ['admin','ceo']:
             new_status = 'approved_final'
         else:
             new_status = current_stage['to_status']
@@ -1142,7 +1171,7 @@ def process_leave(lid, action):
     
     supabase.table('leaves').update({
         'status': new_status,
-        'approved_by': user_role
+        'approved_by': acting_role
     }).eq('id', lid).execute()
     return redirect('/approve-leaves')
 
@@ -1307,7 +1336,7 @@ def my_places():
     places = safe_data(execute_query(supabase.table('assigned_places').select('*').eq('marketer_name',un).order('date_assigned',desc=True).limit(50)))
     return render_template('my_places.html', places=places, company=COMPANY_NAME)
 
-# ---------- TARGET SETTING (Sales Manager can set targets for marketers) ----------
+# ---------- TARGET SETTING ----------
 @app.route('/targets', methods=['GET','POST'])
 @login_required
 def targets_page():
@@ -1324,7 +1353,6 @@ def targets_page():
                 }, on_conflict='full_name,month').execute()
         except: pass
         return redirect('/targets')
-    # Fetch employees – if Sales Manager, only show marketers; otherwise all approved
     if user_role == 'Sales Manager':
         employees = safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved').eq('role','Marketers').order('full_name')
@@ -1335,6 +1363,97 @@ def targets_page():
         ))
     targets = safe_data(execute_query(supabase.table('sales_targets').select('*').order('month', desc=True).order('full_name').limit(100)))
     return render_template('targets.html', employees=employees, targets=targets, today=str(now_eat().date()), company=COMPANY_NAME)
+
+# ---------- PROCUREMENT OFFICER ROUTES ----------
+@app.route('/procurement/status')
+@login_required
+def procurement_status():
+    if session.get('role') != 'Procurement Officer':
+        return redirect('/')
+    today = str(now_eat().date())
+    working = safe_data(execute_query(
+        supabase.table('attendance')
+               .select('full_name, check_in, department, branch, status')
+               .eq('date', today)
+               .not_.is_('check_in', 'null')
+               .is_('check_out', 'null')
+               .order('check_in')
+               .limit(200)
+    ))
+    checked_out = safe_data(execute_query(
+        supabase.table('attendance')
+               .select('full_name, check_out, department, branch')
+               .eq('date', today)
+               .not_.is_('check_out', 'null')
+               .order('check_out')
+               .limit(200)
+    ))
+    return render_template('procurement_status.html',
+        working=working,
+        checked_out=checked_out,
+        today=today,
+        company=COMPANY_NAME)
+
+@app.route('/procurement/delegation', methods=['GET','POST'])
+@login_required
+def procurement_delegation():
+    if session.get('role') != 'Procurement Officer':
+        return redirect('/')
+    po = safe_data(execute_query(
+        supabase.table('employees').select('id').eq('full_name', session.get('user')).limit(1)
+    ))
+    if not po:
+        return redirect('/')
+    po_id = po[0]['id']
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'delegate':
+            delegate_name = request.form.get('delegate_name','').strip()
+            if delegate_name:
+                delegate = safe_data(execute_query(
+                    supabase.table('employees').select('id').eq('full_name', delegate_name).limit(1)
+                ))
+                if delegate:
+                    execute_query(supabase.table('role_delegations').update({'active': False})
+                        .eq('delegator_id', po_id).eq('active', True))
+                    supabase.table('role_delegations').insert({
+                        'delegator_id': po_id,
+                        'delegate_id': delegate[0]['id'],
+                        'role': 'Procurement Officer',
+                        'start_date': str(now_eat().date()),
+                        'active': True
+                    }).execute()
+                    return redirect('/procurement/delegation?success=1')
+        elif action == 'resume':
+            execute_query(supabase.table('role_delegations').update({'active': False})
+                .eq('delegator_id', po_id).eq('active', True))
+            return redirect('/procurement/delegation?resumed=1')
+
+    active_deleg = safe_data(execute_query(
+        supabase.table('role_delegations')
+               .select('*, delegate:employees!delegate_id(full_name)')
+               .eq('delegator_id', po_id)
+               .eq('active', True)
+               .maybe_single()
+    ))
+    delegate_name = active_deleg.get('delegate',{}).get('full_name','') if active_deleg else None
+
+    eligible = safe_data(execute_query(
+        supabase.table('employees')
+               .select('full_name, branch, department')
+               .eq('status','approved')
+               .or_('branch.eq.Kisumu HQ,department.eq.Management')
+               .neq('full_name', session.get('user'))
+               .order('full_name')
+               .limit(100)
+    ))
+    return render_template('procurement_delegation.html',
+        delegate_name=delegate_name,
+        eligible=eligible,
+        success=request.args.get('success',''),
+        resumed=request.args.get('resumed',''),
+        company=COMPANY_NAME)
 
 # ---------- ERROR HANDLER ----------
 @app.errorhandler(Exception)
