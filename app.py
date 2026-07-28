@@ -814,12 +814,12 @@ def attendance_history():
     return render_template('attendance_history.html', records=records, period=period,
                          from_date=sd, to_date=ed, today=str(today), company=COMPANY_NAME)
 
-# ---------- SALES (individual & branch – CASE‑INSENSITIVE, GUARANTEED TO WORK) ----------
+# ---------- SALES (strict visibility per role) ----------
 @app.route('/sales', methods=['GET','POST'])
 @login_required
 def sales_page():
     role = session.get('role', '').strip()
-    # Normalise role to the exact casing used in SALES_SUBMIT_ROLES
+    # Normalise role case
     if role.lower() == 'staff':
         session['role'] = 'Staff'
         role = 'Staff'
@@ -830,9 +830,10 @@ def sales_page():
     un = session.get('user'); ub = session.get('branch','')
     today = str(now_eat().date())
 
-    # POST – submit sales
+    # ---------- POST: handle submissions ----------
     if request.method == 'POST':
         sales_type = request.form.get('sales_type','individual')
+        # Individual sale – Staff and Branch Manager
         if sales_type == 'individual' and role in SALES_SUBMIT_ROLES:
             try:
                 mpesa = float(request.form.get('mpesa_sales','0') or 0)
@@ -869,6 +870,7 @@ def sales_page():
                     }).execute()
             except Exception as e:
                 print(f"Individual sale error: {e}")
+        # Branch sale – only Branch Manager
         elif sales_type == 'branch' and role == 'Branch Manager':
             try:
                 mpesa = float(request.form.get('mpesa_sales','0') or 0)
@@ -902,15 +904,8 @@ def sales_page():
                 print(f"Branch sale error: {e}")
         return redirect('/sales?success=1')
 
-    # GET – display sales
-    if role == 'Branch Manager':
-        allowed_branches = [ub]
-    else:
-        allowed_branches = get_branch_names()
-
+    # ---------- GET: filter & view ----------
     view_type = request.args.get('view_type','individual')
-    filter_branch = request.args.get('branch','')
-    filter_employee = request.args.get('employee','')
     filter_from = request.args.get('from_date','')
     filter_to = request.args.get('to_date','')
     period = request.args.get('period','')
@@ -930,49 +925,74 @@ def sales_page():
     if not filter_to:
         filter_to = str(today_date)
 
-    ind_query = supabase.table('sales').select('*')
-    if view_type == 'individual':
-        if filter_branch and filter_branch in allowed_branches:
-            ind_query = ind_query.eq('branch', filter_branch)
-        elif role == 'Branch Manager':
-            ind_query = ind_query.eq('branch', ub)
+    # Staff: only own individual sales, no branch/employee filters
+    if role == 'Staff':
+        individual_sales = safe_data(execute_query(
+            supabase.table('sales').select('*')
+                .eq('full_name', un)
+                .gte('date', filter_from)
+                .lte('date', filter_to)
+                .order('date', desc=True)
+                .limit(200)
+        ))
+        branch_sales = []
+        employees = []
+        branches_for_filter = []
+        filter_branch = ''
+        filter_employee = ''
+    # Branch Manager: own branch only
+    elif role == 'Branch Manager':
+        filter_branch = ub   # fixed, not user-selectable
+        filter_employee = request.args.get('employee','')
+        # Individual sales: all staff in the branch
+        ind_query = supabase.table('sales').select('*').eq('branch', ub)
         if filter_employee:
             ind_query = ind_query.eq('full_name', filter_employee)
-        if role not in (FULL_ACCESS_ROLES + ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant','Branch Manager']):
-            ind_query = ind_query.eq('full_name', un)
         ind_query = ind_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
         individual_sales = safe_data(execute_query(ind_query))
-    else:
-        individual_sales = []
-
-    br_query = supabase.table('branch_sales').select('*')
-    if view_type == 'branch':
-        if filter_branch and filter_branch in allowed_branches:
-            br_query = br_query.eq('branch', filter_branch)
-        elif role == 'Branch Manager':
-            br_query = br_query.eq('branch', ub)
-        if filter_employee:
-            br_query = br_query.eq('submitted_by', filter_employee)
-        if role not in (FULL_ACCESS_ROLES + ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant','Branch Manager']):
-            br_query = br_query.eq('branch', '__none__')
+        # Branch sales: own branch only
+        br_query = supabase.table('branch_sales').select('*').eq('branch', ub)
         br_query = br_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
         branch_sales = safe_data(execute_query(br_query))
+        # Employees list: only those in the branch
+        employees = safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').eq('branch', ub).order('full_name')
+        ))
+        branches_for_filter = [ub]   # only own branch
+    # Admin, CEO, Stock Controllers, Accountants – full access
     else:
-        branch_sales = []
+        allowed_branches = get_branch_names()
+        filter_branch = request.args.get('branch','')
+        filter_employee = request.args.get('employee','')
 
-    employee_list = []
-    if filter_branch or (role == 'Branch Manager'):
-        b = filter_branch if filter_branch else ub
-        employee_list = safe_data(execute_query(
-            supabase.table('employees').select('full_name').eq('status','approved').eq('branch', b).order('full_name')
-        ))
-    elif role in (FULL_ACCESS_ROLES + ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant']):
-        employee_list = safe_data(execute_query(
-            supabase.table('employees').select('full_name').eq('status','approved').order('full_name')
-        ))
+        ind_query = supabase.table('sales').select('*')
+        if filter_branch and filter_branch in allowed_branches:
+            ind_query = ind_query.eq('branch', filter_branch)
+        if filter_employee:
+            ind_query = ind_query.eq('full_name', filter_employee)
+        ind_query = ind_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
+        individual_sales = safe_data(execute_query(ind_query))
 
-    branches_for_filter = allowed_branches
+        br_query = supabase.table('branch_sales').select('*')
+        if filter_branch and filter_branch in allowed_branches:
+            br_query = br_query.eq('branch', filter_branch)
+        if filter_employee:
+            br_query = br_query.eq('submitted_by', filter_employee)
+        br_query = br_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
+        branch_sales = safe_data(execute_query(br_query))
 
+        # Employees dropdown
+        if filter_branch:
+            employees = safe_data(execute_query(
+                supabase.table('employees').select('full_name').eq('status','approved').eq('branch', filter_branch).order('full_name')
+            ))
+        else:
+            employees = safe_data(execute_query(
+                supabase.table('employees').select('full_name').eq('status','approved').order('full_name')
+            ))
+        branches_for_filter = allowed_branches
+
+    # Target progress (personal)
     target_progress = None
     month_str = str(now_eat().date().replace(day=1))
     target = safe_data(execute_query(
@@ -1004,7 +1024,7 @@ def sales_page():
         filter_to=filter_to,
         period=period,
         branches=branches_for_filter,
-        employees=employee_list,
+        employees=employees,
         target_progress=target_progress,
         today=today,
         company=COMPANY_NAME,
