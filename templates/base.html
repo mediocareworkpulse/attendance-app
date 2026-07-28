@@ -58,7 +58,7 @@
 
         <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">🌴 Leaves</a>
 
-        {% if role_lower in ['store manager','operations manager','assistant operations manager','sales manager','admin','ceo','hr','hr assistant','procurement officer','stock controller','assistant stock controller'] %}
+        {% if role_lower in ['store manager','operations manager','assistant operations manager','sales manager','admin','ceo','hr','hr assistant','procurement officer','stock controller','assistant stock controller','branch manager'] %}
             <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}">✍️ Approve Leaves</a>
         {% endif %}
 
