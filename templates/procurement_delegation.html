@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">🔄 Role Delegation</h1>
+<p class="page-subtitle">{{ company }}</p>
+
+{% if success %}<div class="alert alert-success">✅ Delegation set successfully. The selected employee can now act as Procurement Officer.</div>{% endif %}
+{% if resumed %}<div class="alert alert-info">✅ You have resumed your role. The delegation is now inactive.</div>{% endif %}
+
+<div class="form-card">
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">Current Delegation Status</h2>
+    {% if delegate_name %}
+        <p>Your role is currently delegated to: <strong>{{ delegate_name }}</strong></p>
+        <form method="POST">
+            <input type="hidden" name="action" value="resume">
+            <button type="submit" class="btn btn-danger">Resume My Role</button>
+        </form>
+    {% else %}
+        <p>You currently hold your role. If you go on leave, you can delegate it below.</p>
+    {% endif %}
+</div>
+
+<div class="form-card" style="margin-top:20px;">
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">Delegate to Someone</h2>
+    <p style="color:var(--text-secondary); margin-bottom:12px;">Select a person from Kisumu HQ or Management department.</p>
+    <form method="POST">
+        <input type="hidden" name="action" value="delegate">
+        <div class="form-grid">
+            <div>
+                <label>Choose employee</label>
+                <select name="delegate_name" required>
+                    {% for e in eligible %}
+                    <option value="{{ e.full_name }}">{{ e.full_name }} ({{ e.department }}, {{ e.branch }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <button type="submit" class="btn">Delegate Role</button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
