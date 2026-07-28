@@ -6,8 +6,9 @@
 {% if success_msg %}<div class="alert alert-success">✅ Sales submitted successfully.</div>{% endif %}
 
 <!-- Submission Forms (Individual & Branch) -->
+{% set role_lower = session.role|lower %}
 <div style="display:flex; flex-wrap:wrap; gap:16px; margin-bottom:20px;">
-    {% if session.role in ['Staff','Branch Manager'] %}
+    {% if role_lower == 'staff' or role_lower == 'branch manager' %}
     <!-- Individual Sale Form -->
     <div class="form-card" style="flex:1; min-width:300px; border-left: 5px solid var(--accent);">
         <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">📝 Submit Individual Sale</h2>
@@ -34,7 +35,7 @@
     </div>
     {% endif %}
 
-    {% if session.role == 'Branch Manager' %}
+    {% if role_lower == 'branch manager' %}
     <!-- Branch Sale Form -->
     <div class="form-card" style="flex:1; min-width:300px; border-left: 5px solid var(--primary);">
         <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">🏢 Submit Branch Sale</h2>
