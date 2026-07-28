@@ -41,7 +41,7 @@
             <a href="/admin/sales" class="{% if request.path == '/admin/sales' %}active{% endif %}">💰 Manage Sales</a>
         {% endif %}
 
-        {% if session.role in DIRECTORATE_ROLES %}
+        {% if session.role in ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager','Procurement Officer'] %}
             <a href="/contacts" class="{% if request.path == '/contacts' %}active{% endif %}">📇 Directorate</a>
         {% endif %}
 
@@ -71,6 +71,12 @@
 
         {% if session.role in TARGET_SETTER_ROLES %}
             <a href="/targets" class="{% if request.path == '/targets' %}active{% endif %}">🎯 Sales Targets</a>
+        {% endif %}
+
+        <!-- Procurement Officer special links -->
+        {% if session.role == 'Procurement Officer' %}
+            <a href="/procurement/status" class="{% if request.path == '/procurement/status' %}active{% endif %}">🟢 Live Status</a>
+            <a href="/procurement/delegation" class="{% if request.path == '/procurement/delegation' %}active{% endif %}">🔄 Delegation</a>
         {% endif %}
 
         <a href="/logout" class="logout-link">🚪 Logout</a>
