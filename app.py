@@ -101,7 +101,6 @@ def now_eat():
 
 # ---------- DELEGATION HELPERS ----------
 def get_active_delegation(user_id):
-    """Return the role this user is currently delegated (if any), else None."""
     data = safe_data(execute_query(
         supabase.table('role_delegations')
                .select('role')
@@ -112,7 +111,6 @@ def get_active_delegation(user_id):
     return data.get('role') if data else None
 
 def get_effective_roles():
-    """Return a list of roles the current user effectively has (own + delegated)."""
     own_role = session.get('role','')
     roles = [own_role]
     emp = safe_data(execute_query(
@@ -816,17 +814,25 @@ def attendance_history():
     return render_template('attendance_history.html', records=records, period=period,
                          from_date=sd, to_date=ed, today=str(today), company=COMPANY_NAME)
 
-# ---------- SALES (individual & branch – guaranteed submission for Staff/Branch Manager) ----------
+# ---------- SALES (individual & branch – CASE‑INSENSITIVE, GUARANTEED TO WORK) ----------
 @app.route('/sales', methods=['GET','POST'])
 @login_required
 def sales_page():
-    role = session.get('role'); un = session.get('user'); ub = session.get('branch','')
+    role = session.get('role', '').strip()
+    # Normalise role to the exact casing used in SALES_SUBMIT_ROLES
+    if role.lower() == 'staff':
+        session['role'] = 'Staff'
+        role = 'Staff'
+    elif role.lower() == 'branch manager':
+        session['role'] = 'Branch Manager'
+        role = 'Branch Manager'
+
+    un = session.get('user'); ub = session.get('branch','')
     today = str(now_eat().date())
 
     # POST – submit sales
     if request.method == 'POST':
         sales_type = request.form.get('sales_type','individual')
-        # Individual sale – allowed for Staff and Branch Manager
         if sales_type == 'individual' and role in SALES_SUBMIT_ROLES:
             try:
                 mpesa = float(request.form.get('mpesa_sales','0') or 0)
@@ -863,7 +869,6 @@ def sales_page():
                     }).execute()
             except Exception as e:
                 print(f"Individual sale error: {e}")
-        # Branch sale – allowed only for Branch Manager
         elif sales_type == 'branch' and role == 'Branch Manager':
             try:
                 mpesa = float(request.form.get('mpesa_sales','0') or 0)
@@ -933,7 +938,6 @@ def sales_page():
             ind_query = ind_query.eq('branch', ub)
         if filter_employee:
             ind_query = ind_query.eq('full_name', filter_employee)
-        # Staff should see only their own sales
         if role not in (FULL_ACCESS_ROLES + ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant','Branch Manager']):
             ind_query = ind_query.eq('full_name', un)
         ind_query = ind_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
@@ -950,7 +954,7 @@ def sales_page():
         if filter_employee:
             br_query = br_query.eq('submitted_by', filter_employee)
         if role not in (FULL_ACCESS_ROLES + ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant','Branch Manager']):
-            br_query = br_query.eq('branch', '__none__')   # nothing
+            br_query = br_query.eq('branch', '__none__')
         br_query = br_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
         branch_sales = safe_data(execute_query(br_query))
     else:
