@@ -41,23 +41,23 @@
             <a href="/admin/sales" class="{% if request.path == '/admin/sales' %}active{% endif %}">💰 Manage Sales</a>
         {% endif %}
 
-        {% if session.role in ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager','Procurement Officer'] %}
+        {% if session.role|lower in ['admin','ceo','hr','hr assistant','stock controller','assistant stock controller','operations manager','sales manager','procurement officer'] %}
             <a href="/contacts" class="{% if request.path == '/contacts' %}active{% endif %}">📇 Directorate</a>
         {% endif %}
 
-        {% if session.role in ['Staff','Branch Manager','admin','ceo','Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant'] %}
+        {% if session.role|lower in ['staff','branch manager','admin','ceo','stock controller','assistant stock controller','accountant','accountant assistant'] %}
             <a href="/sales" class="{% if request.path == '/sales' %}active{% endif %}">💰 Sales</a>
         {% endif %}
 
         <a href="/attendance-history" class="{% if request.path == '/attendance-history' %}active{% endif %}">📊 History</a>
 
-        {% if session.role in ['admin','ceo','Branch Manager','Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant'] %}
+        {% if session.role|lower in ['admin','ceo','branch manager','stock controller','assistant stock controller','accountant','accountant assistant'] %}
             <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}">📈 Reports</a>
         {% endif %}
 
         <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">🌴 Leaves</a>
 
-        {% if session.role in ['Store Manager','Operations Manager','Assistant Operations Manager','Sales Manager','admin','ceo','HR','HR Assistant','Procurement Officer','Stock Controller','Assistant Stock Controller'] %}
+        {% if session.role|lower in ['store manager','operations manager','assistant operations manager','sales manager','admin','ceo','hr','hr assistant','procurement officer','stock controller','assistant stock controller'] %}
             <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}">✍️ Approve Leaves</a>
         {% endif %}
 
