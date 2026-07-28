@@ -99,6 +99,15 @@ def get_branch_names():
 def now_eat():
     return datetime.now(EAT)
 
+# ---------- NORMALISE ROLE TO CORRECT CASE ----------
+def normalize_role(role):
+    """Return the correctly cased role from ALL_ROLES, falling back to original."""
+    role_lower = role.strip().lower()
+    for r in ALL_ROLES:
+        if r.lower() == role_lower:
+            return r
+    return role
+
 # ---------- DELEGATION HELPERS ----------
 def get_active_delegation(user_id):
     data = safe_data(execute_query(
@@ -198,6 +207,7 @@ def get_approval_chain(employee_role):
              'allowed_roles': ['CEO']}
         ]
     else:
+        # Generic branch staff – Branch Manager first, then Stock Controller final
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
              'allowed_roles': ['Branch Manager']},
@@ -245,7 +255,9 @@ def login():
             if emp.get('status','') not in ['','approved']:
                 return render_template('login.html', error='Account pending approval.')
             session['user'] = emp['full_name']
-            session['role'] = emp.get('role','Staff')
+            # Normalise the role to exact casing (e.g., "branch manager" -> "Branch Manager")
+            raw_role = emp.get('role','Staff')
+            session['role'] = normalize_role(raw_role)
             session['department'] = emp.get('department','')
             session['branch'] = emp.get('branch','')
             session['shift_end'] = emp.get('shift_end','17:00')
@@ -267,7 +279,7 @@ def keep_alive():
 def favicon():
     return '', 204
 
-# ---------- SIGNUP (now enforces branch) ----------
+# ---------- SIGNUP (branch mandatory) ----------
 @app.route('/signup', methods=['GET','POST'])
 def signup():
     signup_roles = [r for r in ALL_ROLES if r not in ['admin','ceo']]
@@ -285,7 +297,6 @@ def signup():
         if not name or not phone or not pw or not branch:
             return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS,
                 roles=signup_roles, error='All fields are required, including Branch.')
-        # Ensure branch is a valid branch name
         if branch not in get_branch_names():
             return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS,
                 roles=signup_roles, error='Please select a valid branch.')
@@ -295,7 +306,7 @@ def signup():
                 roles=signup_roles, error='Name already exists.')
         supabase.table('employees').insert({
             'full_name':name,'phone':phone,'password': generate_password_hash(pw),
-            'department':dept,'branch':branch,'role':role,
+            'department':dept,'branch':branch,'role': normalize_role(role),  # store correctly cased
             'status':'pending','shift_start':shift_start,'shift_end':shift_end
         }).execute()
         return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS,
@@ -511,7 +522,7 @@ def add_employee():
         'full_name':request.form.get('full_name','').strip(),
         'department':request.form.get('department','').strip(),
         'branch':request.form.get('branch','').strip(),
-        'role':request.form.get('role','Staff').strip(),
+        'role': normalize_role(request.form.get('role','Staff').strip()),  # normalise role
         'password': generate_password_hash(request.form.get('password','1234').strip()),
         'status':'approved','blocked':False
     }
@@ -547,7 +558,7 @@ def edit_employee(eid):
         'full_name':request.form.get('full_name','').strip(),
         'department':request.form.get('department','').strip(),
         'branch':request.form.get('branch','').strip(),
-        'role':request.form.get('role','Staff').strip(),
+        'role': normalize_role(request.form.get('role','Staff').strip()),  # normalise
         'shift_start':request.form.get('shift_start','08:00').strip(),
         'shift_end':request.form.get('shift_end','17:00').strip(),
         'updated_at':now_eat().isoformat()
@@ -829,7 +840,7 @@ def attendance_history():
 @login_required
 def sales_page():
     role = session.get('role', '').strip()
-    # Normalise role case
+    # Normalise role case (already normalised at login, but keep for safety)
     if role.lower() == 'staff':
         session['role'] = 'Staff'
         role = 'Staff'
