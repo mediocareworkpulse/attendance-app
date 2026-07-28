@@ -816,15 +816,17 @@ def attendance_history():
     return render_template('attendance_history.html', records=records, period=period,
                          from_date=sd, to_date=ed, today=str(today), company=COMPANY_NAME)
 
-# ---------- SALES (individual & branch modules with full filtering) ----------
+# ---------- SALES (individual & branch – guaranteed submission for Staff/Branch Manager) ----------
 @app.route('/sales', methods=['GET','POST'])
 @login_required
 def sales_page():
     role = session.get('role'); un = session.get('user'); ub = session.get('branch','')
     today = str(now_eat().date())
 
+    # POST – submit sales
     if request.method == 'POST':
         sales_type = request.form.get('sales_type','individual')
+        # Individual sale – allowed for Staff and Branch Manager
         if sales_type == 'individual' and role in SALES_SUBMIT_ROLES:
             try:
                 mpesa = float(request.form.get('mpesa_sales','0') or 0)
@@ -861,6 +863,7 @@ def sales_page():
                     }).execute()
             except Exception as e:
                 print(f"Individual sale error: {e}")
+        # Branch sale – allowed only for Branch Manager
         elif sales_type == 'branch' and role == 'Branch Manager':
             try:
                 mpesa = float(request.form.get('mpesa_sales','0') or 0)
@@ -894,7 +897,7 @@ def sales_page():
                 print(f"Branch sale error: {e}")
         return redirect('/sales?success=1')
 
-    # View sales
+    # GET – display sales
     if role == 'Branch Manager':
         allowed_branches = [ub]
     else:
@@ -930,6 +933,7 @@ def sales_page():
             ind_query = ind_query.eq('branch', ub)
         if filter_employee:
             ind_query = ind_query.eq('full_name', filter_employee)
+        # Staff should see only their own sales
         if role not in (FULL_ACCESS_ROLES + ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant','Branch Manager']):
             ind_query = ind_query.eq('full_name', un)
         ind_query = ind_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
@@ -946,7 +950,7 @@ def sales_page():
         if filter_employee:
             br_query = br_query.eq('submitted_by', filter_employee)
         if role not in (FULL_ACCESS_ROLES + ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant','Branch Manager']):
-            br_query = br_query.eq('branch', '__none__')
+            br_query = br_query.eq('branch', '__none__')   # nothing
         br_query = br_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
         branch_sales = safe_data(execute_query(br_query))
     else:
