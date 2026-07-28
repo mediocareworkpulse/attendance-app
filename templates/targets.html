@@ -1,36 +1,56 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="page-title">Sales Targets</h1>
-<p class="page-subtitle">{{ company }}</p>
+<h1 class="page-title">🎯 Sales Targets</h1>
+<p class="page-subtitle">{{ company }} – Set monthly targets</p>
 
 <div class="form-card">
-    <h2 style="font-size:16px; margin-bottom:12px;">🎯 Set Monthly Target</h2>
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">📌 Set / Update Target</h2>
     <form method="POST" class="form-grid">
         <div>
-            <select name="employee_name">
-                {% for e in employees %}<option value="{{ e.full_name }}">{{ e.full_name }}</option>{% endfor %}
+            <label>Employee</label>
+            <select name="employee_name" required>
+                {% for e in employees %}
+                <option value="{{ e.full_name }}">{{ e.full_name }}</option>
+                {% endfor %}
             </select>
         </div>
-        <div><input type="month" name="month" value="{{ today[:7] }}"></div>
-        <div><input type="number" step="0.01" name="amount" placeholder="Target amount"></div>
-        <div><button type="submit" class="btn">Set Target</button></div>
+        <div>
+            <label>Month</label>
+            <input type="month" name="month" value="{{ today[:7] }}" required>
+        </div>
+        <div>
+            <label>Target Amount (Ksh)</label>
+            <input type="number" step="0.01" name="amount" placeholder="e.g. 50000" required>
+        </div>
+        <div>
+            <button type="submit" class="btn">Set Target</button>
+        </div>
     </form>
 </div>
 
-<h2 style="font-size:16px; margin-top:24px; margin-bottom:12px;">📊 Current Targets</h2>
-<div class="table-container">
-    <table>
-        <thead><tr><th>Employee</th><th>Month</th><th>Target (Ksh)</th><th>Set By</th></tr></thead>
-        <tbody>
-        {% for t in targets %}
-        <tr>
-            <td class="td-name">{{ t.full_name }}</td>
-            <td>{{ t.month }}</td>
-            <td>{{ t.target_amount }}</td>
-            <td>{{ t.set_by }}</td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+<div class="form-card" style="margin-top:20px;">
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">📊 Current Targets</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>Month</th>
+                    <th>Target (Ksh)</th>
+                    <th>Set By</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for t in targets %}
+            <tr>
+                <td class="td-name">{{ t.full_name }}</td>
+                <td>{{ t.month }}</td>
+                <td>{{ t.target_amount }}</td>
+                <td>{{ t.set_by }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}
