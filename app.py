@@ -255,7 +255,7 @@ def login():
             if emp.get('status','') not in ['','approved']:
                 return render_template('login.html', error='Account pending approval.')
             session['user'] = emp['full_name']
-            # Normalise the role to exact casing (e.g., "branch manager" -> "Branch Manager")
+            # Normalise the role to exact casing
             raw_role = emp.get('role','Staff')
             session['role'] = normalize_role(raw_role)
             session['department'] = emp.get('department','')
@@ -306,7 +306,7 @@ def signup():
                 roles=signup_roles, error='Name already exists.')
         supabase.table('employees').insert({
             'full_name':name,'phone':phone,'password': generate_password_hash(pw),
-            'department':dept,'branch':branch,'role': normalize_role(role),  # store correctly cased
+            'department':dept,'branch':branch,'role': normalize_role(role),
             'status':'pending','shift_start':shift_start,'shift_end':shift_end
         }).execute()
         return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS,
@@ -522,7 +522,7 @@ def add_employee():
         'full_name':request.form.get('full_name','').strip(),
         'department':request.form.get('department','').strip(),
         'branch':request.form.get('branch','').strip(),
-        'role': normalize_role(request.form.get('role','Staff').strip()),  # normalise role
+        'role': normalize_role(request.form.get('role','Staff').strip()),
         'password': generate_password_hash(request.form.get('password','1234').strip()),
         'status':'approved','blocked':False
     }
@@ -558,7 +558,7 @@ def edit_employee(eid):
         'full_name':request.form.get('full_name','').strip(),
         'department':request.form.get('department','').strip(),
         'branch':request.form.get('branch','').strip(),
-        'role': normalize_role(request.form.get('role','Staff').strip()),  # normalise
+        'role': normalize_role(request.form.get('role','Staff').strip()),
         'shift_start':request.form.get('shift_start','08:00').strip(),
         'shift_end':request.form.get('shift_end','17:00').strip(),
         'updated_at':now_eat().isoformat()
@@ -840,7 +840,7 @@ def attendance_history():
 @login_required
 def sales_page():
     role = session.get('role', '').strip()
-    # Normalise role case (already normalised at login, but keep for safety)
+    # Normalise role case
     if role.lower() == 'staff':
         session['role'] = 'Staff'
         role = 'Staff'
@@ -1096,7 +1096,7 @@ def reports():
         brecs = safe_data(execute_query(supabase.table('branch_sales').select('*').gte('date',fd).lte('date',td).order('date',desc=True).limit(200)))
     return render_template('reports.html',records=records,sales_recs=srecs,branch_recs=brecs,from_date=fd,to_date=td,report_type=rt,total_sales_amount=sum(float(s.get('total_sales',0)) for s in srecs),total_branch_amount=sum(float(s.get('total_sales',0)) for s in brecs),company=COMPANY_NAME)
 
-# ---------- LEAVES ----------
+# ---------- LEAVES (fixed: fetch real branch from DB) ----------
 @app.route('/leaves', methods=['GET','POST'])
 @login_required
 def leaves():
@@ -1105,8 +1105,15 @@ def leaves():
         leave_start = request.form.get('leave_start',''); leave_end = request.form.get('leave_end','')
         leave_date = leave_start if leave_start else request.form.get('leave_date','')
         if leave_date:
+            # Fetch the real branch from the database to guarantee it's correct
+            emp_data = safe_data(execute_query(
+                supabase.table('employees').select('branch, department').eq('full_name', un).limit(1)
+            ))
+            branch = emp_data[0].get('branch','') if emp_data else session.get('branch','')
+            department = emp_data[0].get('department','') if emp_data else session.get('department','')
+            
             supabase.table('leaves').insert({
-                'full_name': un,'role': role,'branch': session.get('branch',''),
+                'full_name': un,'role': role,'branch': branch,
                 'leave_date': leave_date,'leave_start': leave_start,'leave_end': leave_end,
                 'total_days': int(request.form.get('total_days',1)),
                 'leave_type': request.form.get('leave_type','Annual Leave'),
@@ -1115,7 +1122,7 @@ def leaves():
                 'handover_notes': request.form.get('handover_notes',''),
                 'backup_person': request.form.get('backup_person',''),
                 'emergency_contact': request.form.get('emergency_contact',''),
-                'department': session.get('department',''), 'position': role,
+                'department': department, 'position': role,
                 'phone': request.form.get('phone',''), 'email': request.form.get('email',''),
                 'status': 'pending'
             }).execute()
