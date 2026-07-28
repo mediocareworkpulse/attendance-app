@@ -57,7 +57,8 @@
 
         <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">🌴 Leaves</a>
 
-        {% if session.role in ['Store Manager','Operations Manager','Sales Manager','admin','ceo','HR','HR Assistant','Procurement Officer','Stock Controller','Assistant Stock Controller'] %}
+        {# Allow all managers who can approve leaves to see the Approve Leaves link #}
+        {% if session.role in ['Store Manager','Operations Manager','Assistant Operations Manager','Sales Manager','admin','ceo','HR','HR Assistant','Procurement Officer','Stock Controller','Assistant Stock Controller'] %}
             <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}">✍️ Approve Leaves</a>
         {% endif %}
 
