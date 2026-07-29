@@ -1119,7 +1119,8 @@ def leaves():
                            .eq('full_name', un)
                            .eq('leave_type', 'Annual Leave')
                            .eq('status', 'approved_final')
-                           .like('leave_start', f'{year_start}%')
+                           .gte('leave_start', f'{year_start}-01-01')
+                           .lte('leave_start', f'{year_start}-12-31')
                 ))
                 used_days = sum(d['total_days'] for d in used_data)
                 if used_days + total_days > 21:
@@ -1166,7 +1167,8 @@ def leaves():
                .eq('full_name', un)
                .eq('leave_type', 'Annual Leave')
                .eq('status', 'approved_final')
-               .like('leave_start', f'{year}%')
+               .gte('leave_start', f'{year}-01-01')
+               .lte('leave_start', f'{year}-12-31')
     ))
     used_days = sum(d['total_days'] for d in used_annual)
     annual_remaining = max(0, 21 - used_days)
@@ -1507,47 +1509,80 @@ def targets_page():
     targets = safe_data(execute_query(supabase.table('sales_targets').select('*').order('month', desc=True).order('full_name').limit(100)))
     return render_template('targets.html', employees=employees, targets=targets, today=str(now_eat().date()), company=COMPANY_NAME)
 
-# ---------- PROCUREMENT OFFICER ROUTES ----------
-@app.route('/procurement/status')
+# ---------- LIVE STATUS (all managers + procurement) ----------
+@app.route('/live-status')
 @login_required
-def procurement_status():
-    if session.get('role') != 'Procurement Officer':
-        return redirect('/')
+def live_status():
+    role = session.get('role')
+    ub = session.get('branch','')
+    un = session.get('user')
     today = str(now_eat().date())
-    # Working employees
-    working = safe_data(execute_query(
-        supabase.table('attendance')
-               .select('full_name, check_in, department, branch, status')
-               .eq('date', today)
-               .not_.is_('check_in', 'null')
-               .is_('check_out', 'null')
-               .order('check_in')
-               .limit(200)
-    ))
-    # Checked out
-    checked_out = safe_data(execute_query(
-        supabase.table('attendance')
-               .select('full_name, check_out, department, branch')
-               .eq('date', today)
-               .not_.is_('check_out', 'null')
-               .order('check_out')
-               .limit(200)
-    ))
-    # On leave today (approved leaves covering today)
-    on_leave = safe_data(execute_query(
-        supabase.table('leaves')
-               .select('full_name, leave_type')
-               .in_('status', ['approved_final','approved_by_manager','approved_by_procurement','approved_by_ops'])
-               .lte('leave_start', today)
-               .gte('leave_end', today)
-               .limit(200)
-    ))
-    return render_template('procurement_status.html',
+
+    # Determine team filter based on role
+    team_names = None
+    if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant']:
+        # all employees
+        team_names = None
+    elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
+        team_names = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)
+        ))]
+    elif role == 'Sales Manager':
+        team_names = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').in_('role',[MARKETER_ROLE,'Telesales'])
+        ))]
+        team_names.append(un)
+    elif role == 'Branch Manager':
+        team_names = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').eq('branch', ub)
+        ))]
+    elif role == 'Procurement Officer':
+        # Procurement sees all (as before)
+        team_names = None
+    else:
+        # Staff etc. not allowed – redirect to dashboard
+        return redirect('/')
+
+    # Build queries
+    working_query = (supabase.table('attendance')
+                     .select('full_name, check_in, department, branch, status')
+                     .eq('date', today)
+                     .not_.is_('check_in', 'null')
+                     .is_('check_out', 'null'))
+    checked_out_query = (supabase.table('attendance')
+                         .select('full_name, check_out, department, branch')
+                         .eq('date', today)
+                         .not_.is_('check_out', 'null'))
+    on_leave_query = (supabase.table('leaves')
+                      .select('full_name, leave_type')
+                      .in_('status', ['approved_final','approved_by_manager','approved_by_procurement','approved_by_ops'])
+                      .lte('leave_start', today)
+                      .gte('leave_end', today))
+
+    if team_names:
+        working_query = working_query.in_('full_name', team_names)
+        checked_out_query = checked_out_query.in_('full_name', team_names)
+        on_leave_query = on_leave_query.in_('full_name', team_names)
+
+    working = safe_data(execute_query(working_query.order('check_in').limit(200)))
+    checked_out = safe_data(execute_query(checked_out_query.order('check_out').limit(200)))
+    on_leave = safe_data(execute_query(on_leave_query.limit(200)))
+
+    return render_template('live_status.html',
         working=working,
         checked_out=checked_out,
         on_leave=on_leave,
         today=today,
         company=COMPANY_NAME)
+
+# ---------- PROCUREMENT OFFICER ROUTES (redirects to live-status) ----------
+@app.route('/procurement/status')
+@login_required
+def procurement_status():
+    if session.get('role') != 'Procurement Officer':
+        return redirect('/')
+    # Simply redirect to the generic live status page
+    return redirect('/live-status')
 
 @app.route('/procurement/delegation', methods=['GET','POST'])
 @login_required
@@ -1630,7 +1665,8 @@ def hr_annual_leave():
                    .eq('full_name', emp['full_name'])
                    .eq('leave_type', 'Annual Leave')
                    .eq('status', 'approved_final')
-                   .like('leave_start', f'{year}%')
+                   .gte('leave_start', f'{year}-01-01')
+                   .lte('leave_start', f'{year}-12-31')
         ))
         emp['used_days'] = sum(d['total_days'] for d in used)
         override = emp.get('annual_leave_remaining_override')
