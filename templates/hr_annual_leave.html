@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="text-align:center; border-bottom: 2px solid var(--primary); padding-bottom: 12px; margin-bottom: 20px;">
+    <h2 style="font-size: 22px; font-weight: 800; color: var(--primary); letter-spacing: 0.5px;">MEDIOCARE PHARMACEUTICAL LTD</h2>
+    <h3 style="font-size: 18px; font-weight: 700; color: var(--text);">ANNUAL LEAVE REPORT {{ year }}</h3>
+</div>
+
+<div style="text-align:right; margin-bottom:16px;">
+    <button onclick="window.print()" class="btn" style="background:var(--accent); color:#fff;">🖨️ Print / Download</button>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Department</th>
+                <th>Branch</th>
+                <th>Role</th>
+                <th>Days Taken</th>
+                <th>Remaining Days</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for emp in employees %}
+        <tr>
+            <td class="td-name">{{ emp.full_name }}</td>
+            <td>{{ emp.department or '—' }}</td>
+            <td>{{ emp.branch or '—' }}</td>
+            <td>{{ emp.role }}</td>
+            <td>{{ emp.used_days }}</td>
+            <td>
+                {% if emp.annual_leave_remaining_override is not none %}
+                    <span style="color:var(--accent); font-weight:bold;">{{ emp.remaining }} (manual)</span>
+                {% else %}
+                    {{ emp.remaining }}
+                {% endif %}
+            </td>
+            <td>
+                <button class="btn btn-sm" style="background:var(--primary);" onclick="openEdit({{ emp.id }}, {{ emp.remaining }})">Edit</button>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <h3>Edit Remaining Days</h3>
+        <form id="editForm" method="POST">
+            <label>Remaining Annual Leave Days</label>
+            <input type="number" id="remainingInput" name="remaining" value="" min="0" step="1">
+            <p style="font-size:11px; color:var(--text-secondary);">Leave empty to reset to automatic calculation (21 - used).</p>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-danger" onclick="closeEdit()">Cancel</button>
+                <button type="submit" class="btn">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEdit(eid, currentRemaining) {
+        document.getElementById('editForm').action = '/hr/annual-leave/update/' + eid;
+        document.getElementById('remainingInput').value = currentRemaining;
+        document.getElementById('editModal').style.display = 'flex';
+    }
+    function closeEdit() {
+        document.getElementById('editModal').style.display = 'none';
+    }
+    document.getElementById('editModal').addEventListener('click', function(e) {
+        if (e.target === this) closeEdit();
+    });
+</script>
+{% endblock %}
