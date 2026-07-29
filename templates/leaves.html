@@ -2,9 +2,10 @@
 {% block content %}
 
 <h1 class="page-title">🌴 Leave Application</h1>
-<p class="page-subtitle">{{ company }} • Complete the official leave request</p>
+<p class="page-subtitle">{{ company }} • Annual leave remaining: <strong>{{ annual_remaining }} day(s)</strong> (used {{ used_annual }} of 21)</p>
 
-{% if success_msg %}<div class="alert alert-success">✅ Your leave request has been submitted successfully.</div>{% endif %}
+{% if success_msg %}<div class="alert alert-success">✅ {{ success_msg }}</div>{% endif %}
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
 
 <!-- Official Leave Form Card -->
 <div class="form-card" style="max-width: 900px; margin: 0 auto;">
@@ -114,10 +115,19 @@
                     {% elif l.status == 'rejected' %}<span class="badge badge-danger">Rejected</span>
                     {% elif l.status == 'approved_by_manager' %}<span class="badge badge-info">Pending Final</span>
                     {% elif l.status == 'approved_by_procurement' %}<span class="badge badge-warning">Pending HR</span>
+                    {% elif l.status == 'approved_by_ops' %}<span class="badge badge-info">Pending Ops</span>
                     {% else %}<span class="badge badge-warning">Pending</span>{% endif %}
                 </td>
                 <td>{{ l.approved_by or '—' }}</td>
-                <td><a href="/leave-pdf/{{ l.id }}" class="btn btn-sm">📄 View PDF</a></td>
+                <td>
+                    <a href="/leave-pdf/{{ l.id }}" class="btn btn-sm">📄 PDF</a>
+                    {% if l.status == 'pending' %}
+                    <button class="btn btn-sm" style="background:var(--accent);" onclick="openEditModal({{ l.id }})">✏️</button>
+                    <form method="POST" action="/leaves/delete/{{ l.id }}" style="display:inline">
+                        <button class="btn btn-sm btn-danger" onclick="return confirm('Delete this leave request?')">🗑️</button>
+                    </form>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
             </tbody>
@@ -125,6 +135,35 @@
     </div>
 </div>
 {% endif %}
+
+<!-- Edit Modal (for pending leaves) -->
+<div id="editModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <h3>Edit Leave Request</h3>
+        <form id="editForm" method="POST">
+            <label>Start Date</label><input type="date" name="leave_start" id="edit-start" required>
+            <label>End Date</label><input type="date" name="leave_end" id="edit-end" required>
+            <label>Total Days</label><input type="number" name="total_days" id="edit-days" value="1">
+            <label>Leave Type</label>
+            <select name="leave_type" id="edit-type">
+                <option value="Annual Leave">Annual Leave</option>
+                <option value="Sick Leave">Sick Leave</option>
+                <option value="Unpaid">Unpaid</option>
+                <option value="Maternity / Paternity Leave">Maternity / Paternity</option>
+                <option value="Compassionate / Bereavement Leave">Compassionate / Bereavement</option>
+                <option value="Other">Other</option>
+            </select>
+            <label>Reason</label><textarea name="reason" id="edit-reason" rows="2"></textarea>
+            <label>Handover Notes</label><input type="text" name="handover_notes" id="edit-handover">
+            <label>Backup Person</label><input type="text" name="backup_person" id="edit-backup">
+            <label>Emergency Contact</label><input type="text" name="emergency_contact" id="edit-emergency">
+            <div class="modal-actions">
+                <button type="button" class="btn btn-danger" onclick="document.getElementById('editModal').style.display='none'">Cancel</button>
+                <button type="submit" class="btn">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 {% endblock %}
 
@@ -136,9 +175,16 @@
         if (start && end) {
             const d1 = new Date(start);
             const d2 = new Date(end);
-            const diff = Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24)) + 1; // inclusive
+            const diff = Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
             if (diff > 0) document.getElementById('total_days').value = diff;
         }
     }
+    function openEditModal(id) {
+        document.getElementById('editForm').action = '/leaves/edit/' + id;
+        document.getElementById('editModal').style.display = 'flex';
+    }
+    document.getElementById('editModal').addEventListener('click', function(e) {
+        if (e.target === this) this.style.display = 'none';
+    });
 </script>
 {% endblock %}
