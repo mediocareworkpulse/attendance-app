@@ -1091,7 +1091,6 @@ def leaves():
             ))
             branch = emp_data[0].get('branch','') if emp_data else session.get('branch','')
             department = emp_data[0].get('department','') if emp_data else session.get('department','')
-            # Use the exact role from DB (already normalised) to guarantee correct chain matching
             db_role = emp_data[0].get('role','') if emp_data else role
             supabase.table('leaves').insert({
                 'full_name': un,'role': db_role,'branch': branch,
@@ -1125,11 +1124,13 @@ def leave_pdf(lid):
     if not leave: return "Leave not found", 404
     return render_template('leave_pdf.html', lv=leave[0], company=COMPANY_NAME)
 
-# ---------- APPROVE LEAVES (delegation aware, case‑insensitive chain) ----------
+# ---------- APPROVE LEAVES (CASE‑INSENSITIVE MATCHING) ----------
 @app.route('/approve-leaves')
 @login_required
 def approve_leaves():
     effective_roles = get_effective_roles()
+    # Lowercase all effective roles for comparison
+    effective_roles_lower = [r.lower().strip() for r in effective_roles]
     user_role = session.get('role')
     user_branch = session.get('branch','')
     approver_roles = [
@@ -1138,7 +1139,8 @@ def approve_leaves():
         'Stock Controller','Assistant Stock Controller','Sales Manager','Store Manager',
         'admin','ceo'
     ]
-    if not any(r in approver_roles or r in FULL_ACCESS_ROLES for r in effective_roles):
+    # Check if any effective role (lowercased) is in the lowercased approver list
+    if not any(r.lower() in [ar.lower() for ar in approver_roles + FULL_ACCESS_ROLES] for r in effective_roles):
         return redirect('/')
     
     all_leaves = safe_data(execute_query(
@@ -1152,11 +1154,13 @@ def approve_leaves():
     pending = []
     for leave in all_leaves:
         emp_role = leave.get('role','Staff')
-        chain = get_approval_chain(emp_role)   # now case‑insensitive
+        chain = get_approval_chain(emp_role)   # case‑insensitive chain
         for stage in chain:
-            if leave['status'] == stage['from_status'] and any(r in stage['allowed_roles'] for r in effective_roles):
-                if user_role == 'Branch Manager':
-                    if leave.get('branch','') == user_branch:
+            # Compare lowercased allowed roles with lowercased effective roles
+            allowed_lower = [r.lower() for r in stage['allowed_roles']]
+            if leave['status'] == stage['from_status'] and any(r in allowed_lower for r in effective_roles_lower):
+                if user_role.lower() == 'branch manager':
+                    if leave.get('branch','').lower() == user_branch.lower():
                         pending.append(leave)
                 else:
                     pending.append(leave)
@@ -1167,9 +1171,10 @@ def approve_leaves():
 @app.route('/approve-leaves/<int:lid>/<action>', methods=['POST'])
 @login_required
 def process_leave(lid, action):
+    effective_roles = get_effective_roles()
+    effective_roles_lower = [r.lower().strip() for r in effective_roles]
     user_role = session.get('role')
     user_branch = session.get('branch','')
-    effective_roles = get_effective_roles()
     leave = safe_data(execute_query(supabase.table('leaves').select('*').eq('id',lid)))
     if not leave:
         return redirect('/approve-leaves')
@@ -1179,8 +1184,9 @@ def process_leave(lid, action):
     
     current_stage = None
     for stage in chain:
-        if leave['status'] == stage['from_status'] and any(r in stage['allowed_roles'] for r in effective_roles):
-            if user_role == 'Branch Manager' and leave.get('branch','') != user_branch:
+        allowed_lower = [r.lower() for r in stage['allowed_roles']]
+        if leave['status'] == stage['from_status'] and any(r in allowed_lower for r in effective_roles_lower):
+            if user_role.lower() == 'branch manager' and leave.get('branch','').lower() != user_branch.lower():
                 continue
             current_stage = stage
             break
@@ -1188,16 +1194,17 @@ def process_leave(lid, action):
     if not current_stage:
         return redirect('/approve-leaves')
     
+    # Pick the first matching effective role (original case) for recording
     acting_role = None
     for r in effective_roles:
-        if r in current_stage['allowed_roles']:
+        if r.lower() in [x.lower() for x in current_stage['allowed_roles']]:
             acting_role = r
             break
     if not acting_role:
         acting_role = user_role
     
     if action == 'approve':
-        if acting_role in ['admin','ceo'] or user_role in ['admin','ceo']:
+        if acting_role.lower() in ['admin','ceo'] or user_role.lower() in ['admin','ceo']:
             new_status = 'approved_final'
         else:
             new_status = current_stage['to_status']
