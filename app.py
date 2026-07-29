@@ -1349,8 +1349,10 @@ def marketer_report():
     lng = request.form.get('lng', '')
     location = request.form.get('location', '').strip()
 
-    try: exp = float(expenses)
-    except: exp = 0.0
+    try:
+        exp = float(expenses) if expenses else 0.0
+    except:
+        exp = 0.0
 
     if not customer_name:
         return redirect('/check-in?report=error')
@@ -1374,9 +1376,9 @@ def marketer_report():
         'details': details,
         'expenses': exp,
         'expected_order_date': expected_order_date if expected_order_date else None,
-        'lat': lat,
-        'lng': lng,
-        'location': location
+        'lat': lat if lat else None,
+        'lng': lng if lng else None,
+        'location': location if location else None
     }).execute()
     return redirect('/check-in?report=1')
 
@@ -1402,11 +1404,12 @@ def submit_marketer_location():
     }).execute()
     return redirect('/check-in?location=ok')
 
-# ---------- SALES MANAGER DASHBOARD ----------
+# ---------- SALES MANAGER DASHBOARD (with marketer dropdown & map) ----------
 @app.route('/sales-manager')
 @login_required
 def sales_manager_dashboard():
-    if session.get('role') != SALES_MANAGER_ROLE: return redirect('/')
+    if session.get('role') != SALES_MANAGER_ROLE:
+        return redirect('/')
     today = str(now_eat().date())
     pending_checkins = safe_data(execute_query(
         supabase.table('marketer_checkins').select('*').eq('date',today).eq('status','pending').order('created_at',desc=True).limit(50)
@@ -1427,12 +1430,20 @@ def sales_manager_dashboard():
                .order('time')
                .limit(200)
     ))
+    marketers = safe_data(execute_query(
+        supabase.table('employees')
+               .select('full_name')
+               .eq('status','approved')
+               .eq('role','Marketers')
+               .order('full_name')
+    ))
     return render_template('sales_manager.html',
         pending_checkins=pending_checkins,
         approved_checkins=approved_checkins,
         reports=reports,
         assigned=assigned,
         location_pings=location_pings,
+        marketers=marketers,
         today=today,
         company=COMPANY_NAME)
 
@@ -1518,10 +1529,8 @@ def live_status():
     un = session.get('user')
     today = str(now_eat().date())
 
-    # Determine team filter based on role
     team_names = None
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant']:
-        # all employees
         team_names = None
     elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
         team_names = [e['full_name'] for e in safe_data(execute_query(
@@ -1537,13 +1546,10 @@ def live_status():
             supabase.table('employees').select('full_name').eq('status','approved').eq('branch', ub)
         ))]
     elif role == 'Procurement Officer':
-        # Procurement sees all (as before)
         team_names = None
     else:
-        # Staff etc. not allowed – redirect to dashboard
         return redirect('/')
 
-    # Build queries
     working_query = (supabase.table('attendance')
                      .select('full_name, check_in, department, branch, status')
                      .eq('date', today)
@@ -1581,7 +1587,6 @@ def live_status():
 def procurement_status():
     if session.get('role') != 'Procurement Officer':
         return redirect('/')
-    # Simply redirect to the generic live status page
     return redirect('/live-status')
 
 @app.route('/procurement/delegation', methods=['GET','POST'])
