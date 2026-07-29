@@ -104,6 +104,15 @@
     {% block content %}{% endblock %}
 </div>
 
+<!-- ═══════════ PWA INSTALL BUTTON ═══════════ -->
+<button id="installBtn" style="position:fixed; bottom:20px; right:20px; z-index:9999;
+    background:var(--accent); color:#fff; border:none; border-radius:25px;
+    padding:10px 20px; font-weight:700; cursor:pointer; display:none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);">
+    📲 Install App
+</button>
+
+<!-- ═══════════ SCRIPTS ═══════════ -->
 <script>
     function toggleSidebar() {
         document.getElementById('sidebar').classList.toggle('open');
@@ -117,6 +126,34 @@
         link.addEventListener('click', () => {
             if (window.innerWidth <= 768) closeSidebar();
         });
+    });
+</script>
+
+<!-- Install button logic -->
+<script>
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installBtn.style.display = 'block';
+    });
+
+    installBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response: ${outcome}`);
+            deferredPrompt = null;
+            installBtn.style.display = 'none';
+        }
+    });
+
+    window.addEventListener('appinstalled', () => {
+        installBtn.style.display = 'none';
+        deferredPrompt = null;
+        console.log('PWA installed');
     });
 </script>
 
