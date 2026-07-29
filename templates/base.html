@@ -62,6 +62,10 @@
             <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}">✍️ Approve Leaves</a>
         {% endif %}
 
+        {% if session.role in ['HR','HR Assistant'] %}
+            <a href="/hr/annual-leave" class="{% if request.path == '/hr/annual-leave' %}active{% endif %}">📅 Annual Leave</a>
+        {% endif %}
+
         {% if session.role == 'Sales Manager' %}
             <a href="/sales-manager" class="{% if request.path == '/sales-manager' %}active{% endif %}">📋 Manager Dashboard</a>
         {% endif %}
