@@ -217,6 +217,27 @@ def get_approval_chain(employee_role):
             stage['allowed_roles'].append('ceo')
     return chain
 
+# ---------- ON-LEAVE COUNT HELPER ----------
+def count_employees_on_leave(team_names=None, single_user=None):
+    """
+    Return number of employees with an approved leave covering today.
+    If team_names is given, only count those employees.
+    If single_user is given, only count that user.
+    """
+    today = str(now_eat().date())
+    query = (supabase.table('leaves')
+             .select('full_name')
+             .in_('status', ['approved_final','approved_by_manager','approved_by_procurement','approved_by_ops'])
+             .lte('leave_start', today)
+             .gte('leave_end', today)
+             .limit(500))
+    if single_user:
+        query = query.eq('full_name', single_user)
+    elif team_names:
+        query = query.in_('full_name', team_names)
+    data = safe_data(execute_query(query))
+    return len(set(d['full_name'] for d in data))
+
 # ---------- Force logout blocked users ----------
 @app.before_request
 def block_check():
@@ -327,26 +348,31 @@ def home():
         emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').eq('blocked',False))
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50))
         sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today))
+        on_leave_count = count_employees_on_leave()
     elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)))]
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
         sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names)) if show_sales_card else []
         emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM))
+        on_leave_count = count_employees_on_leave(team_names=team_names)
     elif role == 'Sales Manager':
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',[MARKETER_ROLE,'Telesales'])))]
         team_names.append(un)
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
         sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names)) if show_sales_card else []
         emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').in_('full_name',team_names))
+        on_leave_count = count_employees_on_leave(team_names=team_names)
     elif role == 'Branch Manager':
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('branch',ub)))]
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
         sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names)) if show_sales_card else []
         emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').eq('branch',ub))
+        on_leave_count = count_employees_on_leave(team_names=team_names)
     else:
         emp_r = None
         att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).eq('full_name',un))
         sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).eq('full_name',un))
+        on_leave_count = count_employees_on_leave(single_user=un)
 
     total_emp = len(safe_data(emp_r)) if emp_r else 0
     att_data = safe_data(att_r)
@@ -354,11 +380,6 @@ def home():
     checked_out = sum(1 for a in att_data if a.get('check_out'))
     late_count = sum(1 for a in att_data if a.get('status')=='late')
     total_sales = sum(float(s.get('total_sales',0)) for s in safe_data(sales_r)) if show_sales_card else 0
-
-    leaves_today = safe_data(execute_query(
-        supabase.table('leaves').select('full_name').eq('leave_date',today).in_('status',['approved_final','approved_by_manager'])
-    ))
-    on_leave_count = len(leaves_today)
 
     my_leaves = safe_data(execute_query(
         supabase.table('leaves').select('*').eq('full_name',un)
@@ -1493,6 +1514,7 @@ def procurement_status():
     if session.get('role') != 'Procurement Officer':
         return redirect('/')
     today = str(now_eat().date())
+    # Working employees
     working = safe_data(execute_query(
         supabase.table('attendance')
                .select('full_name, check_in, department, branch, status')
@@ -1502,6 +1524,7 @@ def procurement_status():
                .order('check_in')
                .limit(200)
     ))
+    # Checked out
     checked_out = safe_data(execute_query(
         supabase.table('attendance')
                .select('full_name, check_out, department, branch')
@@ -1510,9 +1533,19 @@ def procurement_status():
                .order('check_out')
                .limit(200)
     ))
+    # On leave today (approved leaves covering today)
+    on_leave = safe_data(execute_query(
+        supabase.table('leaves')
+               .select('full_name, leave_type')
+               .in_('status', ['approved_final','approved_by_manager','approved_by_procurement','approved_by_ops'])
+               .lte('leave_start', today)
+               .gte('leave_end', today)
+               .limit(200)
+    ))
     return render_template('procurement_status.html',
         working=working,
         checked_out=checked_out,
+        on_leave=on_leave,
         today=today,
         company=COMPANY_NAME)
 
