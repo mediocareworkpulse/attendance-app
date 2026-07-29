@@ -4,7 +4,6 @@ from supabase import create_client
 from functools import wraps
 from collections import defaultdict
 from werkzeug.security import generate_password_hash, check_password_hash
-# Removed Flask‑Limiter completely – no rate limits anywhere
 import pytz, time
 
 app = Flask(__name__)
@@ -124,17 +123,19 @@ def get_effective_roles():
             roles.append(del_role)
     return roles
 
-# ---------- LEAVE APPROVAL CHAIN ----------
+# ---------- LEAVE APPROVAL CHAIN (CASE‑INSENSITIVE) ----------
 def get_approval_chain(employee_role):
+    """Return approval chain for the given role. Matching is case‑insensitive."""
+    role_lower = employee_role.strip().lower()
     chain = []
-    if employee_role in ['Drivers','Riders','Dispatch Personnel','Security','Cleaner']:
+    if role_lower in ['drivers','riders','dispatch personnel','security','cleaner']:
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
              'allowed_roles': ['Operations Manager','Assistant Operations Manager']},
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['HR','HR Assistant']}
         ]
-    elif employee_role == 'Store Manager':
+    elif role_lower == 'store manager':
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
              'allowed_roles': ['Operations Manager','Assistant Operations Manager']},
@@ -143,42 +144,43 @@ def get_approval_chain(employee_role):
             {'from_status': 'approved_by_procurement', 'to_status': 'approved_final',
              'allowed_roles': ['HR','HR Assistant']}
         ]
-    elif employee_role == 'Branch Manager':
+    elif role_lower == 'branch manager':
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
              'allowed_roles': ['Stock Controller','Assistant Stock Controller']},
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['CEO','HR','HR Assistant']}
         ]
-    elif employee_role == 'Assistant Operations Manager':
+    elif role_lower == 'assistant operations manager':
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
              'allowed_roles': ['Operations Manager']},
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['CEO','HR','HR Assistant']}
         ]
-    elif employee_role == 'Marketers':
+    elif role_lower == 'marketers':
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
              'allowed_roles': ['Sales Manager']},
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['HR','HR Assistant']}
         ]
-    elif employee_role == 'Telesales':
+    elif role_lower == 'telesales':
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
              'allowed_roles': ['Sales Manager']},
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['HR','HR Assistant']}
         ]
-    elif employee_role == 'Branch Order Processor':
+    elif role_lower == 'branch order processor':
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
              'allowed_roles': ['Operations Manager','Assistant Operations Manager']},
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['HR','HR Assistant']}
         ]
-    elif employee_role in ['Store Personnel','Storekeeper','Store Assistant']:
+    elif role_lower in ['store personnel','storekeeper','store assistant']:
+        # Store team: Store Manager → Ops Manager / Asst Ops Manager → HR
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
              'allowed_roles': ['Store Manager']},
@@ -187,26 +189,27 @@ def get_approval_chain(employee_role):
             {'from_status': 'approved_by_ops', 'to_status': 'approved_final',
              'allowed_roles': ['HR','HR Assistant']}
         ]
-    elif employee_role in ['Stock Controller','Assistant Stock Controller',
-                           'Accountant','Accountant Assistant',
-                           'Operations Manager','Procurement Officer','Sales Manager']:
+    elif role_lower in ['stock controller','assistant stock controller',
+                        'accountant','accountant assistant',
+                        'operations manager','procurement officer','sales manager']:
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_final',
              'allowed_roles': ['CEO','HR','HR Assistant']}
         ]
-    elif employee_role in ['HR','HR Assistant']:
+    elif role_lower in ['hr','hr assistant']:
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_final',
              'allowed_roles': ['CEO']}
         ]
     else:
-        # Generic branch staff – Branch Manager first, then Stock Controller final
+        # Generic branch staff – Branch Manager → Stock Controller
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
              'allowed_roles': ['Branch Manager']},
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['Stock Controller','Assistant Stock Controller']}
         ]
+    # Admin/CEO can act on any stage and always finalise
     for stage in chain:
         if 'admin' not in stage['allowed_roles']:
             stage['allowed_roles'].append('admin')
@@ -831,7 +834,6 @@ def attendance_history():
 @login_required
 def sales_page():
     role = session.get('role', '').strip()
-    # Normalise role case
     if role.lower() == 'staff':
         session['role'] = 'Staff'
         role = 'Staff'
@@ -842,10 +844,8 @@ def sales_page():
     un = session.get('user'); ub = session.get('branch','')
     today = str(now_eat().date())
 
-    # ---------- POST: handle submissions ----------
     if request.method == 'POST':
         sales_type = request.form.get('sales_type','individual')
-        # Individual sale – Staff and Branch Manager
         if sales_type == 'individual' and role in SALES_SUBMIT_ROLES:
             try:
                 mpesa = float(request.form.get('mpesa_sales','0') or 0)
@@ -882,7 +882,6 @@ def sales_page():
                     }).execute()
             except Exception as e:
                 print(f"Individual sale error: {e}")
-        # Branch sale – only Branch Manager
         elif sales_type == 'branch' and role == 'Branch Manager':
             try:
                 mpesa = float(request.form.get('mpesa_sales','0') or 0)
@@ -916,7 +915,6 @@ def sales_page():
                 print(f"Branch sale error: {e}")
         return redirect('/sales?success=1')
 
-    # ---------- GET: filter & view ----------
     view_type = request.args.get('view_type','individual')
     filter_from = request.args.get('from_date','')
     filter_to = request.args.get('to_date','')
@@ -937,7 +935,6 @@ def sales_page():
     if not filter_to:
         filter_to = str(today_date)
 
-    # Staff: only own individual sales, no branch/employee filters
     if role == 'Staff':
         individual_sales = safe_data(execute_query(
             supabase.table('sales').select('*')
@@ -952,26 +949,21 @@ def sales_page():
         branches_for_filter = []
         filter_branch = ''
         filter_employee = ''
-    # Branch Manager: own branch only
     elif role == 'Branch Manager':
-        filter_branch = ub   # fixed, not user-selectable
+        filter_branch = ub
         filter_employee = request.args.get('employee','')
-        # Individual sales: all staff in the branch
         ind_query = supabase.table('sales').select('*').eq('branch', ub)
         if filter_employee:
             ind_query = ind_query.eq('full_name', filter_employee)
         ind_query = ind_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
         individual_sales = safe_data(execute_query(ind_query))
-        # Branch sales: own branch only
         br_query = supabase.table('branch_sales').select('*').eq('branch', ub)
         br_query = br_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
         branch_sales = safe_data(execute_query(br_query))
-        # Employees list: only those in the branch
         employees = safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved').eq('branch', ub).order('full_name')
         ))
-        branches_for_filter = [ub]   # only own branch
-    # Admin, CEO, Stock Controllers, Accountants – full access
+        branches_for_filter = [ub]
     else:
         allowed_branches = get_branch_names()
         filter_branch = request.args.get('branch','')
@@ -993,7 +985,6 @@ def sales_page():
         br_query = br_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
         branch_sales = safe_data(execute_query(br_query))
 
-        # Employees dropdown
         if filter_branch:
             employees = safe_data(execute_query(
                 supabase.table('employees').select('full_name').eq('status','approved').eq('branch', filter_branch).order('full_name')
@@ -1004,7 +995,6 @@ def sales_page():
             ))
         branches_for_filter = allowed_branches
 
-    # Target progress (personal)
     target_progress = None
     month_str = str(now_eat().date().replace(day=1))
     target = safe_data(execute_query(
@@ -1087,7 +1077,7 @@ def reports():
         brecs = safe_data(execute_query(supabase.table('branch_sales').select('*').gte('date',fd).lte('date',td).order('date',desc=True).limit(200)))
     return render_template('reports.html',records=records,sales_recs=srecs,branch_recs=brecs,from_date=fd,to_date=td,report_type=rt,total_sales_amount=sum(float(s.get('total_sales',0)) for s in srecs),total_branch_amount=sum(float(s.get('total_sales',0)) for s in brecs),company=COMPANY_NAME)
 
-# ---------- LEAVES (fixed: fetch real branch from DB) ----------
+# ---------- LEAVES (fetch real branch & role from DB) ----------
 @app.route('/leaves', methods=['GET','POST'])
 @login_required
 def leaves():
@@ -1096,15 +1086,15 @@ def leaves():
         leave_start = request.form.get('leave_start',''); leave_end = request.form.get('leave_end','')
         leave_date = leave_start if leave_start else request.form.get('leave_date','')
         if leave_date:
-            # Fetch the real branch from the database to guarantee it's correct
             emp_data = safe_data(execute_query(
-                supabase.table('employees').select('branch, department').eq('full_name', un).limit(1)
+                supabase.table('employees').select('branch, department, role').eq('full_name', un).limit(1)
             ))
             branch = emp_data[0].get('branch','') if emp_data else session.get('branch','')
             department = emp_data[0].get('department','') if emp_data else session.get('department','')
-            
+            # Use the exact role from DB (already normalised) to guarantee correct chain matching
+            db_role = emp_data[0].get('role','') if emp_data else role
             supabase.table('leaves').insert({
-                'full_name': un,'role': role,'branch': branch,
+                'full_name': un,'role': db_role,'branch': branch,
                 'leave_date': leave_date,'leave_start': leave_start,'leave_end': leave_end,
                 'total_days': int(request.form.get('total_days',1)),
                 'leave_type': request.form.get('leave_type','Annual Leave'),
@@ -1113,7 +1103,7 @@ def leaves():
                 'handover_notes': request.form.get('handover_notes',''),
                 'backup_person': request.form.get('backup_person',''),
                 'emergency_contact': request.form.get('emergency_contact',''),
-                'department': department, 'position': role,
+                'department': department, 'position': db_role,
                 'phone': request.form.get('phone',''), 'email': request.form.get('email',''),
                 'status': 'pending'
             }).execute()
@@ -1135,7 +1125,7 @@ def leave_pdf(lid):
     if not leave: return "Leave not found", 404
     return render_template('leave_pdf.html', lv=leave[0], company=COMPANY_NAME)
 
-# ---------- APPROVE LEAVES (delegation aware) ----------
+# ---------- APPROVE LEAVES (delegation aware, case‑insensitive chain) ----------
 @app.route('/approve-leaves')
 @login_required
 def approve_leaves():
@@ -1162,7 +1152,7 @@ def approve_leaves():
     pending = []
     for leave in all_leaves:
         emp_role = leave.get('role','Staff')
-        chain = get_approval_chain(emp_role)
+        chain = get_approval_chain(emp_role)   # now case‑insensitive
         for stage in chain:
             if leave['status'] == stage['from_status'] and any(r in stage['allowed_roles'] for r in effective_roles):
                 if user_role == 'Branch Manager':
