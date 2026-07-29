@@ -1577,6 +1577,55 @@ def procurement_delegation():
         resumed=request.args.get('resumed',''),
         company=COMPANY_NAME)
 
+# ---------- HR ANNUAL LEAVE MANAGER ----------
+@app.route('/hr/annual-leave')
+@login_required
+def hr_annual_leave():
+    if session.get('role') not in ['HR','HR Assistant']:
+        return redirect('/')
+    year = str(now_eat().year)
+    employees = safe_data(execute_query(
+        supabase.table('employees').select('id, full_name, department, branch, role, annual_leave_remaining_override')
+               .eq('status','approved')
+               .order('full_name')
+               .limit(500)
+    ))
+    for emp in employees:
+        used = safe_data(execute_query(
+            supabase.table('leaves')
+                   .select('total_days')
+                   .eq('full_name', emp['full_name'])
+                   .eq('leave_type', 'Annual Leave')
+                   .eq('status', 'approved_final')
+                   .like('leave_start', f'{year}%')
+        ))
+        emp['used_days'] = sum(d['total_days'] for d in used)
+        override = emp.get('annual_leave_remaining_override')
+        if override is not None:
+            emp['remaining'] = override
+        else:
+            emp['remaining'] = max(0, 21 - emp['used_days'])
+
+    return render_template('hr_annual_leave.html',
+        employees=employees,
+        year=year,
+        company=COMPANY_NAME)
+
+@app.route('/hr/annual-leave/update/<int:eid>', methods=['POST'])
+@login_required
+def update_annual_leave_override(eid):
+    if session.get('role') not in ['HR','HR Assistant']:
+        return redirect('/')
+    remaining = request.form.get('remaining', '').strip()
+    try:
+        remaining_int = int(remaining) if remaining else None
+    except ValueError:
+        remaining_int = None
+    supabase.table('employees').update({
+        'annual_leave_remaining_override': remaining_int
+    }).eq('id', eid).execute()
+    return redirect('/hr/annual-leave')
+
 # ---------- ERROR HANDLER ----------
 @app.errorhandler(Exception)
 def handle_exception(e):
