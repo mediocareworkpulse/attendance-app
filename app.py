@@ -323,6 +323,11 @@ def robots():
         {'Content-Type': 'text/plain'}
     )
 
+# ---------- GOOGLE VERIFICATION ----------
+@app.route('/google1102f1c28cc82b57.html')
+def google_verification():
+    return 'google-site-verification: google1102f1c28cc82b57.html', 200, {'Content-Type': 'text/html'}
+
 # ---------- SIGNUP (branch mandatory) ----------
 @app.route('/signup', methods=['GET','POST'])
 def signup():
