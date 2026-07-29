@@ -1077,7 +1077,7 @@ def reports():
         brecs = safe_data(execute_query(supabase.table('branch_sales').select('*').gte('date',fd).lte('date',td).order('date',desc=True).limit(200)))
     return render_template('reports.html',records=records,sales_recs=srecs,branch_recs=brecs,from_date=fd,to_date=td,report_type=rt,total_sales_amount=sum(float(s.get('total_sales',0)) for s in srecs),total_branch_amount=sum(float(s.get('total_sales',0)) for s in brecs),company=COMPANY_NAME)
 
-# ---------- LEAVES (fetch real branch & role from DB) ----------
+# ---------- LEAVES (annual limit, edit/delete pending, leave history) ----------
 @app.route('/leaves', methods=['GET','POST'])
 @login_required
 def leaves():
@@ -1086,17 +1086,43 @@ def leaves():
         leave_start = request.form.get('leave_start',''); leave_end = request.form.get('leave_end','')
         leave_date = leave_start if leave_start else request.form.get('leave_date','')
         if leave_date:
+            leave_type = request.form.get('leave_type','Annual Leave')
+            total_days = int(request.form.get('total_days',1))
+
+            # Enforce annual leave limit (21 days per year)
+            if leave_type == 'Annual Leave':
+                year_start = leave_start[:4]   # e.g. "2026"
+                used_data = safe_data(execute_query(
+                    supabase.table('leaves')
+                           .select('total_days')
+                           .eq('full_name', un)
+                           .eq('leave_type', 'Annual Leave')
+                           .eq('status', 'approved_final')
+                           .like('leave_start', f'{year_start}%')
+                ))
+                used_days = sum(d['total_days'] for d in used_data)
+                if used_days + total_days > 21:
+                    my_leaves = safe_data(execute_query(supabase.table('leaves').select('*').eq('full_name',un).order('created_at',desc=True).limit(50)))
+                    return render_template('leaves.html',
+                        leaves=my_leaves,
+                        today=today,
+                        company=COMPANY_NAME,
+                        error='Annual leave limit is 21 days. You have already used {} day(s).'.format(used_days),
+                        departments=DEPARTMENTS,
+                        roles=ALL_ROLES)
+
             emp_data = safe_data(execute_query(
                 supabase.table('employees').select('branch, department, role').eq('full_name', un).limit(1)
             ))
             branch = emp_data[0].get('branch','') if emp_data else session.get('branch','')
             department = emp_data[0].get('department','') if emp_data else session.get('department','')
             db_role = emp_data[0].get('role','') if emp_data else role
+
             supabase.table('leaves').insert({
                 'full_name': un,'role': db_role,'branch': branch,
                 'leave_date': leave_date,'leave_start': leave_start,'leave_end': leave_end,
-                'total_days': int(request.form.get('total_days',1)),
-                'leave_type': request.form.get('leave_type','Annual Leave'),
+                'total_days': total_days,
+                'leave_type': leave_type,
                 'reason': request.form.get('reason',''),
                 'remaining_balance': request.form.get('remaining_balance',''),
                 'handover_notes': request.form.get('handover_notes',''),
@@ -1107,16 +1133,65 @@ def leaves():
                 'status': 'pending'
             }).execute()
         return redirect('/leaves?success=1')
+
+    # GET – list my leaves + remaining annual leave balance
     my_leaves = safe_data(execute_query(supabase.table('leaves').select('*').eq('full_name',un).order('created_at',desc=True).limit(50)))
+
+    # Calculate annual leave balance
+    year = str(now_eat().year)
+    used_annual = safe_data(execute_query(
+        supabase.table('leaves')
+               .select('total_days')
+               .eq('full_name', un)
+               .eq('leave_type', 'Annual Leave')
+               .eq('status', 'approved_final')
+               .like('leave_start', f'{year}%')
+    ))
+    used_days = sum(d['total_days'] for d in used_annual)
+    annual_remaining = max(0, 21 - used_days)
+
     return render_template('leaves.html',
         leaves=my_leaves,
         today=today,
         company=COMPANY_NAME,
         success_msg=request.args.get('success',''),
+        error=request.args.get('error',''),
         departments=DEPARTMENTS,
-        roles=ALL_ROLES
-    )
+        roles=ALL_ROLES,
+        annual_remaining=annual_remaining,
+        used_annual=used_days)
 
+# ---------- EDIT / DELETE OWN PENDING LEAVES ----------
+@app.route('/leaves/edit/<int:lid>', methods=['POST'])
+@login_required
+def edit_leave(lid):
+    un = session.get('user')
+    leave = safe_data(execute_query(supabase.table('leaves').select('*').eq('id', lid).eq('full_name', un).limit(1)))
+    if not leave or leave[0]['status'] != 'pending':
+        return redirect('/leaves')
+    data = {
+        'leave_start': request.form.get('leave_start',''),
+        'leave_end': request.form.get('leave_end',''),
+        'total_days': int(request.form.get('total_days',1)),
+        'leave_type': request.form.get('leave_type','Annual Leave'),
+        'reason': request.form.get('reason',''),
+        'handover_notes': request.form.get('handover_notes',''),
+        'backup_person': request.form.get('backup_person',''),
+        'emergency_contact': request.form.get('emergency_contact',''),
+    }
+    supabase.table('leaves').update(data).eq('id', lid).execute()
+    return redirect('/leaves?updated=1')
+
+@app.route('/leaves/delete/<int:lid>', methods=['POST'])
+@login_required
+def delete_leave(lid):
+    un = session.get('user')
+    leave = safe_data(execute_query(supabase.table('leaves').select('*').eq('id', lid).eq('full_name', un).limit(1)))
+    if leave and leave[0]['status'] == 'pending':
+        supabase.table('leaves').delete().eq('id', lid).execute()
+    return redirect('/leaves')
+
+# ---------- LEAVE PDF ----------
 @app.route('/leave-pdf/<int:lid>')
 @login_required
 def leave_pdf(lid):
@@ -1124,12 +1199,11 @@ def leave_pdf(lid):
     if not leave: return "Leave not found", 404
     return render_template('leave_pdf.html', lv=leave[0], company=COMPANY_NAME)
 
-# ---------- APPROVE LEAVES (CASE‑INSENSITIVE MATCHING) ----------
+# ---------- APPROVE LEAVES (CASE‑INSENSITIVE MATCHING, rejection reason) ----------
 @app.route('/approve-leaves')
 @login_required
 def approve_leaves():
     effective_roles = get_effective_roles()
-    # Lowercase all effective roles for comparison
     effective_roles_lower = [r.lower().strip() for r in effective_roles]
     user_role = session.get('role')
     user_branch = session.get('branch','')
@@ -1139,7 +1213,6 @@ def approve_leaves():
         'Stock Controller','Assistant Stock Controller','Sales Manager','Store Manager',
         'admin','ceo'
     ]
-    # Check if any effective role (lowercased) is in the lowercased approver list
     if not any(r.lower() in [ar.lower() for ar in approver_roles + FULL_ACCESS_ROLES] for r in effective_roles):
         return redirect('/')
     
@@ -1154,9 +1227,8 @@ def approve_leaves():
     pending = []
     for leave in all_leaves:
         emp_role = leave.get('role','Staff')
-        chain = get_approval_chain(emp_role)   # case‑insensitive chain
+        chain = get_approval_chain(emp_role)
         for stage in chain:
-            # Compare lowercased allowed roles with lowercased effective roles
             allowed_lower = [r.lower() for r in stage['allowed_roles']]
             if leave['status'] == stage['from_status'] and any(r in allowed_lower for r in effective_roles_lower):
                 if user_role.lower() == 'branch manager':
@@ -1194,7 +1266,6 @@ def process_leave(lid, action):
     if not current_stage:
         return redirect('/approve-leaves')
     
-    # Pick the first matching effective role (original case) for recording
     acting_role = None
     for r in effective_roles:
         if r.lower() in [x.lower() for x in current_stage['allowed_roles']]:
@@ -1208,15 +1279,22 @@ def process_leave(lid, action):
             new_status = 'approved_final'
         else:
             new_status = current_stage['to_status']
+        rejection_reason = None
     elif action == 'reject':
         new_status = 'rejected'
+        rejection_reason = request.form.get('rejection_reason','').strip()
+        if not rejection_reason:
+            rejection_reason = 'No reason provided'
     else:
         return redirect('/approve-leaves')
     
-    supabase.table('leaves').update({
+    update_data = {
         'status': new_status,
         'approved_by': acting_role
-    }).eq('id', lid).execute()
+    }
+    if action == 'reject':
+        update_data['rejection_reason'] = rejection_reason
+    supabase.table('leaves').update(update_data).eq('id', lid).execute()
     return redirect('/approve-leaves')
 
 # ---------- MARKETER ROUTES ----------
