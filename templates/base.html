@@ -66,6 +66,11 @@
             <a href="/hr/annual-leave" class="{% if request.path == '/hr/annual-leave' %}active{% endif %}">📅 Annual Leave</a>
         {% endif %}
 
+        <!-- Live Status link for managers and Procurement -->
+        {% if role_lower in ['admin','ceo','hr','hr assistant','store manager','operations manager','assistant operations manager','sales manager','branch manager','procurement officer'] %}
+            <a href="/live-status" class="{% if request.path == '/live-status' %}active{% endif %}">🟢 Live Status</a>
+        {% endif %}
+
         {% if session.role == 'Sales Manager' %}
             <a href="/sales-manager" class="{% if request.path == '/sales-manager' %}active{% endif %}">📋 Manager Dashboard</a>
         {% endif %}
@@ -80,7 +85,6 @@
 
         <!-- Procurement Officer special links -->
         {% if session.role == 'Procurement Officer' %}
-            <a href="/procurement/status" class="{% if request.path == '/procurement/status' %}active{% endif %}">🟢 Live Status</a>
             <a href="/procurement/delegation" class="{% if request.path == '/procurement/delegation' %}active{% endif %}">🔄 Delegation</a>
         {% endif %}
 
