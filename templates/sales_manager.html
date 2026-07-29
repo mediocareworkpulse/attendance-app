@@ -104,7 +104,6 @@
 
     function showMap(lat, lng, marketerName) {
         document.getElementById('mapModal').style.display = 'flex';
-        // Initialise map if not already done
         setTimeout(function() {
             if (!map) {
                 map = L.map('mapContainer').setView([lat, lng], 15);
@@ -114,7 +113,6 @@
             } else {
                 map.setView([lat, lng], 15);
             }
-            // Clear existing markers and add new one
             map.eachLayer(function(layer) {
                 if (layer instanceof L.Marker) {
                     map.removeLayer(layer);
@@ -123,7 +121,6 @@
             L.marker([lat, lng]).addTo(map)
                 .bindPopup('<b>' + marketerName + '</b><br>' + lat + ', ' + lng)
                 .openPopup();
-            // Force map to recalculate size
             map.invalidateSize();
         }, 100);
     }
