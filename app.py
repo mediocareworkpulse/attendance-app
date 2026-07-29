@@ -4,8 +4,7 @@ from supabase import create_client
 from functools import wraps
 from collections import defaultdict
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+# Removed Flask‑Limiter completely – no rate limits anywhere
 import pytz, time
 
 app = Flask(__name__)
@@ -15,12 +14,6 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY = True,
     SESSION_COOKIE_SECURE = True,
     SESSION_COOKIE_SAMESITE = 'Lax'
-)
-
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["200 per day", "50 per hour"]
 )
 
 SUPABASE_URL = 'https://lznqrkujlrcxcxizygzq.supabase.co'
@@ -234,7 +227,6 @@ def block_check():
 
 # ---------- AUTH ----------
 @app.route('/login', methods=['GET','POST'])
-@limiter.limit("5 per minute")
 def login():
     if request.method == 'POST':
         name = request.form.get('full_name','').strip()
@@ -255,7 +247,6 @@ def login():
             if emp.get('status','') not in ['','approved']:
                 return render_template('login.html', error='Account pending approval.')
             session['user'] = emp['full_name']
-            # Normalise the role to exact casing
             raw_role = emp.get('role','Staff')
             session['role'] = normalize_role(raw_role)
             session['department'] = emp.get('department','')
