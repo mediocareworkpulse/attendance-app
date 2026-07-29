@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">🟢 Live Working Status</h1>
+<p class="page-subtitle">{{ company }} – {{ today }}</p>
+
+<div class="form-card">
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">Currently Working ({{ working|length }})</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Branch</th>
+                    <th>Check‑In</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for w in working %}
+            <tr>
+                <td class="td-name">{{ w.full_name }}</td>
+                <td>{{ w.department or '—' }}</td>
+                <td>{{ w.branch or '—' }}</td>
+                <td>{{ w.check_in }}</td>
+                <td>
+                    {% if w.status == 'late' %}
+                    <span class="badge badge-danger">Late</span>
+                    {% else %}
+                    <span class="badge badge-success">Present</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="form-card" style="margin-top:20px;">
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">Checked Out Today ({{ checked_out|length }})</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Branch</th>
+                    <th>Check‑Out</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for c in checked_out %}
+            <tr>
+                <td class="td-name">{{ c.full_name }}</td>
+                <td>{{ c.department or '—' }}</td>
+                <td>{{ c.branch or '—' }}</td>
+                <td>{{ c.check_out }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="form-card" style="margin-top:20px;">
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">🌴 On Leave Today ({{ on_leave|length }})</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Leave Type</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for l in on_leave %}
+            <tr>
+                <td class="td-name">{{ l.full_name }}</td>
+                <td>{{ l.leave_type }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
