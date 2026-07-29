@@ -294,6 +294,35 @@ def keep_alive():
 def favicon():
     return '', 204
 
+# ---------- TRUST & TRANSPARENCY ROUTES ----------
+@app.route('/privacy')
+def privacy():
+    return render_template('privacy.html', company=COMPANY_NAME)
+
+@app.route('/.well-known/security.txt')
+def security_txt():
+    return (
+        "Contact: mailto:support@mediocarepharma.com\n"
+        "Expires: 2027-12-31T23:59:59.000Z\n"
+        "Preferred-Languages: en\n"
+        "Canonical: https://attendance-app-h847.onrender.com/.well-known/security.txt\n",
+        200,
+        {'Content-Type': 'text/plain'}
+    )
+
+@app.route('/robots.txt')
+def robots():
+    return (
+        "User-agent: *\n"
+        "Disallow: /admin\n"
+        "Disallow: /check-in\n"
+        "Disallow: /sales\n"
+        "Disallow: /leaves\n"
+        "Allow: /\n",
+        200,
+        {'Content-Type': 'text/plain'}
+    )
+
 # ---------- SIGNUP (branch mandatory) ----------
 @app.route('/signup', methods=['GET','POST'])
 def signup():
