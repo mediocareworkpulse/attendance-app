@@ -6,115 +6,60 @@
     <title>Sign Up – {{ company }}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * {
-            margin: 0; padding: 0; box-sizing: border-box;
-            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-        }
-        body {
-            display: flex; justify-content: center; align-items: center;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #020617 0%, #0b2b4a 60%);
-            padding: 30px 20px;
-        }
-        .signup-container {
-            width: 100%; max-width: 620px;
-            background: #0b1329;
-            border: 2px solid #d4a843;
-            border-radius: 20px;
-            box-shadow: 0 0 30px rgba(212,168,67,0.35), 0 0 15px rgba(212,168,67,0.15) inset;
-            padding: 40px 36px; position: relative; overflow: hidden;
-            animation: fadeInUp 0.8s ease;
-        }
-        @keyframes fadeInUp {
-            from { opacity:0; transform: translateY(30px); }
-            to { opacity:1; transform: translateY(0); }
-        }
-        .signup-container::before {
-            content: '';
-            position: absolute; top: -50px; right: -50px;
-            width: 180px; height: 180px;
-            background: radial-gradient(circle, rgba(212,168,67,0.3) 0%, transparent 70%);
-            border-radius: 50%; z-index: 0;
-            animation: pulseGlow 4s infinite alternate;
-        }
-        @keyframes pulseGlow {
-            0% { transform: scale(1); opacity:0.3; }
-            100% { transform: scale(1.2); opacity:0.5; }
-        }
-        .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; position: relative; z-index: 1; }
-        .brand-icon {
-            width: 44px; height: 44px;
-            background: linear-gradient(135deg, #d4a843, #b38b2c);
-            border-radius: 12px; display: flex; align-items: center; justify-content: center;
-            font-size: 22px; color: #0b1329;
-            animation: bounce 2s infinite;
-        }
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-        .brand-name { font-size: 18px; font-weight: 700; color: #fff; line-height: 1.2; }
-        .brand-sub { font-size: 10px; color: #a0aec0; text-transform: uppercase; letter-spacing: 1px; }
-
-        h2 { font-size: 1.8rem; color: #fff; margin-bottom: 4px; position: relative; z-index: 1; }
-        .subtitle { font-size: 0.8rem; color: #a0aec0; margin-bottom: 20px; position: relative; z-index: 1; }
-
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; position: relative; z-index: 1; }
-        .form-group { margin-bottom: 6px; }
-        .form-group.full { grid-column: span 2; }
-        .form-group label { display: block; font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-        .form-group input,
-        .form-group select {
-            width: 100%; padding: 10px 12px;
-            border: 1px solid #334155; border-radius: 8px;
-            background: #0f172a; color: #fff; font-size: 0.85rem;
-            outline: none; transition: border-color 0.3s;
-        }
-        .form-group input:focus,
-        .form-group select:focus { border-color: #d4a843; }
-        .form-group select { cursor: pointer; }
-        .password-wrapper { position: relative; }
-        .password-wrapper input { padding-right: 40px; }
-        .password-toggle {
-            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-            background: none; border: none; color: #64748b; cursor: pointer;
-            font-size: 0.85rem;
-        }
-        .btn {
-            width: 100%; padding: 13px;
-            background: linear-gradient(90deg, #d4a843, #b38b2c);
-            border: none; border-radius: 25px; cursor: pointer;
-            font-size: 0.95rem; color: #0b1329; font-weight: 700;
-            margin-top: 16px;
-            box-shadow: 0 0 15px rgba(212,168,67,0.4);
-            transition: transform 0.2s, box-shadow 0.2s;
-            letter-spacing: 0.3px; position: relative; z-index: 1;
-            animation: glowPulse 2s infinite alternate;
-        }
-        @keyframes glowPulse {
-            0% { box-shadow: 0 0 15px rgba(212,168,67,0.4); }
-            100% { box-shadow: 0 0 25px rgba(212,168,67,0.7); }
-        }
-        .btn:hover { transform: translateY(-2px); }
-        .login-link { font-size: 0.8rem; color: #94a3b8; text-align: center; margin-top: 18px; position: relative; z-index: 1; }
-        .login-link a { color: #d4a843; text-decoration: none; font-weight: 600; }
-        .login-link a:hover { text-decoration: underline; }
-        .alert-error {
-            background: rgba(220,38,38,0.15); border-left: 4px solid #ef4444;
-            color: #fecaca; padding: 10px 12px; border-radius: 8px;
-            margin-bottom: 16px; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;
-            position: relative; z-index: 1;
-        }
-        .alert-success {
-            background: rgba(34,197,94,0.15); border-left: 4px solid #22c55e;
-            color: #bbf7d0; padding: 10px 12px; border-radius: 8px;
-            margin-bottom: 16px; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;
-            position: relative; z-index: 1;
-        }
-        @media (max-width: 550px) {
-            .form-grid { grid-template-columns: 1fr; }
-            .form-group.full { grid-column: span 1; }
-            .signup-container { padding: 28px 20px; }
+        * { margin:0; padding:0; box-sizing:border-box; font-family:'Inter','Segoe UI',system-ui,sans-serif; }
+        body { display:flex; justify-content:center; align-items:center; min-height:100vh;
+               background:linear-gradient(135deg,#020617 0%,#0b2b4a 60%); padding:30px 20px; }
+        .signup-container { width:100%; max-width:620px; background:#0b1329; border:2px solid #d4a843;
+                            border-radius:20px; box-shadow:0 0 30px rgba(212,168,67,0.35),0 0 15px rgba(212,168,67,0.15) inset;
+                            padding:40px 36px; position:relative; overflow:hidden; animation:fadeInUp 0.8s ease; }
+        @keyframes fadeInUp { from{opacity:0;transform:translateY(30px);} to{opacity:1;transform:translateY(0);} }
+        .signup-container::before { content:''; position:absolute; top:-50px; right:-50px; width:180px; height:180px;
+                                    background:radial-gradient(circle,rgba(212,168,67,0.3) 0%,transparent 70%);
+                                    border-radius:50%; z-index:0; animation:pulseGlow 4s infinite alternate; }
+        @keyframes pulseGlow { 0%{transform:scale(1); opacity:0.3;} 100%{transform:scale(1.2); opacity:0.5;} }
+        .brand { display:flex; align-items:center; gap:10px; margin-bottom:24px; position:relative; z-index:1; }
+        .brand-icon { width:44px; height:44px; background:linear-gradient(135deg,#d4a843,#b38b2c);
+                      border-radius:12px; display:flex; align-items:center; justify-content:center;
+                      font-size:22px; color:#0b1329; animation:bounce 2s infinite; }
+        @keyframes bounce { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-5px);} }
+        .brand-name { font-size:18px; font-weight:700; color:#fff; line-height:1.2; }
+        .brand-sub { font-size:10px; color:#a0aec0; text-transform:uppercase; letter-spacing:1px; }
+        h2 { font-size:1.8rem; color:#fff; margin-bottom:4px; position:relative; z-index:1; }
+        .subtitle { font-size:0.8rem; color:#a0aec0; margin-bottom:20px; position:relative; z-index:1; }
+        .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; position:relative; z-index:1; }
+        .form-group { margin-bottom:6px; }
+        .form-group.full { grid-column:span 2; }
+        .form-group label { display:block; font-size:10px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+        .form-group input,.form-group select { width:100%; padding:10px 12px; border:1px solid #334155;
+            border-radius:8px; background:#0f172a; color:#fff; font-size:0.85rem; outline:none; transition:border-color 0.3s; }
+        .form-group input:focus,.form-group select:focus { border-color:#d4a843; }
+        .password-wrapper { position:relative; }
+        .password-wrapper input { padding-right:40px; }
+        .password-toggle { position:absolute; right:10px; top:50%; transform:translateY(-50%);
+                           background:none; border:none; color:#64748b; cursor:pointer; font-size:0.85rem; }
+        .btn { width:100%; padding:13px; background:linear-gradient(90deg,#d4a843,#b38b2c);
+               border:none; border-radius:25px; cursor:pointer; font-size:0.95rem; color:#0b1329;
+               font-weight:700; margin-top:16px; box-shadow:0 0 15px rgba(212,168,67,0.4);
+               transition:transform 0.2s,box-shadow 0.2s; letter-spacing:0.3px; position:relative; z-index:1;
+               animation:glowPulse 2s infinite alternate; }
+        @keyframes glowPulse { 0%{box-shadow:0 0 15px rgba(212,168,67,0.4);} 100%{box-shadow:0 0 25px rgba(212,168,67,0.7);} }
+        .btn:hover { transform:translateY(-2px); }
+        .login-link { font-size:0.8rem; color:#94a3b8; text-align:center; margin-top:18px; position:relative; z-index:1; }
+        .login-link a { color:#d4a843; text-decoration:none; font-weight:600; }
+        .login-link a:hover { text-decoration:underline; }
+        .alert-error { background:rgba(220,38,38,0.15); border-left:4px solid #ef4444;
+                       color:#fecaca; padding:10px 12px; border-radius:8px; margin-bottom:16px;
+                       font-size:0.8rem; display:flex; align-items:center; gap:8px; position:relative; z-index:1; }
+        .alert-success { background:rgba(34,197,94,0.15); border-left:4px solid #22c55e;
+                         color:#bbf7d0; padding:10px 12px; border-radius:8px; margin-bottom:16px;
+                         font-size:0.8rem; display:flex; align-items:center; gap:8px; position:relative; z-index:1; }
+        .footer-links { font-size:0.7rem; color:#64748b; text-align:center; margin-top:20px; position:relative; z-index:1; }
+        .footer-links a { color:#94a3b8; text-decoration:none; margin:0 4px; }
+        .footer-links a:hover { text-decoration:underline; }
+        @media(max-width:550px) {
+            .form-grid { grid-template-columns:1fr; }
+            .form-group.full { grid-column:span 1; }
+            .signup-container { padding:28px 20px; }
         }
     </style>
 </head>
@@ -129,14 +74,8 @@
         </div>
         <h2>Create your account</h2>
         <div class="subtitle">Join the team – sign up in seconds</div>
-
-        {% if error %}
-        <div class="alert-error"><i class="fa-solid fa-circle-exclamation"></i> {{ error }}</div>
-        {% endif %}
-        {% if success %}
-        <div class="alert-success"><i class="fa-solid fa-circle-check"></i> {{ success }}</div>
-        {% endif %}
-
+        {% if error %}<div class="alert-error"><i class="fa-solid fa-circle-exclamation"></i> {{ error }}</div>{% endif %}
+        {% if success %}<div class="alert-success"><i class="fa-solid fa-circle-check"></i> {{ success }}</div>{% endif %}
         <form method="POST">
             <div class="form-grid">
                 <div class="form-group full">
@@ -186,25 +125,18 @@
             </div>
             <button type="submit" class="btn">Create Account</button>
         </form>
-
-        <div class="login-link">
-            Already have an account? <a href="/login">Sign in</a>
+        <div class="login-link">Already have an account? <a href="/login">Sign in</a></div>
+        <div class="footer-links">
+            <a href="/privacy">Privacy Policy</a> |
+            <span>support@mediocarepharma.com</span>
         </div>
     </div>
-
     <script>
         function toggleSignupPassword() {
             const field = document.getElementById('signupPassword');
             const icon = document.getElementById('signupToggleIcon');
-            if (field.type === 'password') {
-                field.type = 'text';
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
-            } else {
-                field.type = 'password';
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
-            }
+            if (field.type === 'password') { field.type='text'; icon.classList.replace('fa-eye','fa-eye-slash'); }
+            else { field.type='password'; icon.classList.replace('fa-eye-slash','fa-eye'); }
         }
     </script>
 </body>
