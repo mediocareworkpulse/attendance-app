@@ -30,15 +30,20 @@
                     <span class="badge badge-info">Pending Final</span>
                 {% elif l.status == 'approved_by_procurement' %}
                     <span class="badge badge-info">Pending HR</span>
+                {% elif l.status == 'approved_by_ops' %}
+                    <span class="badge badge-info">Pending Ops</span>
                 {% endif %}
             </td>
             <td>
                 <form method="POST" action="/approve-leaves/{{ l.id }}/approve" style="display:inline">
                     <button class="btn btn-sm" style="background:#27ae60; color:#fff;">Approve</button>
                 </form>
-                <form method="POST" action="/approve-leaves/{{ l.id }}/reject" style="display:inline">
-                    <button class="btn btn-sm btn-danger">Reject</button>
-                </form>
+                <div style="display:flex; gap:4px; align-items:center;">
+                    <form method="POST" action="/approve-leaves/{{ l.id }}/reject" style="display:flex; gap:4px; align-items:center;">
+                        <input type="text" name="rejection_reason" placeholder="Reason for rejection" style="width:150px; font-size:11px;" required>
+                        <button class="btn btn-sm btn-danger">Reject</button>
+                    </form>
+                </div>
                 <a href="/leave-pdf/{{ l.id }}" class="btn btn-sm">📄</a>
             </td>
         </tr>
