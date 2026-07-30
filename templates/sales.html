@@ -6,15 +6,19 @@
 {% if success_msg %}<div class="alert alert-success">✅ Sales submitted successfully.</div>{% endif %}
 
 <!-- Submission Forms (Individual & Branch) -->
-{% set role_lower = session.role|lower %}
 <div style="display:flex; flex-wrap:wrap; gap:16px; margin-bottom:20px;">
-    {% if role_lower == 'staff' or role_lower == 'branch manager' %}
+    {% if session.role in ['Staff','Branch Manager'] %}
     <!-- Individual Sale Form -->
     <div class="form-card" style="flex:1; min-width:300px; border-left: 5px solid var(--accent);">
         <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">📝 Submit Individual Sale</h2>
         <form method="POST">
             <input type="hidden" name="sales_type" value="individual">
             <div class="form-grid" style="grid-template-columns:1fr 1fr; gap:12px;">
+                <div>
+                    <label>Sale Date</label>
+                    <input type="date" name="sale_date" value="{{ today }}" max="{{ today }}">
+                </div>
+                <div></div>
                 <div><label>M‑Pesa</label><input type="number" step="0.01" name="mpesa_sales" value="0"></div>
                 <div><label>Cash</label><input type="number" step="0.01" name="cash_sales" value="0"></div>
                 <div style="grid-column:span 2;"><label>Notes</label><input type="text" name="notes" placeholder="Optional"></div>
@@ -35,7 +39,7 @@
     </div>
     {% endif %}
 
-    {% if role_lower == 'branch manager' %}
+    {% if session.role == 'Branch Manager' %}
     <!-- Branch Sale Form -->
     <div class="form-card" style="flex:1; min-width:300px; border-left: 5px solid var(--primary);">
         <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">🏢 Submit Branch Sale</h2>
@@ -43,6 +47,11 @@
             <input type="hidden" name="sales_type" value="branch">
             <p style="font-size:12px; color:var(--text-secondary);">Branch: {{ session.branch }}</p>
             <div class="form-grid" style="grid-template-columns:1fr 1fr; gap:12px;">
+                <div>
+                    <label>Sale Date</label>
+                    <input type="date" name="sale_date" value="{{ today }}" max="{{ today }}">
+                </div>
+                <div></div>
                 <div><label>M‑Pesa</label><input type="number" step="0.01" name="mpesa_sales" value="0"></div>
                 <div><label>Cash</label><input type="number" step="0.01" name="cash_sales" value="0"></div>
                 <div style="grid-column:span 2;"><label>Notes</label><input type="text" name="notes" placeholder="Optional"></div>
@@ -64,11 +73,11 @@
     {% endif %}
 </div>
 
-<!-- Filter Section -->
+<!-- Filter & View Section -->
 <div class="form-card">
     <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">🔍 Filter Sales</h2>
     <form method="GET" class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap:12px;">
-        {% if role_lower not in ['staff','branch manager'] %}
+        {% if session.role not in ['Staff','Branch Manager'] %}
         <div>
             <label>View Type</label>
             <select name="view_type" onchange="this.form.submit()">
@@ -77,11 +86,11 @@
             </select>
         </div>
         {% endif %}
-        {% if role_lower != 'staff' %}
+        {% if session.role != 'Staff' %}
         <div>
             <label>Branch</label>
-            <select name="branch" {% if role_lower == 'branch manager' %}disabled{% endif %}>
-                {% if role_lower == 'branch manager' %}
+            <select name="branch" {% if session.role == 'Branch Manager' %}disabled{% endif %}>
+                {% if session.role == 'Branch Manager' %}
                 <option>{{ session.branch }}</option>
                 {% else %}
                 <option value="">All</option>
@@ -92,7 +101,7 @@
             </select>
         </div>
         {% endif %}
-        {% if role_lower != 'staff' %}
+        {% if session.role != 'Staff' %}
         <div>
             <label>Employee</label>
             <select name="employee">
@@ -140,7 +149,7 @@
 {% endif %}
 
 <!-- Individual Sales Table -->
-{% if view_type == 'individual' or role_lower in ['staff','branch manager'] %}
+{% if view_type == 'individual' or session.role in ['Staff','Branch Manager'] %}
 <div class="form-card" style="margin-top:20px;">
     <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">📋 Individual Sales</h2>
     <div class="table-container">
@@ -183,7 +192,7 @@
 {% endif %}
 
 <!-- Branch Sales Table (only for Branch Manager and above) -->
-{% if (view_type == 'branch' and role_lower != 'staff') or role_lower == 'branch manager' %}
+{% if (view_type == 'branch' and session.role != 'Staff') or session.role == 'Branch Manager' %}
 <div class="form-card" style="margin-top:20px;">
     <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">🏢 Branch Sales</h2>
     <div class="table-container">
