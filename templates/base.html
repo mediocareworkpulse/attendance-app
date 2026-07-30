@@ -6,7 +6,7 @@
     <title>{{ company }}</title>
     <link rel="stylesheet" href="/static/style.css">
 
-    <!-- PWA – splash screen will use these colours (blend with login background) -->
+    <!-- PWA -->
     <link rel="manifest" href="/static/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -73,12 +73,18 @@
             <a href="/hr/annual-leave" class="{% if request.path == '/hr/annual-leave' %}active{% endif %}">📅 Annual Leave</a>
         {% endif %}
 
+        <!-- Live Status link for managers and Procurement -->
         {% if role_lower in ['admin','ceo','hr','hr assistant','store manager','operations manager','assistant operations manager','sales manager','branch manager','procurement officer'] %}
             <a href="/live-status" class="{% if request.path == '/live-status' %}active{% endif %}">🟢 Live Status</a>
         {% endif %}
 
         {% if session.role == 'Sales Manager' %}
             <a href="/sales-manager" class="{% if request.path == '/sales-manager' %}active{% endif %}">📋 Manager Dashboard</a>
+        {% endif %}
+
+        <!-- NEW: Marketer Reports for Admin, CEO, Sales Manager -->
+        {% if session.role in ['admin','ceo','Sales Manager'] %}
+            <a href="/marketer-reports" class="{% if request.path == '/marketer-reports' %}active{% endif %}">📋 Marketer Reports</a>
         {% endif %}
 
         {% if session.role == 'Marketers' %}
@@ -89,14 +95,10 @@
             <a href="/targets" class="{% if request.path == '/targets' %}active{% endif %}">🎯 Sales Targets</a>
         {% endif %}
 
+        <!-- Procurement Officer special links -->
         {% if session.role == 'Procurement Officer' %}
             <a href="/procurement/delegation" class="{% if request.path == '/procurement/delegation' %}active{% endif %}">🔄 Delegation</a>
         {% endif %}
-
-        <!-- ═══════════ PERMANENT INSTALL BUTTON (shown when app is not yet installed) ═══════════ -->
-        <a href="#" id="installSidebarBtn" style="display: none;" onclick="handleInstallClick(event)">
-            📲 Install App
-        </a>
 
         <a href="/logout" class="logout-link">🚪 Logout</a>
     </div>
@@ -107,17 +109,13 @@
     {% block content %}{% endblock %}
 </div>
 
-<!-- ═══════════ iOS Install Instructions Modal (only shown on iPhone/iPad when needed) ═══════════ -->
-<div id="iosModal" class="modal-overlay" style="display: none;">
-    <div class="modal-box" style="max-width: 400px;">
-        <h3>Add to Home Screen</h3>
-        <p>Tap the <strong>Share</strong> button <span style="font-size:1.2em;">⎋</span> at the bottom of Safari, then tap <strong>"Add to Home Screen"</strong>.</p>
-        <div style="margin-top: 15px; text-align: center; font-size: 40px; line-height: 1;">
-            <span>📤</span> → <span>➕</span> → <span>📱</span>
-        </div>
-        <button class="btn btn-sm" style="margin-top: 15px;" onclick="document.getElementById('iosModal').style.display='none'">OK</button>
-    </div>
-</div>
+<!-- ═══════════ INSTALL BUTTON (PWA) ═══════════ -->
+<button id="installBtn" style="position:fixed; bottom:20px; right:20px; z-index:9999;
+    background:var(--accent); color:#fff; border:none; border-radius:25px;
+    padding:10px 20px; font-weight:700; cursor:pointer; display:none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);">
+    📲 Install App
+</button>
 
 <!-- ═══════════ SCRIPTS ═══════════ -->
 <script>
@@ -136,56 +134,33 @@
     });
 </script>
 
-<!-- Install logic – works on all platforms -->
+<!-- Install trigger -->
 <script>
-    const installBtn = document.getElementById('installSidebarBtn');
     let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
 
-    // Hide if already running as PWA
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-        installBtn.style.display = 'none';
-    }
-
-    // Android / desktop install prompt
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
         if (!window.matchMedia('(display-mode: standalone)').matches) {
-            installBtn.style.display = 'flex';   // show sidebar item
+            installBtn.style.display = 'block';
         }
     });
 
-    function handleInstallClick(event) {
-        event.preventDefault();
-        // If native prompt is available (Android/desktop), fire it
+    installBtn.addEventListener('click', async () => {
         if (deferredPrompt) {
             deferredPrompt.prompt();
-            deferredPrompt.userChoice.then((choiceResult) => {
-                if (choiceResult.outcome === 'accepted') {
-                    console.log('User installed');
-                }
-                deferredPrompt = null;
-            });
-            return;
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`Install: ${outcome}`);
+            deferredPrompt = null;
+            installBtn.style.display = 'none';
         }
-        // iOS fallback – show instructions
-        if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-            document.getElementById('iosModal').style.display = 'flex';
-        } else {
-            // Other unsupported browsers (unlikely)
-            alert('Your browser does not support one‑tap install. Please use Chrome on Android or Safari on iOS.');
-        }
-    }
+    });
 
-    // Hide button after installation
     window.addEventListener('appinstalled', () => {
         installBtn.style.display = 'none';
         deferredPrompt = null;
-    });
-
-    // Close iOS modal when clicking outside
-    document.getElementById('iosModal').addEventListener('click', function(e) {
-        if (e.target === this) this.style.display = 'none';
+        console.log('PWA installed');
     });
 </script>
 
