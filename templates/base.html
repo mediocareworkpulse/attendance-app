@@ -73,7 +73,6 @@
             <a href="/hr/annual-leave" class="{% if request.path == '/hr/annual-leave' %}active{% endif %}">📅 Annual Leave</a>
         {% endif %}
 
-        <!-- Live Status link for managers and Procurement -->
         {% if role_lower in ['admin','ceo','hr','hr assistant','store manager','operations manager','assistant operations manager','sales manager','branch manager','procurement officer'] %}
             <a href="/live-status" class="{% if request.path == '/live-status' %}active{% endif %}">🟢 Live Status</a>
         {% endif %}
@@ -90,7 +89,6 @@
             <a href="/targets" class="{% if request.path == '/targets' %}active{% endif %}">🎯 Sales Targets</a>
         {% endif %}
 
-        <!-- Procurement Officer special links -->
         {% if session.role == 'Procurement Officer' %}
             <a href="/procurement/delegation" class="{% if request.path == '/procurement/delegation' %}active{% endif %}">🔄 Delegation</a>
         {% endif %}
@@ -104,7 +102,7 @@
     {% block content %}{% endblock %}
 </div>
 
-<!-- ═══════════ INSTALL BUTTON (smart detection) ═══════════ -->
+<!-- ═══════════ INSTALL BUTTON (appears only when installable) ═══════════ -->
 <button id="installBtn" style="position:fixed; bottom:20px; right:20px; z-index:9999;
     background:var(--accent); color:#fff; border:none; border-radius:25px;
     padding:10px 20px; font-weight:700; cursor:pointer; display:none;
@@ -129,65 +127,45 @@
     });
 </script>
 
-<!-- Install detection & fallback -->
+<!-- Install trigger -->
 <script>
     let deferredPrompt;
     const installBtn = document.getElementById('installBtn');
 
-    // Only show if beforeinstallprompt fires
+    // Only show the button when the browser says installation is available
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
-        installBtn.style.display = 'block';
-        installBtn.textContent = '📲 Install App';
+        // Don't show if already installed
+        if (!window.matchMedia('(display-mode: standalone)').matches) {
+            installBtn.style.display = 'block';
+        }
     });
 
     installBtn.addEventListener('click', async () => {
         if (deferredPrompt) {
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
-            console.log(`User response: ${outcome}`);
+            console.log(`Install: ${outcome}`);
             deferredPrompt = null;
             installBtn.style.display = 'none';
-        } else {
-            // Fallback – show instructions based on platform
-            alert(getInstallInstructions());
         }
     });
 
+    // Hide button after installation
     window.addEventListener('appinstalled', () => {
         installBtn.style.display = 'none';
         deferredPrompt = null;
+        console.log('PWA installed');
     });
-
-    // If after 5 seconds the event hasn't fired, show a "How to Install" button
-    setTimeout(() => {
-        if (!deferredPrompt && !window.matchMedia('(display-mode: standalone)').matches) {
-            installBtn.style.display = 'block';
-            installBtn.textContent = '📱 How to Install';
-        }
-    }, 5000);
-
-    function getInstallInstructions() {
-        const ua = navigator.userAgent;
-        if (/Android/i.test(ua)) {
-            return "Tap the three‑dot menu → 'Add to Home screen'";
-        } else if (/iPhone|iPad|iPod/i.test(ua)) {
-            return "Tap the share button (square with arrow) → 'Add to Home Screen'";
-        } else {
-            return "On desktop Chrome: click the install icon (⊕) in the address bar.";
-        }
-    }
 </script>
 
-<!-- Register service worker -->
+<!-- Service worker -->
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/static/sw.js').then(reg => {
-        console.log('Service Worker registered with scope:', reg.scope);
-      }).catch(err => {
-        console.log('Service Worker registration failed:', err);
+      navigator.serviceWorker.register('/static/sw.js').catch(err => {
+        console.log('SW registration failed:', err);
       });
     });
   }
