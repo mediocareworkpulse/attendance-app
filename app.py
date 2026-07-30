@@ -1744,6 +1744,42 @@ def update_annual_leave_override(eid):
     }).eq('id', eid).execute()
     return redirect('/hr/annual-leave')
 
+# ---------- MARKETER REPORTS (Admin, CEO, Sales Manager) ----------
+@app.route('/marketer-reports')
+@login_required
+def marketer_reports():
+    if session.get('role') not in ['admin','ceo','Sales Manager']:
+        return redirect('/')
+    today = str(now_eat().date())
+    filter_from = request.args.get('from_date', today)
+    filter_to   = request.args.get('to_date', today)
+    filter_marketer = request.args.get('marketer', '')
+
+    query = (supabase.table('customer_reports')
+             .select('*')
+             .gte('date', filter_from)
+             .lte('date', filter_to))
+    if filter_marketer:
+        query = query.eq('full_name', filter_marketer)
+    query = query.order('date', desc=True).order('full_name').limit(500)
+    reports = safe_data(execute_query(query))
+
+    marketers = safe_data(execute_query(
+        supabase.table('employees')
+               .select('full_name')
+               .eq('status','approved')
+               .eq('role','Marketers')
+               .order('full_name')
+    ))
+
+    return render_template('marketer_reports.html',
+        reports=reports,
+        marketers=marketers,
+        filter_from=filter_from,
+        filter_to=filter_to,
+        filter_marketer=filter_marketer,
+        company=COMPANY_NAME)
+
 # ---------- ERROR HANDLER ----------
 @app.errorhandler(Exception)
 def handle_exception(e):
