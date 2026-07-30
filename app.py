@@ -323,7 +323,6 @@ def robots():
         {'Content-Type': 'text/plain'}
     )
 
-# ---------- GOOGLE VERIFICATION ----------
 @app.route('/google1102f1c28cc82b57.html')
 def google_verification():
     return 'google-site-verification: google1102f1c28cc82b57.html', 200, {'Content-Type': 'text/html'}
@@ -884,7 +883,7 @@ def attendance_history():
     return render_template('attendance_history.html', records=records, period=period,
                          from_date=sd, to_date=ed, today=str(today), company=COMPANY_NAME)
 
-# ---------- SALES (strict visibility per role) ----------
+# ---------- SALES (strict visibility per role, back‑dated sales) ----------
 @app.route('/sales', methods=['GET','POST'])
 @login_required
 def sales_page():
@@ -899,8 +898,18 @@ def sales_page():
     un = session.get('user'); ub = session.get('branch','')
     today = str(now_eat().date())
 
+    # ---------- POST: handle submissions ----------
     if request.method == 'POST':
         sales_type = request.form.get('sales_type','individual')
+        # Sale date from the form – allow back‑dating but not future dates
+        sale_date = request.form.get('sale_date', today).strip()
+        if not sale_date:
+            sale_date = today
+        # Prevent future dates
+        if sale_date > today:
+            sale_date = today   # silently fall back to today
+
+        # Individual sale – Staff and Branch Manager
         if sales_type == 'individual' and role in SALES_SUBMIT_ROLES:
             try:
                 mpesa = float(request.form.get('mpesa_sales','0') or 0)
@@ -927,7 +936,7 @@ def sales_page():
                         'full_name': un,
                         'department': emp[0].get('department',''),
                         'branch': emp[0].get('branch',''),
-                        'date': today,
+                        'date': sale_date,
                         'mpesa_sales': mpesa,
                         'cash_sales': cash,
                         'total_sales': total,
@@ -937,6 +946,7 @@ def sales_page():
                     }).execute()
             except Exception as e:
                 print(f"Individual sale error: {e}")
+        # Branch sale – only Branch Manager
         elif sales_type == 'branch' and role == 'Branch Manager':
             try:
                 mpesa = float(request.form.get('mpesa_sales','0') or 0)
@@ -958,7 +968,7 @@ def sales_page():
                 if total > 0:
                     supabase.table('branch_sales').insert({
                         'branch': ub,
-                        'date': today,
+                        'date': sale_date,
                         'mpesa_sales': mpesa,
                         'cash_sales': cash,
                         'total_sales': total,
@@ -970,6 +980,7 @@ def sales_page():
                 print(f"Branch sale error: {e}")
         return redirect('/sales?success=1')
 
+    # ---------- GET: filter & view ----------
     view_type = request.args.get('view_type','individual')
     filter_from = request.args.get('from_date','')
     filter_to = request.args.get('to_date','')
@@ -990,6 +1001,7 @@ def sales_page():
     if not filter_to:
         filter_to = str(today_date)
 
+    # Staff: only own individual sales
     if role == 'Staff':
         individual_sales = safe_data(execute_query(
             supabase.table('sales').select('*')
@@ -1004,6 +1016,7 @@ def sales_page():
         branches_for_filter = []
         filter_branch = ''
         filter_employee = ''
+    # Branch Manager: own branch only
     elif role == 'Branch Manager':
         filter_branch = ub
         filter_employee = request.args.get('employee','')
@@ -1019,6 +1032,7 @@ def sales_page():
             supabase.table('employees').select('full_name').eq('status','approved').eq('branch', ub).order('full_name')
         ))
         branches_for_filter = [ub]
+    # Admin, CEO, Stock Controllers, Accountants – full access
     else:
         allowed_branches = get_branch_names()
         filter_branch = request.args.get('branch','')
@@ -1144,9 +1158,8 @@ def leaves():
             leave_type = request.form.get('leave_type','Annual Leave')
             total_days = int(request.form.get('total_days',1))
 
-            # Enforce annual leave limit (21 days per year)
             if leave_type == 'Annual Leave':
-                year_start = leave_start[:4]   # e.g. "2026"
+                year_start = leave_start[:4]
                 used_data = safe_data(execute_query(
                     supabase.table('leaves')
                            .select('total_days')
@@ -1190,10 +1203,7 @@ def leaves():
             }).execute()
         return redirect('/leaves?success=1')
 
-    # GET – list my leaves + remaining annual leave balance
     my_leaves = safe_data(execute_query(supabase.table('leaves').select('*').eq('full_name',un).order('created_at',desc=True).limit(50)))
-
-    # Calculate annual leave balance
     year = str(now_eat().year)
     used_annual = safe_data(execute_query(
         supabase.table('leaves')
@@ -1256,7 +1266,7 @@ def leave_pdf(lid):
     if not leave: return "Leave not found", 404
     return render_template('leave_pdf.html', lv=leave[0], company=COMPANY_NAME)
 
-# ---------- APPROVE LEAVES (CASE‑INSENSITIVE MATCHING, rejection reason) ----------
+# ---------- APPROVE LEAVES ----------
 @app.route('/approve-leaves')
 @login_required
 def approve_leaves():
@@ -1438,7 +1448,7 @@ def submit_marketer_location():
     }).execute()
     return redirect('/check-in?location=ok')
 
-# ---------- SALES MANAGER DASHBOARD (with marketer dropdown & map) ----------
+# ---------- SALES MANAGER DASHBOARD ----------
 @app.route('/sales-manager')
 @login_required
 def sales_manager_dashboard():
@@ -1554,7 +1564,7 @@ def targets_page():
     targets = safe_data(execute_query(supabase.table('sales_targets').select('*').order('month', desc=True).order('full_name').limit(100)))
     return render_template('targets.html', employees=employees, targets=targets, today=str(now_eat().date()), company=COMPANY_NAME)
 
-# ---------- LIVE STATUS (all managers + procurement) ----------
+# ---------- LIVE STATUS ----------
 @app.route('/live-status')
 @login_required
 def live_status():
@@ -1615,7 +1625,7 @@ def live_status():
         today=today,
         company=COMPANY_NAME)
 
-# ---------- PROCUREMENT OFFICER ROUTES (redirects to live-status) ----------
+# ---------- PROCUREMENT OFFICER ROUTES ----------
 @app.route('/procurement/status')
 @login_required
 def procurement_status():
