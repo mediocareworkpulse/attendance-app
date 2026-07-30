@@ -104,7 +104,7 @@
     {% block content %}{% endblock %}
 </div>
 
-<!-- ═══════════ PWA INSTALL BUTTON ═══════════ -->
+<!-- ═══════════ INSTALL BUTTON (smart detection) ═══════════ -->
 <button id="installBtn" style="position:fixed; bottom:20px; right:20px; z-index:9999;
     background:var(--accent); color:#fff; border:none; border-radius:25px;
     padding:10px 20px; font-weight:700; cursor:pointer; display:none;
@@ -129,15 +129,17 @@
     });
 </script>
 
-<!-- Install button logic -->
+<!-- Install detection & fallback -->
 <script>
     let deferredPrompt;
     const installBtn = document.getElementById('installBtn');
 
+    // Only show if beforeinstallprompt fires
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
         installBtn.style.display = 'block';
+        installBtn.textContent = '📲 Install App';
     });
 
     installBtn.addEventListener('click', async () => {
@@ -147,21 +149,46 @@
             console.log(`User response: ${outcome}`);
             deferredPrompt = null;
             installBtn.style.display = 'none';
+        } else {
+            // Fallback – show instructions based on platform
+            alert(getInstallInstructions());
         }
     });
 
     window.addEventListener('appinstalled', () => {
         installBtn.style.display = 'none';
         deferredPrompt = null;
-        console.log('PWA installed');
     });
+
+    // If after 5 seconds the event hasn't fired, show a "How to Install" button
+    setTimeout(() => {
+        if (!deferredPrompt && !window.matchMedia('(display-mode: standalone)').matches) {
+            installBtn.style.display = 'block';
+            installBtn.textContent = '📱 How to Install';
+        }
+    }, 5000);
+
+    function getInstallInstructions() {
+        const ua = navigator.userAgent;
+        if (/Android/i.test(ua)) {
+            return "Tap the three‑dot menu → 'Add to Home screen'";
+        } else if (/iPhone|iPad|iPod/i.test(ua)) {
+            return "Tap the share button (square with arrow) → 'Add to Home Screen'";
+        } else {
+            return "On desktop Chrome: click the install icon (⊕) in the address bar.";
+        }
+    }
 </script>
 
 <!-- Register service worker -->
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/static/sw.js');
+      navigator.serviceWorker.register('/static/sw.js').then(reg => {
+        console.log('Service Worker registered with scope:', reg.scope);
+      }).catch(err => {
+        console.log('Service Worker registration failed:', err);
+      });
     });
   }
 </script>
