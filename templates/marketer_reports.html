@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">📋 Marketer Reports</h1>
+<p class="page-subtitle">{{ company }} — Customer Reports</p>
+
+<!-- Filter -->
+<div class="form-card">
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">🔍 Filter</h2>
+    <form method="GET" class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:12px;">
+        <div>
+            <label>From</label>
+            <input type="date" name="from_date" value="{{ filter_from }}">
+        </div>
+        <div>
+            <label>To</label>
+            <input type="date" name="to_date" value="{{ filter_to }}">
+        </div>
+        <div>
+            <label>Marketer</label>
+            <select name="marketer">
+                <option value="">All</option>
+                {% for m in marketers %}
+                <option value="{{ m.full_name }}" {% if filter_marketer == m.full_name %}selected{% endif %}>{{ m.full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display:flex; align-items:end;">
+            <button type="submit" class="btn" style="width:100%;">Apply</button>
+        </div>
+    </form>
+</div>
+
+<!-- Reports Table -->
+<div class="form-card" style="margin-top:20px;">
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">📝 Submitted Reports</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Marketer</th>
+                    <th>Customer</th>
+                    <th>Phone</th>
+                    <th>Details</th>
+                    <th>Expenses</th>
+                    <th>Expected Order</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for r in reports %}
+            <tr>
+                <td>{{ r.date }}</td>
+                <td class="td-name">{{ r.full_name }}</td>
+                <td>{{ r.customer_name }}</td>
+                <td>{{ r.customer_phone or '—' }}</td>
+                <td>{{ r.details or '—' }}</td>
+                <td>{{ r.expenses }}</td>
+                <td>{{ r.expected_order_date or '—' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
