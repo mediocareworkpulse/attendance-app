@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">📊 Sales Report</h1>
+<p class="page-subtitle">{{ company }}</p>
+
+<div class="form-card">
+    <h2>Filters</h2>
+    <form method="GET" class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap:12px;">
+        <div>
+            <label>View Type</label>
+            <select name="view_type" onchange="this.form.submit()">
+                <option value="individual" {% if view_type == 'individual' %}selected{% endif %}>Individual Sales</option>
+                <option value="branch" {% if view_type == 'branch' %}selected{% endif %}>Branch Sales</option>
+            </select>
+        </div>
+        <div>
+            <label>Branch</label>
+            <select name="branch">
+                <option value="">All</option>
+                {% for b in branches %}<option value="{{ b }}" {% if filter_branch == b %}selected{% endif %}>{{ b }}</option>{% endfor %}
+            </select>
+        </div>
+        <div><label>From</label><input type="date" name="from_date" value="{{ filter_from }}"></div>
+        <div><label>To</label><input type="date" name="to_date" value="{{ filter_to }}"></div>
+        <div style="display:flex; align-items:end;"><button type="submit" class="btn">Apply</button></div>
+    </form>
+    <div style="margin-top:8px;">
+        <a href="?view_type={{ view_type }}&branch={{ filter_branch }}&period=week" class="filter-btn {% if period == 'week' %}active{% endif %}">Week</a>
+        <a href="?view_type={{ view_type }}&branch={{ filter_branch }}&period=month" class="filter-btn {% if period == 'month' %}active{% endif %}">Month</a>
+        <a href="?view_type={{ view_type }}&branch={{ filter_branch }}&period=year" class="filter-btn {% if period == 'year' %}active{% endif %}">Year</a>
+    </div>
+</div>
+
+<div class="form-card" style="margin-top:20px;">
+    <div style="display:flex; justify-content:space-between;">
+        <h2>Totals</h2>
+        <a href="/export-sales?view_type={{ view_type }}&from_date={{ filter_from }}&to_date={{ filter_to }}&branch={{ filter_branch }}" class="btn">📥 Export CSV</a>
+    </div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr><th>Date</th><th>Branch</th><th>M‑Pesa</th><th>Cash</th><th>Total</th></tr>
+            </thead>
+            <tbody>
+            {% for (date, branch), vals in totals.items() %}
+            <tr>
+                <td>{{ date }}</td>
+                <td class="td-name">{{ branch }}</td>
+                <td>{{ vals.mpesa }}</td>
+                <td>{{ vals.cash }}</td>
+                <td>{{ vals.total }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
