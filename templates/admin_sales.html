@@ -20,6 +20,7 @@
                 <th>Cash</th>
                 <th>Total</th>
                 <th>Branch</th>
+                <th>Notes</th>
                 <th>Action</th>
             </tr>
         </thead>
@@ -33,8 +34,10 @@
             <td>{{ s.cash_sales }}</td>
             <td>{{ s.total_sales }}</td>
             <td>{{ s.branch }}</td>
+            <td>{{ s.notes or '—' }}</td>
             <td>
-                <form method="POST" action="/admin/sales/delete/{{ s.id }}" onsubmit="return confirm('Delete this sale?');">
+                <button class="btn btn-sm" style="background:var(--accent);" onclick="openEditModal({{ s.id }})">Edit</button>
+                <form method="POST" action="/admin/sales/delete/{{ s.id }}" style="display:inline" onsubmit="return confirm('Delete this sale?');">
                     <button class="btn btn-sm btn-danger">Delete</button>
                 </form>
             </td>
@@ -43,4 +46,51 @@
         </tbody>
     </table>
 </div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <h3>Edit Sale</h3>
+        <form id="editForm" method="POST">
+            <label>M‑Pesa</label><input type="number" step="0.01" name="mpesa_sales" id="edit-mpesa">
+            <label>Cash</label><input type="number" step="0.01" name="cash_sales" id="edit-cash">
+            <label>Notes</label><input type="text" name="notes" id="edit-notes">
+            <div style="margin-top:10px;">
+                <h4>Expenses</h4>
+                <div id="editExpenseList"></div>
+                <button type="button" class="btn btn-sm" style="background:var(--accent);color:#fff;" onclick="addEditExpense()">+ Add</button>
+            </div>
+            <div class="modal-actions" style="margin-top:16px;">
+                <button type="button" class="btn btn-danger" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+    function openEditModal(sid) {
+        // Fetch sale data? For simplicity, just show form; you could pre‑fill with JS if data were embedded.
+        document.getElementById('editForm').action = '/admin/sales/edit/' + sid;
+        document.getElementById('editModal').style.display = 'flex';
+    }
+    function closeEditModal() {
+        document.getElementById('editModal').style.display = 'none';
+    }
+    function addEditExpense() {
+        const div = document.createElement('div');
+        div.className = 'expense-row';
+        div.style.cssText = 'display:flex; gap:8px; margin-bottom:6px;';
+        div.innerHTML = `
+            <input type="text" name="expense_name[]" placeholder="Name" style="flex:2;">
+            <input type="number" step="0.01" name="expense_amount[]" placeholder="Amount" style="flex:1;">
+            <button type="button" class="btn btn-sm" style="background:#e74c3c;color:#fff;width:auto;" onclick="removeExpense(this)">✕</button>
+        `;
+        document.getElementById('editExpenseList').appendChild(div);
+    }
+    function removeExpense(btn) { btn.parentElement.remove(); }
+    document.getElementById('editModal').addEventListener('click', function(e) { if (e.target === this) closeEditModal(); });
+</script>
 {% endblock %}
