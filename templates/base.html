@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ company }}</title>
     <link rel="stylesheet" href="/static/style.css">
-    <!-- PWA -->
     <link rel="manifest" href="/static/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -31,7 +30,6 @@
         <a href="/" class="{% if request.path == '/' %}active{% endif %}">🏠 Dashboard</a>
         <a href="/check-in" class="{% if request.path == '/check-in' %}active{% endif %}">⏱ Check In/Out</a>
         <a href="/profile" class="{% if request.path == '/profile' %}active{% endif %}">👤 My Profile</a>
-
         {% if session.role in ['admin','ceo'] %}
             <a href="/admin" class="{% if request.path == '/admin' %}active{% endif %}">⚙️ Admin Panel</a>
             <a href="/approvals" class="{% if request.path == '/approvals' %}active{% endif %}">✅ Approvals</a>
@@ -39,64 +37,51 @@
             <a href="/branches" class="{% if request.path == '/branches' %}active{% endif %}">🏢 Branches</a>
             <a href="/admin/sales" class="{% if request.path == '/admin/sales' %}active{% endif %}">💰 Manage Sales</a>
         {% endif %}
-
         {% set role_lower = session.role|lower %}
         {% if role_lower in ['admin','ceo','hr','hr assistant','stock controller','assistant stock controller','operations manager','sales manager','procurement officer'] %}
             <a href="/contacts" class="{% if request.path == '/contacts' %}active{% endif %}">📇 Directorate</a>
         {% endif %}
-
         {% if role_lower in ['staff','branch manager','admin','ceo','stock controller','assistant stock controller','accountant','accountant assistant'] %}
             <a href="/sales" class="{% if request.path == '/sales' %}active{% endif %}">💰 Sales</a>
         {% endif %}
-
         <a href="/attendance-history" class="{% if request.path == '/attendance-history' %}active{% endif %}">📊 History</a>
-
         {% if role_lower in ['admin','ceo','stock controller','assistant stock controller','accountant','accountant assistant'] %}
             <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}">📈 Reports</a>
         {% endif %}
-
         {% if role_lower in ['admin','ceo','stock controller','assistant stock controller','accountant','accountant assistant'] %}
             <a href="/sales-report" class="{% if request.path == '/sales-report' %}active{% endif %}">📊 Sales Report</a>
         {% endif %}
-
         <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">🌴 Leaves</a>
-
         {% if role_lower in ['store manager','operations manager','assistant operations manager','sales manager','admin','ceo','hr','hr assistant','procurement officer','stock controller','assistant stock controller','branch manager','accountant','accountant assistant'] %}
             <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}">✍️ Approve Leaves</a>
         {% endif %}
-
         {% if session.role in ['HR','HR Assistant'] %}
             <a href="/hr/annual-leave" class="{% if request.path == '/hr/annual-leave' %}active{% endif %}">📅 Annual Leave</a>
         {% endif %}
-
         {% if role_lower in ['admin','ceo','hr','hr assistant','store manager','operations manager','assistant operations manager','sales manager','branch manager','procurement officer'] %}
             <a href="/live-status" class="{% if request.path == '/live-status' %}active{% endif %}">🟢 Live Status</a>
         {% endif %}
-
         {% if session.role == 'Sales Manager' %}
             <a href="/sales-manager" class="{% if request.path == '/sales-manager' %}active{% endif %}">📋 Manager Dashboard</a>
         {% endif %}
-
         {% if session.role in ['admin','ceo','Sales Manager'] %}
             <a href="/marketer-reports" class="{% if request.path == '/marketer-reports' %}active{% endif %}">📋 Marketer Reports</a>
         {% endif %}
-
         {% if session.role == 'Marketers' %}
             <a href="/my-places" class="{% if request.path == '/my-places' %}active{% endif %}">📍 My Places</a>
         {% endif %}
-
         {% if session.role in TARGET_SETTER_ROLES %}
             <a href="/targets" class="{% if request.path == '/targets' %}active{% endif %}">🎯 Sales Targets</a>
         {% endif %}
-
         {% if session.role == 'Procurement Officer' %}
             <a href="/procurement/delegation" class="{% if request.path == '/procurement/delegation' %}active{% endif %}">🔄 Delegation</a>
         {% endif %}
-
         {% if session.role in ['Branch Manager','admin','ceo'] %}
             <a href="/shift-change" class="{% if request.path == '/shift-change' %}active{% endif %}">🕒 Shift Change</a>
         {% endif %}
-
+        {% if session.role in ['admin','ceo','HR','HR Assistant'] %}
+            <a href="/attendance-summary" class="{% if request.path == '/attendance-summary' %}active{% endif %}">📋 Attendance Summary</a>
+        {% endif %}
         <a href="#" id="installSidebarBtn" onclick="handleInstallClick(event)" style="display: flex;">📲 Install App</a>
         <a href="/logout" class="logout-link">🚪 Logout</a>
     </div>
@@ -136,45 +121,83 @@
 <script>
     const installBtn = document.getElementById('installSidebarBtn');
     let deferredPrompt;
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-        installBtn.style.display = 'none';
-    }
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-    });
+    if (window.matchMedia('(display-mode: standalone)').matches) installBtn.style.display = 'none';
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
     function handleInstallClick(event) {
         event.preventDefault();
         if (deferredPrompt) {
             deferredPrompt.prompt();
-            deferredPrompt.userChoice.then((choiceResult) => {
-                if (choiceResult.outcome === 'accepted') console.log('User installed');
-                deferredPrompt = null;
-                if (window.matchMedia('(display-mode: standalone)').matches) installBtn.style.display = 'none';
-            });
+            deferredPrompt.userChoice.then((choiceResult) => { if (choiceResult.outcome === 'accepted') console.log('User installed'); deferredPrompt = null; if (window.matchMedia('(display-mode: standalone)').matches) installBtn.style.display = 'none'; });
             return;
         }
-        if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-            document.getElementById('iosModal').style.display = 'flex';
-        } else {
-            alert('To install, click the three‑dot menu (or the install icon ⊕ in the address bar) and select "Install Mediocare".');
-        }
+        if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) { document.getElementById('iosModal').style.display = 'flex'; }
+        else { alert('To install, click the three‑dot menu (or the install icon ⊕ in the address bar) and select "Install Mediocare".'); }
     }
-    window.addEventListener('appinstalled', () => {
-        installBtn.style.display = 'none';
-        deferredPrompt = null;
-    });
-    document.getElementById('iosModal').addEventListener('click', function(e) {
-        if (e.target === this) this.style.display = 'none';
-    });
+    window.addEventListener('appinstalled', () => { installBtn.style.display = 'none'; deferredPrompt = null; });
+    document.getElementById('iosModal').addEventListener('click', function(e) { if (e.target === this) this.style.display = 'none'; });
 </script>
 <script>
     if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/static/sw.js').catch(err => console.log('SW registration failed:', err));
-        });
+        window.addEventListener('load', () => { navigator.serviceWorker.register('/static/sw.js').catch(err => console.log('SW registration failed:', err)); });
     }
 </script>
+
+<!-- ═══════════ TABLE SORT & SEARCH ═══════════ -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('table').forEach(function(table) {
+        // Only add search if table has at least one row
+        if (table.querySelector('tbody tr') === null) return;
+        
+        // Create search box
+        const searchDiv = document.createElement('div');
+        searchDiv.style.cssText = 'margin-bottom:10px; text-align:right;';
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.placeholder = '🔍 Search...';
+        searchInput.style.cssText = 'padding:6px 10px; border-radius:20px; border:1px solid var(--border); width:200px;';
+        searchDiv.appendChild(searchInput);
+        table.parentNode.insertBefore(searchDiv, table);
+
+        // Search functionality
+        searchInput.addEventListener('keyup', function() {
+            const filter = searchInput.value.toLowerCase();
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.indexOf(filter) > -1 ? '' : 'none';
+            });
+        });
+
+        // Sortable headers
+        const headers = table.querySelectorAll('th');
+        headers.forEach((header, index) => {
+            header.style.cursor = 'pointer';
+            header.addEventListener('click', function() {
+                const tbody = table.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                const isAsc = header.classList.contains('asc');
+                // Remove sorting classes from all headers
+                headers.forEach(h => { h.classList.remove('asc','desc'); });
+                header.classList.add(isAsc ? 'desc' : 'asc');
+
+                const sortedRows = rows.sort((a, b) => {
+                    const aVal = a.children[index].textContent.trim();
+                    const bVal = b.children[index].textContent.trim();
+                    const aNum = parseFloat(aVal.replace(/,/g, ''));
+                    const bNum = parseFloat(bVal.replace(/,/g, ''));
+                    if (!isNaN(aNum) && !isNaN(bNum)) {
+                        return isAsc ? aNum - bNum : bNum - aNum;
+                    }
+                    return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                });
+                sortedRows.forEach(row => tbody.appendChild(row));
+            });
+        });
+    });
+});
+</script>
+
 {% block scripts %}{% endblock %}
 </body>
 </html>
