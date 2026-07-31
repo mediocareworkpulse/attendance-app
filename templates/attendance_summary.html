@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">📋 Attendance Summary</h1>
+<p class="page-subtitle">{{ company }} — Days Worked</p>
+
+<div class="form-card">
+    <form method="GET" class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap:12px;">
+        <div><label>From</label><input type="date" name="from_date" value="{{ from_date }}"></div>
+        <div><label>To</label><input type="date" name="to_date" value="{{ to_date }}"></div>
+        <div>
+            <label>Branch</label>
+            <select name="branch">
+                <option value="">All</option>
+                {% for b in branches %}<option value="{{ b }}" {% if branch_filter == b %}selected{% endif %}>{{ b }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Employee</label>
+            <select name="employee">
+                <option value="">All</option>
+                {% for e in all_employees %}<option value="{{ e.full_name }}" {% if employee_filter == e.full_name %}selected{% endif %}>{{ e.full_name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div style="display:flex; align-items:end; gap:8px;">
+            <button type="submit" class="btn">Apply</button>
+            <a href="/export-attendance-summary?from_date={{ from_date }}&to_date={{ to_date }}&branch={{ branch_filter }}&employee={{ employee_filter }}" class="btn" style="background:var(--accent);">📥 Export CSV</a>
+        </div>
+    </form>
+</div>
+
+<div class="form-card" style="margin-top:20px;">
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr><th>Employee</th><th>Department</th><th>Branch</th><th>Role</th><th>Days Present</th></tr>
+            </thead>
+            <tbody>
+            {% for s in summary %}
+            <tr>
+                <td class="td-name">{{ s.full_name }}</td>
+                <td>{{ s.department or '—' }}</td>
+                <td>{{ s.branch or '—' }}</td>
+                <td>{{ s.role }}</td>
+                <td>{{ s.days_present }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
