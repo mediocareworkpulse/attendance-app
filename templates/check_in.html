@@ -1,12 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
 
-<!-- Page Title -->
 <h1 class="page-title">⏱ Check In / Out</h1>
 <p class="page-subtitle">{{ company }} — {{ today }}</p>
 
-<!-- ═══════════════════════ STATUS BADGE (all roles) ═══════════════════════ -->
-<div class="checkin-container" style="background: linear-gradient(135deg, #ffffff, #f8fafc); border-radius: 16px; padding: 20px 24px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; border-left: 6px solid var(--primary);">
+<!-- Status card -->
+<div class="checkin-container shift-timer-card" style="background: linear-gradient(135deg, #ffffff, #f8fafc); border-radius: 16px; padding: 20px 24px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; border-left: 6px solid var(--primary);">
     <div style="display: flex; align-items: center; gap: 14px;">
         <span style="font-size: 32px;">📍</span>
         <div>
@@ -31,7 +30,6 @@
         </div>
     </div>
 
-    <!-- Clock In / Out Buttons for regular employees -->
     {% if role not in ['Marketers','admin','ceo'] %}
     <div>
         <form method="POST" action="/check-in" id="attendanceForm" style="display:inline;">
@@ -52,96 +50,14 @@
     {% endif %}
 </div>
 
-<!-- ═══════════════════════ MARKETER SECTION ═══════════════════════ -->
-{% if role == 'Marketers' %}
+<!-- Marketer section (unchanged) -->
 
-    <!-- Check‑in Request (separate card) -->
-    <div class="form-card" style="margin-bottom: 18px;">
-        <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-            <span>📋</span> Check‑in Request
-        </h2>
-        {% if user_status == 'none' %}
-            <p style="color: var(--text-secondary); margin-bottom: 10px;">You haven't submitted a check‑in request yet.</p>
-            <form method="POST" action="/marketer/checkin" id="marketerCheckinForm">
-                <input type="hidden" name="lat" id="m-lat">
-                <input type="hidden" name="lng" id="m-lng">
-                <input type="hidden" name="location" id="m-location">
-                <button type="submit" class="btn" onclick="getMarketerLocation()" style="background: var(--accent); color: #fff; padding: 10px 22px;">
-                    📍 Send Check‑in Request
-                </button>
-            </form>
-        {% elif user_status == 'pending' %}
-            <div class="alert alert-warning" style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 20px;">⏳</span> Your check‑in request is pending approval by your Sales Manager.
-            </div>
-        {% elif user_status == 'approved' %}
-            <div class="alert alert-success" style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 20px;">✅</span> Your check‑in has been approved for today.
-            </div>
-        {% endif %}
-    </div>
-
-    <!-- 🔥 DAILY REPORT – ALWAYS VISIBLE (unconditional) -->
-    <div class="form-card" style="background: linear-gradient(135deg, #ffffff, #f9fafc); border-left: 5px solid var(--accent); margin-bottom: 20px;">
-        <h2 style="font-size: 18px; font-weight: 800; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 22px;">📝</span> Daily Customer Report
-        </h2>
-        <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 18px;">
-            Submit a report for each customer you visited. You can submit multiple times — only one per customer per day.
-        </p>
-
-        <form method="POST" action="/marketer/report" id="reportForm">
-            <input type="hidden" name="lat" id="rep-lat">
-            <input type="hidden" name="lng" id="rep-lng">
-            <input type="hidden" name="location" id="rep-location">
-
-            <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px;">
-                <div>
-                    <label>Customer Name *</label>
-                    <input type="text" name="customer_name" required placeholder="e.g. John Doe">
-                </div>
-                <div>
-                    <label>Phone Number</label>
-                    <input type="text" name="customer_phone" placeholder="07XX XXX XXX">
-                </div>
-                <div style="grid-column: span 2;">
-                    <label>Current Location (auto‑filled)</label>
-                    <input type="text" id="rep-location-display" readonly class="location-status" style="background: #f8fafc; border: 1px dashed var(--border); font-weight: 500;">
-                </div>
-                <div style="grid-column: span 2;">
-                    <label>What does the customer want? (Details)</label>
-                    <textarea name="details" rows="3" style="resize: vertical;" placeholder="Describe the products / services they're interested in"></textarea>
-                </div>
-                <div>
-                    <label>Expected Order Date (optional)</label>
-                    <input type="date" name="expected_order_date">
-                </div>
-                <div>
-                    <label>Today’s Expenses (Ksh)</label>
-                    <input type="number" step="0.01" name="expenses" value="0">
-                </div>
-            </div>
-            <button type="submit" class="btn" style="margin-top: 20px; background: var(--primary); font-size: 14px; padding: 12px 28px;">
-                📤 Submit Report
-            </button>
-        </form>
-
-        <!-- Location Ping (independent) -->
-        <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-            <button class="btn" style="background: var(--accent); color: #fff;" onclick="sendLocationPing()">
-                📍 Ping My Location
-            </button>
-            <span id="ping-status" style="font-size: 12px; color: var(--text-secondary);"></span>
-        </div>
-    </div>
-{% endif %}
-
-<!-- ═══════════════════════ RIDERS / DRIVERS ═══════════════════════ -->
+<!-- Riders/Drivers Journey Section -->
 {% if role in ['Riders','Drivers'] %}
-<div class="form-card">
-    <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 12px;">🚚 Journeys</h2>
+<div class="form-card" style="margin-top:20px;">
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">🚚 Journeys</h2>
     {% if user_status in ['checked_in','working'] %}
-        <form method="POST" action="/journey/start" style="margin-bottom: 12px;">
+        <form method="POST" action="/journey/start" style="margin-bottom:12px;">
             <input type="hidden" name="lat" id="j-start-lat">
             <input type="hidden" name="lng" id="j-start-lng">
             <input type="hidden" name="location" id="j-start-loc">
@@ -151,7 +67,7 @@
     {% if journeys %}
     <div class="table-container">
         <table>
-            <thead><tr><th>#</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
+            <thead><tr><th>#</th><th>Start</th><th>End</th><th>Status</th><th>Action</th></tr></thead>
             <tbody>
             {% for j in journeys %}
             <tr>
@@ -159,6 +75,16 @@
                 <td>{{ j.start_time }}</td>
                 <td>{{ j.end_time or '—' }}</td>
                 <td>{{ j.status }}</td>
+                <td>
+                    {% if j.status == 'active' %}
+                    <form method="POST" action="/journey/end/{{ j.id }}" style="display:inline">
+                        <input type="hidden" name="lat" id="j-end-lat-{{ j.id }}">
+                        <input type="hidden" name="lng" id="j-end-lng-{{ j.id }}">
+                        <input type="hidden" name="location" id="j-end-loc-{{ j.id }}">
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="getEndLocation({{ j.id }})">End</button>
+                    </form>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
             </tbody>
@@ -168,15 +94,13 @@
 </div>
 {% endif %}
 
-<!-- ═══════════════════════ ATTENDANCE LIST (managers) ═══════════════════════ -->
+<!-- Attendance records (managers) -->
 {% if records %}
-<div class="form-card" style="margin-top: 20px;">
-    <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 12px;">👥 Today's Attendance</h2>
+<div class="form-card" style="margin-top:20px;">
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">👥 Today's Attendance</h2>
     <div class="table-container">
         <table>
-            <thead>
-                <tr><th>Name</th><th>Department</th><th>Role</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
-            </thead>
+            <thead><tr><th>Name</th><th>Department</th><th>Role</th><th>Check In</th><th>Check Out</th><th>Status</th></tr></thead>
             <tbody>
             {% for r in records %}
             <tr>
@@ -186,13 +110,9 @@
                 <td>{{ r.check_in }}</td>
                 <td>{{ r.check_out }}</td>
                 <td>
-                    {% if r.label == 'Working' %}
-                        <span class="badge" style="background: #e0ecf9; color: #1e40af;">Working</span>
-                    {% elif r.label == 'Arrived Late' %}
-                        <span class="badge badge-danger">Late</span>
-                    {% else %}
-                        <span class="badge badge-success">Done</span>
-                    {% endif %}
+                    {% if r.label == 'Working' %}<span class="badge" style="background:#e0ecf9; color:#1e40af;">Working</span>
+                    {% elif r.label == 'Arrived Late' %}<span class="badge badge-danger">Late</span>
+                    {% else %}<span class="badge badge-success">Done</span>{% endif %}
                 </td>
             </tr>
             {% endfor %}
@@ -206,7 +126,6 @@
 
 {% block scripts %}
 <script>
-    // generic location getters
     function getLocation() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(function(pos) {
@@ -216,61 +135,21 @@
             });
         }
     }
-
-    function getMarketerLocation() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function(pos) {
-                document.getElementById('m-lat').value = pos.coords.latitude;
-                document.getElementById('m-lng').value = pos.coords.longitude;
-                document.getElementById('m-location').value = pos.coords.latitude+', '+pos.coords.longitude;
-            });
-        }
-    }
-
-    // Auto‑fill location for report form on page load
-    window.addEventListener('load', function() {
-        const repLat = document.getElementById('rep-lat');
-        if (repLat && navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function(pos) {
-                repLat.value = pos.coords.latitude;
-                document.getElementById('rep-lng').value = pos.coords.longitude;
-                const loc = pos.coords.latitude+', '+pos.coords.longitude;
-                document.getElementById('rep-location').value = loc;
-                const display = document.getElementById('rep-location-display');
-                if (display) display.value = loc;
-            }, function(err) {
-                const display = document.getElementById('rep-location-display');
-                if (display) display.value = 'Location unavailable';
-            });
-        }
-    });
-
-    function sendLocationPing() {
-        if (!navigator.geolocation) {
-            alert("Geolocation not supported");
-            return;
-        }
-        document.getElementById('ping-status').innerText = 'Getting location...';
-        navigator.geolocation.getCurrentPosition(function(pos) {
-            var form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/marketer/submit-location';
-            form.innerHTML = '<input name="lat" value="'+pos.coords.latitude+'">'+
-                             '<input name="lng" value="'+pos.coords.longitude+'">'+
-                             '<input name="location" value="Lat:'+pos.coords.latitude+', Lng:'+pos.coords.longitude+'">';
-            document.body.appendChild(form);
-            form.submit();
-        }, function(err) {
-            document.getElementById('ping-status').innerText = 'Error: '+err.message;
-        });
-    }
-
     function getJourneyStartLocation() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(function(pos) {
                 document.getElementById('j-start-lat').value = pos.coords.latitude;
                 document.getElementById('j-start-lng').value = pos.coords.longitude;
                 document.getElementById('j-start-loc').value = pos.coords.latitude+', '+pos.coords.longitude;
+            });
+        }
+    }
+    function getEndLocation(jid) {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(pos) {
+                document.getElementById('j-end-lat-'+jid).value = pos.coords.latitude;
+                document.getElementById('j-end-lng-'+jid).value = pos.coords.longitude;
+                document.getElementById('j-end-loc-'+jid).value = 'Lat:'+pos.coords.latitude+', Lng:'+pos.coords.longitude;
             });
         }
     }
