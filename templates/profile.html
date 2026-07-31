@@ -9,54 +9,59 @@
         <div class="profile-info">
             <h2>{{ employee.full_name }}</h2>
             <span class="badge badge-info">{{ employee.role }}</span>
-            {% if employee.branch %}<span class="badge" style="background: #f3e8ff; color: #7c3aed;">{{ employee.branch }}</span>{% endif %}
+            {% if employee.branch %}<span class="badge badge-purple">{{ employee.branch }}</span>{% endif %}
         </div>
     </div>
     <div class="profile-details">
-        <div class="detail-item">
-            <span class="detail-label">Department</span>
-            <span class="detail-value">{{ employee.department or '—' }}</span>
-        </div>
-        <div class="detail-item">
-            <span class="detail-label">Phone</span>
-            <span class="detail-value">{{ employee.phone or '—' }}</span>
-        </div>
-        <div class="detail-item">
-            <span class="detail-label">Email</span>
-            <span class="detail-value">{{ employee.email or '—' }}</span>
-        </div>
-        <div class="detail-item">
-            <span class="detail-label">Shift</span>
-            <span class="detail-value">{{ employee.shift_start or '08:00' }} — {{ employee.shift_end or '17:00' }}</span>
-        </div>
+        <div class="detail-item"><span class="detail-label">Department</span><span class="detail-value">{{ employee.department or '—' }}</span></div>
+        <div class="detail-item"><span class="detail-label">Phone</span><span class="detail-value">{{ employee.phone or '—' }}</span></div>
+        <div class="detail-item"><span class="detail-label">Email</span><span class="detail-value">{{ employee.email or '—' }}</span></div>
+        <div class="detail-item"><span class="detail-label">Shift</span><span class="detail-value">{{ employee.shift_start or '08:00' }} — {{ employee.shift_end or '17:00' }}</span></div>
     </div>
 </div>
 
 <div class="stats">
-    <div class="stat-card">
-        <div class="stat-icon">📅</div>
-        <div class="stat-label">Days Present (This Month)</div>
-        <div class="stat-value">{{ days_present }}</div>
-    </div>
+    <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-label">Days Present (This Month)</div><div class="stat-value">{{ days_present }}</div></div>
     {% if session.get('role') not in ['Marketers', 'Sales Manager'] %}
-    <div class="stat-card">
-        <div class="stat-icon">💰</div>
-        <div class="stat-label">My Sales (This Month)</div>
-        <div class="stat-value">Ksh {{ "%.2f"|format(total_my_sales) }}</div>
-    </div>
+    <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-label">My Sales (This Month)</div><div class="stat-value">Ksh {{ "%.2f"|format(total_my_sales) }}</div></div>
     {% endif %}
 </div>
 
 {% if success_msg %}<div class="alert alert-success">{{ success_msg }}</div>{% endif %}
 
-<div class="form-card" style="max-width: 480px;">
-    <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 14px;">🔒 Change Password</h2>
+<div class="form-card" style="max-width:500px;">
+    <h2 style="font-size:16px; margin-bottom:12px;">🔒 Change Password</h2>
     <form method="POST">
-        <label>Current Password</label>
-        <input type="password" name="old_password" required>
-        <label>New Password</label>
-        <input type="password" name="new_password" required>
-        <button type="submit" class="btn" style="margin-top: 12px;">Update Password</button>
+        <div class="form-group" style="position:relative;">
+            <label>Current Password</label>
+            <input type="password" name="old_password" id="oldPassword" required>
+            <button type="button" class="password-toggle" onclick="togglePassword('oldPassword', 'oldToggle')" style="position:absolute; right:10px; top:32px; background:none; border:none; cursor:pointer;">
+                <i class="fa-solid fa-eye" id="oldToggle"></i>
+            </button>
+        </div>
+        <div class="form-group" style="position:relative;">
+            <label>New Password</label>
+            <input type="password" name="new_password" id="newPassword" required>
+            <button type="button" class="password-toggle" onclick="togglePassword('newPassword', 'newToggle')" style="position:absolute; right:10px; top:32px; background:none; border:none; cursor:pointer;">
+                <i class="fa-solid fa-eye" id="newToggle"></i>
+            </button>
+        </div>
+        <button type="submit" class="btn" style="margin-top:12px;">Update Password</button>
     </form>
 </div>
+
+<script>
+    function togglePassword(fieldId, iconId) {
+        const field = document.getElementById(fieldId);
+        const icon = document.getElementById(iconId);
+        if (field.type === 'password') {
+            field.type = 'text';
+            icon.classList.replace('fa-eye','fa-eye-slash');
+        } else {
+            field.type = 'password';
+            icon.classList.replace('fa-eye-slash','fa-eye');
+        }
+    }
+</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 {% endblock %}
