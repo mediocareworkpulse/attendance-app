@@ -131,7 +131,7 @@ def get_branch_employees(branch):
                .order('full_name')
     ))
 
-# ---------- LEAVE APPROVAL CHAIN (updated for Cashier) ----------
+# ---------- LEAVE APPROVAL CHAIN (Cashier added) ----------
 def get_approval_chain(employee_role):
     role_lower = employee_role.strip().lower()
     chain = []
@@ -706,7 +706,7 @@ def contacts_page():
         ))
     return render_template('contacts.html', contacts=contacts, company=COMPANY_NAME)
 
-# ---------- CHECK IN / OUT ----------
+# ---------- CHECK IN / OUT (with End Journey support) ----------
 @app.route('/check-in')
 @login_required
 def check_in_page():
@@ -827,7 +827,7 @@ def process_attendance():
             return redirect('/')
     return redirect('/check-in')
 
-# ---------- JOURNEY ROUTES (with end journey) ----------
+# ---------- JOURNEY ROUTES (End Journey button functional) ----------
 @app.route('/journey/start', methods=['POST'])
 @login_required
 def start_journey():
@@ -1212,8 +1212,7 @@ def shift_change_page():
         reason    = request.form.get('reason','')
         if not employee_name or not new_start or not new_end:
             return render_template('shift_change.html', error='All fields required',
-                                   employees=get_branch_employees(ub), requests=[],
-                                   company=COMPANY_NAME)
+                                   employees=get_branch_employees(ub), requests=[], company=COMPANY_NAME)
         supabase.table('shift_change_requests').insert({
             'requested_by': un,
             'branch': ub,
@@ -1224,7 +1223,6 @@ def shift_change_page():
             'status': 'pending'
         }).execute()
         return redirect('/shift-change?success=1')
-    # GET: show list of requests
     requests_data = safe_data(execute_query(
         supabase.table('shift_change_requests')
                .select('*')
@@ -1314,7 +1312,6 @@ def leaves():
                 'status': 'pending'
             }).execute()
         return redirect('/leaves?success=1')
-
     my_leaves = safe_data(execute_query(supabase.table('leaves').select('*').eq('full_name',un).order('created_at',desc=True).limit(50)))
     year = str(now_eat().year)
     used_annual = safe_data(execute_query(
