@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ company }}</title>
     <link rel="stylesheet" href="/static/style.css">
-
     <!-- PWA -->
     <link rel="manifest" href="/static/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,18 +13,12 @@
     <link rel="apple-touch-icon" href="/static/logo.png">
 </head>
 <body>
-
-<!-- ═══════════ MOBILE TOP BAR ═══════════ -->
 <div class="mobile-topbar">
     <button class="hamburger" onclick="toggleSidebar()">☰</button>
     <div class="topbar-title">{{ company }}</div>
     <div class="topbar-spacer"></div>
 </div>
-
-<!-- ═══════════ SIDEBAR OVERLAY ═══════════ -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
-
-<!-- ═══════════ SIDEBAR ═══════════ -->
 <nav class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="brand-icon">💊</div>
@@ -34,7 +27,6 @@
             <div class="brand-sub">Attendance System</div>
         </div>
     </div>
-
     <div class="sidebar-nav">
         <a href="/" class="{% if request.path == '/' %}active{% endif %}">🏠 Dashboard</a>
         <a href="/check-in" class="{% if request.path == '/check-in' %}active{% endif %}">⏱ Check In/Out</a>
@@ -59,13 +51,17 @@
 
         <a href="/attendance-history" class="{% if request.path == '/attendance-history' %}active{% endif %}">📊 History</a>
 
-        {% if role_lower in ['admin','ceo','branch manager','stock controller','assistant stock controller','accountant','accountant assistant'] %}
+        {% if role_lower in ['admin','ceo','stock controller','assistant stock controller','accountant','accountant assistant'] %}
             <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}">📈 Reports</a>
+        {% endif %}
+
+        {% if role_lower in ['admin','ceo','stock controller','assistant stock controller','accountant','accountant assistant'] %}
+            <a href="/sales-report" class="{% if request.path == '/sales-report' %}active{% endif %}">📊 Sales Report</a>
         {% endif %}
 
         <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">🌴 Leaves</a>
 
-        {% if role_lower in ['store manager','operations manager','assistant operations manager','sales manager','admin','ceo','hr','hr assistant','procurement officer','stock controller','assistant stock controller','branch manager'] %}
+        {% if role_lower in ['store manager','operations manager','assistant operations manager','sales manager','admin','ceo','hr','hr assistant','procurement officer','stock controller','assistant stock controller','branch manager','accountant','accountant assistant'] %}
             <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}">✍️ Approve Leaves</a>
         {% endif %}
 
@@ -97,21 +93,19 @@
             <a href="/procurement/delegation" class="{% if request.path == '/procurement/delegation' %}active{% endif %}">🔄 Delegation</a>
         {% endif %}
 
-        <!-- ═══════════ PERMANENT INSTALL BUTTON ═══════════ -->
-        <a href="#" id="installSidebarBtn" onclick="handleInstallClick(event)" style="display: flex;">
-            📲 Install App
-        </a>
+        {% if session.role in ['Branch Manager','admin','ceo'] %}
+            <a href="/shift-change" class="{% if request.path == '/shift-change' %}active{% endif %}">🕒 Shift Change</a>
+        {% endif %}
 
+        <a href="#" id="installSidebarBtn" onclick="handleInstallClick(event)" style="display: flex;">📲 Install App</a>
         <a href="/logout" class="logout-link">🚪 Logout</a>
     </div>
 </nav>
 
-<!-- ═══════════ MAIN CONTENT ═══════════ -->
 <div class="main-content">
     {% block content %}{% endblock %}
 </div>
 
-<!-- iOS Install Instructions Modal (only shown on iPhone/iPad when needed) -->
 <div id="iosModal" class="modal-overlay" style="display: none;">
     <div class="modal-box" style="max-width: 400px;">
         <h3>Add to Home Screen</h3>
@@ -123,7 +117,6 @@
     </div>
 </div>
 
-<!-- ═══════════ SCRIPTS ═══════════ -->
 <script>
     function toggleSidebar() {
         document.getElementById('sidebar').classList.toggle('open');
@@ -140,72 +133,48 @@
     });
 </script>
 
-<!-- Install logic – always shows button, works on all platforms -->
 <script>
     const installBtn = document.getElementById('installSidebarBtn');
     let deferredPrompt;
-
-    // If already installed as PWA, hide the button
     if (window.matchMedia('(display-mode: standalone)').matches) {
         installBtn.style.display = 'none';
     }
-
-    // Capture the install prompt event for Android/Desktop Chrome
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
-        // Button is already visible; nothing extra to show
     });
-
     function handleInstallClick(event) {
         event.preventDefault();
-        // If native prompt is available (Android/Desktop), fire it
         if (deferredPrompt) {
             deferredPrompt.prompt();
             deferredPrompt.userChoice.then((choiceResult) => {
-                if (choiceResult.outcome === 'accepted') {
-                    console.log('User installed');
-                }
+                if (choiceResult.outcome === 'accepted') console.log('User installed');
                 deferredPrompt = null;
-                // Hide button after successful install prompt
-                if (window.matchMedia('(display-mode: standalone)').matches) {
-                    installBtn.style.display = 'none';
-                }
+                if (window.matchMedia('(display-mode: standalone)').matches) installBtn.style.display = 'none';
             });
             return;
         }
-        // iOS fallback – show instructions
         if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
             document.getElementById('iosModal').style.display = 'flex';
         } else {
-            // Desktop or other – show browser menu instructions
             alert('To install, click the three‑dot menu (or the install icon ⊕ in the address bar) and select "Install Mediocare".');
         }
     }
-
-    // Hide button after successful installation
     window.addEventListener('appinstalled', () => {
         installBtn.style.display = 'none';
         deferredPrompt = null;
     });
-
-    // Close iOS modal when clicking outside
     document.getElementById('iosModal').addEventListener('click', function(e) {
         if (e.target === this) this.style.display = 'none';
     });
 </script>
-
-<!-- Service worker -->
 <script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/static/sw.js').catch(err => {
-        console.log('SW registration failed:', err);
-      });
-    });
-  }
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/static/sw.js').catch(err => console.log('SW registration failed:', err));
+        });
+    }
 </script>
-
 {% block scripts %}{% endblock %}
 </body>
 </html>
