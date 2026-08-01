@@ -20,35 +20,54 @@
                 {% for b in branches %}<option value="{{ b }}" {% if filter_branch == b %}selected{% endif %}>{{ b }}</option>{% endfor %}
             </select>
         </div>
+        {% if view_type == 'individual' %}
+        <div>
+            <label>Employee</label>
+            <select name="employee">
+                <option value="">All</option>
+                {% for e in employees %}<option value="{{ e.full_name }}" {% if filter_employee == e.full_name %}selected{% endif %}>{{ e.full_name }}</option>{% endfor %}
+            </select>
+        </div>
+        {% endif %}
         <div><label>From</label><input type="date" name="from_date" value="{{ filter_from }}"></div>
         <div><label>To</label><input type="date" name="to_date" value="{{ filter_to }}"></div>
         <div style="display:flex; align-items:end;"><button type="submit" class="btn">Apply</button></div>
     </form>
     <div style="margin-top:8px;">
-        <a href="?view_type={{ view_type }}&branch={{ filter_branch }}&period=week" class="filter-btn {% if period == 'week' %}active{% endif %}">Week</a>
-        <a href="?view_type={{ view_type }}&branch={{ filter_branch }}&period=month" class="filter-btn {% if period == 'month' %}active{% endif %}">Month</a>
-        <a href="?view_type={{ view_type }}&branch={{ filter_branch }}&period=year" class="filter-btn {% if period == 'year' %}active{% endif %}">Year</a>
+        <a href="?view_type={{ view_type }}&branch={{ filter_branch }}&employee={{ filter_employee }}&period=week" class="filter-btn {% if period == 'week' %}active{% endif %}">Week</a>
+        <a href="?view_type={{ view_type }}&branch={{ filter_branch }}&employee={{ filter_employee }}&period=month" class="filter-btn {% if period == 'month' %}active{% endif %}">Month</a>
+        <a href="?view_type={{ view_type }}&branch={{ filter_branch }}&employee={{ filter_employee }}&period=year" class="filter-btn {% if period == 'year' %}active{% endif %}">Year</a>
     </div>
 </div>
 
 <div class="form-card" style="margin-top:20px;">
     <div style="display:flex; justify-content:space-between;">
         <h2>Totals</h2>
-        <a href="/export-sales?view_type={{ view_type }}&from_date={{ filter_from }}&to_date={{ filter_to }}&branch={{ filter_branch }}" class="btn">📥 Export CSV</a>
+        <a href="/export-sales?view_type={{ view_type }}&from_date={{ filter_from }}&to_date={{ filter_to }}&branch={{ filter_branch }}&employee={{ filter_employee }}" class="btn">📥 Export CSV</a>
     </div>
     <div class="table-container">
         <table>
             <thead>
-                <tr><th>Date</th><th>Branch</th><th>M‑Pesa</th><th>Cash</th><th>Total</th></tr>
+                <tr>
+                    <th>Date</th>
+                    {% if view_type == 'individual' %}<th>Employee</th>{% endif %}
+                    <th>Branch</th>
+                    <th>M‑Pesa</th>
+                    <th>Cash</th>
+                    {% if view_type == 'individual' %}<th>Expenses</th>{% endif %}
+                    <th>Total</th>
+                </tr>
             </thead>
             <tbody>
-            {% for (date, branch), vals in totals.items() %}
+            {% for t in totals %}
             <tr>
-                <td>{{ date }}</td>
-                <td class="td-name">{{ branch }}</td>
-                <td>{{ vals.mpesa }}</td>
-                <td>{{ vals.cash }}</td>
-                <td>{{ vals.total }}</td>
+                <td>{{ t.date }}</td>
+                {% if view_type == 'individual' %}<td class="td-name">{{ t.employee }}</td>{% endif %}
+                <td>{{ t.branch }}</td>
+                <td>{{ t.mpesa }}</td>
+                <td>{{ t.cash }}</td>
+                {% if view_type == 'individual' %}<td>{{ t.expenses_total }}</td>{% endif %}
+                <td>{{ t.total }}</td>
             </tr>
             {% endfor %}
             </tbody>
