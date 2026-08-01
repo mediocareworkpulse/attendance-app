@@ -6,6 +6,7 @@
 {% if success %}<div class="alert alert-success">Request submitted.</div>{% endif %}
 {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
 
+{% if session.role == 'Branch Manager' %}
 <div class="form-card">
     <h2>Request Shift Change</h2>
     <form method="POST" class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:12px;">
@@ -22,25 +23,27 @@
         <div style="display:flex; align-items:end;"><button type="submit" class="btn">Submit</button></div>
     </form>
 </div>
+{% endif %}
 
 <div class="form-card" style="margin-top:20px;">
     <h2>Request History</h2>
     <div class="table-container">
         <table>
-            <thead><tr><th>Employee</th><th>New Start</th><th>New End</th><th>Status</th><th>Action</th></tr></thead>
+            <thead><tr><th>Employee</th><th>New Start</th><th>New End</th><th>Branch</th><th>Status</th><th>Action</th></tr></thead>
             <tbody>
             {% for r in requests %}
             <tr>
                 <td class="td-name">{{ r.employee_full_name }}</td>
                 <td>{{ r.new_shift_start }}</td>
                 <td>{{ r.new_shift_end }}</td>
+                <td>{{ r.branch }}</td>
                 <td>
                     {% if r.status == 'approved' %}<span class="badge badge-success">Approved</span>
                     {% elif r.status == 'rejected' %}<span class="badge badge-danger">Rejected</span>
                     {% else %}<span class="badge badge-warning">Pending</span>{% endif %}
                 </td>
                 <td>
-                    {% if session.role in ['Stock Controller','Assistant Stock Controller','admin','ceo'] and r.status == 'pending' %}
+                    {% if (session.role in ['Stock Controller','Assistant Stock Controller','admin','ceo']) and r.status == 'pending' %}
                     <form method="POST" action="/shift-change/approve/{{ r.id }}" style="display:inline">
                         <button class="btn btn-sm" style="background:#27ae60;color:#fff;">Approve</button>
                     </form>
