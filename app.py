@@ -16,7 +16,6 @@ app.config.update(
 )
 
 SUPABASE_URL = 'https://lznqrkujlrcxcxizygzq.supabase.co'
-# ⚠️  SERVICE ROLE KEY – DO NOT SHARE PUBLICLY
 SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6bnFya3VqbHJjeGN4aXp5Z3pxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDU2MjA2NSwiZXhwIjoyMTAwMTM4MDY1fQ.XmMAGB1G8hOOLr7PTnn100cifWMkja2gcZfKRSBI5Ec'
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -49,9 +48,9 @@ TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller','Sales Ma
 DIRECTORATE_ROLES = ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager','Assistant Operations Manager']
 
 COMPANY_NAME = 'Mediocare Pharmaceuticals Ltd'
-LATE_GRACE_MINUTES = 30
+LATE_GRACE_MINUTES = 20   # changed from 30
 
-# ---------- HELPER FUNCTIONS ----------
+# ---------- HELPERS ----------
 def login_required(f):
     @wraps(f)
     def d(*a,**k):
@@ -94,20 +93,14 @@ def now_eat():
     return datetime.now(EAT)
 
 def normalize_role(role):
-    """Return the correctly cased role from ALL_ROLES, falling back to original."""
     role_lower = role.strip().lower()
     for r in ALL_ROLES:
-        if r.lower() == role_lower:
-            return r
+        if r.lower() == role_lower: return r
     return role
 
 def get_active_delegation(user_id):
     data = safe_data(execute_query(
-        supabase.table('role_delegations')
-               .select('role')
-               .eq('delegate_id', user_id)
-               .eq('active', True)
-               .maybe_single()
+        supabase.table('role_delegations').select('role').eq('delegate_id', user_id).eq('active', True).maybe_single()
     ))
     return data.get('role') if data else None
 
@@ -119,17 +112,12 @@ def get_effective_roles():
     ))
     if emp:
         del_role = get_active_delegation(emp[0]['id'])
-        if del_role:
-            roles.append(del_role)
+        if del_role: roles.append(del_role)
     return roles
 
 def get_branch_employees(branch):
     return safe_data(execute_query(
-        supabase.table('employees')
-               .select('full_name')
-               .eq('status','approved')
-               .eq('branch', branch)
-               .order('full_name')
+        supabase.table('employees').select('full_name').eq('status','approved').eq('branch', branch).order('full_name')
     ))
 
 # ---------- LEAVE APPROVAL CHAIN ----------
@@ -232,9 +220,7 @@ def count_employees_on_leave(team_names=None, single_user=None):
     query = (supabase.table('leaves')
              .select('full_name')
              .in_('status', ['approved_final','approved_by_manager','approved_by_procurement','approved_by_ops'])
-             .lte('leave_start', today)
-             .gte('leave_end', today)
-             .limit(500))
+             .lte('leave_start', today).gte('leave_end', today).limit(500))
     if single_user: query = query.eq('full_name', single_user)
     elif team_names: query = query.in_('full_name', team_names)
     data = safe_data(execute_query(query))
@@ -682,13 +668,12 @@ def delete_branch(bid):
     supabase.table('branches').delete().eq('id',bid).execute()
     return redirect('/branches')
 
-# ---------- DIRECTORATE (Contacts – shows ALL employees) ----------
+# ---------- DIRECTORATE (Contacts) – updated ----------
 @app.route('/contacts')
 @login_required
 def contacts_page():
     allowed_roles = DIRECTORATE_ROLES + ['Procurement Officer']
-    if session.get('role') not in allowed_roles:
-        return redirect('/')
+    if session.get('role') not in allowed_roles: return redirect('/')
     contacts = safe_data(execute_query(
         supabase.table('contacts').select('*').order('full_name')
     ))
@@ -890,7 +875,7 @@ def attendance_history():
     return render_template('attendance_history.html', records=records, period=period,
                          from_date=sd, to_date=ed, today=str(today), company=COMPANY_NAME)
 
-# ---------- SALES (strict visibility, back-dated, separate individual/branch) ----------
+# ---------- SALES ----------
 @app.route('/sales', methods=['GET','POST'])
 @login_required
 def sales_page():
@@ -1062,7 +1047,7 @@ def profile():
     tms = sum(float(s.get('total_sales',0)) for s in safe_data(execute_query(supabase.table('sales').select('total_sales').eq('full_name',un).gte('date',str(ms)).lte('date',str(today)))))
     return render_template('profile.html', employee=ed, days_present=dp, total_my_sales=tms, success_msg=sm, company=COMPANY_NAME)
 
-# ---------- REPORTS (restricted from Branch Managers) ----------
+# ---------- REPORTS ----------
 @app.route('/reports')
 @login_required
 def reports():
@@ -1087,7 +1072,7 @@ def reports():
                          total_branch_amount=sum(float(s.get('total_sales',0)) for s in brecs),
                          company=COMPANY_NAME)
 
-# ---------- SALES REPORT (Admin, Accountant, Stock Controller, CEO) ----------
+# ---------- SALES REPORT (updated) ----------
 @app.route('/sales-report')
 @login_required
 def sales_report():
@@ -1095,6 +1080,7 @@ def sales_report():
         return redirect('/')
     view_type = request.args.get('view_type','individual')
     filter_branch = request.args.get('branch','')
+    filter_employee = request.args.get('employee','')
     filter_from = request.args.get('from_date','')
     filter_to = request.args.get('to_date','')
     period = request.args.get('period','')
@@ -1106,31 +1092,54 @@ def sales_report():
     elif period == 'year': filter_from = str(now_eat().date().replace(month=1, day=1)); filter_to = today
 
     branches = get_branch_names()
-    totals = {}
+    employees_list = safe_data(execute_query(
+        supabase.table('employees').select('full_name').eq('status','approved').order('full_name')
+    ))
+    totals = []
+
     if view_type == 'individual':
-        query = supabase.table('sales').select('date, branch, mpesa_sales, cash_sales, total_sales')
+        query = supabase.table('sales').select('*')
         if filter_branch: query = query.eq('branch', filter_branch)
-        data = safe_data(execute_query(query.gte('date', filter_from).lte('date', filter_to).order('date',desc=True).limit(2000)))
-        for s in data:
-            key = (s['date'], s['branch'])
-            if key not in totals: totals[key] = {'mpesa':0, 'cash':0, 'total':0}
-            totals[key]['mpesa'] += float(s.get('mpesa_sales',0))
-            totals[key]['cash']  += float(s.get('cash_sales',0))
-            totals[key]['total'] += float(s.get('total_sales',0))
+        if filter_employee: query = query.eq('full_name', filter_employee)
+        query = query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(2000)
+        sales = safe_data(execute_query(query))
+        grouped = defaultdict(lambda: {'mpesa':0, 'cash':0, 'expenses':[], 'total':0})
+        for s in sales:
+            key = (s['date'], s['full_name'], s['branch'])
+            rec = grouped[key]
+            rec['mpesa'] += float(s.get('mpesa_sales',0))
+            rec['cash'] += float(s.get('cash_sales',0))
+            if s.get('expenses'):
+                rec['expenses'].extend(s['expenses'])
+            rec['total'] += float(s.get('total_sales',0))
+        for (dt, emp, br), vals in grouped.items():
+            expenses_total = sum(e['amount'] for e in vals['expenses']) if vals['expenses'] else 0
+            totals.append({
+                'date': dt, 'employee': emp, 'branch': br,
+                'mpesa': vals['mpesa'], 'cash': vals['cash'],
+                'expenses_total': expenses_total, 'total': vals['total']
+            })
+        totals.sort(key=lambda x: x['date'], reverse=True)
     else:
-        query = supabase.table('branch_sales').select('date, branch, mpesa_sales, cash_sales, total_sales')
+        query = supabase.table('branch_sales').select('date, branch, mpesa_sales, cash_sales, total_sales, submitted_by')
         if filter_branch: query = query.eq('branch', filter_branch)
-        data = safe_data(execute_query(query.gte('date', filter_from).lte('date', filter_to).order('date',desc=True).limit(2000)))
+        query = query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(2000)
+        data = safe_data(execute_query(query))
+        grouped = defaultdict(lambda: {'mpesa':0, 'cash':0, 'total':0})
         for s in data:
             key = (s['date'], s['branch'])
-            if key not in totals: totals[key] = {'mpesa':0, 'cash':0, 'total':0}
-            totals[key]['mpesa'] += float(s.get('mpesa_sales',0))
-            totals[key]['cash']  += float(s.get('cash_sales',0))
-            totals[key]['total'] += float(s.get('total_sales',0))
+            rec = grouped[key]
+            rec['mpesa'] += float(s.get('mpesa_sales',0))
+            rec['cash'] += float(s.get('cash_sales',0))
+            rec['total'] += float(s.get('total_sales',0))
+        totals = [{'date': dt, 'branch': br, 'mpesa': vals['mpesa'], 'cash': vals['cash'], 'total': vals['total']}
+                  for (dt, br), vals in grouped.items()]
+        totals.sort(key=lambda x: x['date'], reverse=True)
 
     return render_template('sales_report.html', view_type=view_type, filter_branch=filter_branch,
-                         filter_from=filter_from, filter_to=filter_to, period=period,
-                         branches=branches, totals=totals, company=COMPANY_NAME)
+                         filter_employee=filter_employee, filter_from=filter_from, filter_to=filter_to,
+                         period=period, branches=branches, employees=employees_list, totals=totals,
+                         company=COMPANY_NAME)
 
 # ---------- EXPORT ATTENDANCE (CSV) ----------
 @app.route('/export-attendance')
@@ -1153,7 +1162,7 @@ def export_attendance():
     return Response(output, mimetype='text/csv',
                     headers={"Content-Disposition": "attachment;filename=attendance_report.csv"})
 
-# ---------- EXPORT SALES (CSV) – enhanced ----------
+# ---------- EXPORT SALES (CSV) – updated with Employee column ----------
 @app.route('/export-sales')
 @login_required
 def export_sales():
@@ -1164,30 +1173,29 @@ def export_sales():
     to_date   = request.args.get('to_date', str(now_eat().date()))
     branch = request.args.get('branch','')
     employee = request.args.get('employee','')
+    si = io.StringIO()
+    cw = csv.writer(si)
     if view_type == 'individual':
+        cw.writerow(['Date','Employee','Branch','M-Pesa','Cash','Expenses','Total Sales','Notes'])
         query = supabase.table('sales').select('*').gte('date', from_date).lte('date', to_date).order('date',desc=True).limit(2000)
         if branch: query = query.eq('branch', branch)
         if employee: query = query.eq('full_name', employee)
         data = safe_data(execute_query(query))
-        si = io.StringIO(); cw = csv.writer(si)
-        cw.writerow(['Date','Employee','Branch','M-Pesa','Cash','Expenses','Total Sales','Notes'])
         for s in data:
             expenses_str = '; '.join([f"{e['name']}:{e['amount']}" for e in s.get('expenses',[])]) if s.get('expenses') else ''
             cw.writerow([s['date'], s['full_name'], s['branch'], s['mpesa_sales'], s['cash_sales'], expenses_str, s['total_sales'], s.get('notes','')])
     else:
+        cw.writerow(['Date','Branch','M-Pesa','Cash','Expenses','Total Sales','Submitted By','Notes'])
         query = supabase.table('branch_sales').select('*').gte('date', from_date).lte('date', to_date).order('date',desc=True).limit(2000)
         if branch: query = query.eq('branch', branch)
         data = safe_data(execute_query(query))
-        si = io.StringIO(); cw = csv.writer(si)
-        cw.writerow(['Date','Branch','M-Pesa','Cash','Expenses','Total Sales','Submitted By','Notes'])
         for s in data:
             expenses_str = '; '.join([f"{e['name']}:{e['amount']}" for e in s.get('expenses',[])]) if s.get('expenses') else ''
             cw.writerow([s['date'], s['branch'], s['mpesa_sales'], s['cash_sales'], expenses_str, s['total_sales'], s.get('submitted_by',''), s.get('notes','')])
     output = si.getvalue(); si.close()
-    return Response(output, mimetype='text/csv',
-                    headers={"Content-Disposition": "attachment;filename=sales_report.csv"})
+    return Response(output, mimetype='text/csv', headers={"Content-Disposition": "attachment;filename=sales_report.csv"})
 
-# ---------- ATTENDANCE SUMMARY (days worked) ----------
+# ---------- ATTENDANCE SUMMARY (optimized) ----------
 @app.route('/attendance-summary')
 @login_required
 def attendance_summary():
@@ -1202,15 +1210,23 @@ def attendance_summary():
     if branch_filter: emp_query = emp_query.eq('branch', branch_filter)
     if employee_filter: emp_query = emp_query.eq('full_name', employee_filter)
     employees = safe_data(execute_query(emp_query.order('full_name').limit(500)))
+    emp_names = [e['full_name'] for e in employees]
 
+    att_data = safe_data(execute_query(
+        supabase.table('attendance')
+               .select('full_name, date')
+               .gte('date', from_date).lte('date', to_date)
+               .in_('full_name', emp_names)
+               .not_.is_('check_in', 'null')
+               .limit(10000)
+    ))
+    emp_days = defaultdict(set)
+    for a in att_data:
+        emp_days[a['full_name']].add(a['date'])
     summary = []
-    for emp in employees:
-        att_data = safe_data(execute_query(
-            supabase.table('attendance').select('date').eq('full_name', emp['full_name'])
-                .gte('date', from_date).lte('date', to_date).not_.is_('check_in', 'null')
-        ))
-        days_present = len(set(d['date'] for d in att_data))
-        summary.append({**emp, 'days_present': days_present})
+    for e in employees:
+        days_present = len(emp_days.get(e['full_name'], set()))
+        summary.append({**e, 'days_present': days_present})
 
     branches = get_branch_names()
     all_employees = safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').order('full_name')))
@@ -1221,43 +1237,45 @@ def attendance_summary():
 @app.route('/export-attendance-summary')
 @login_required
 def export_attendance_summary():
-    if session.get('role') not in FULL_ACCESS_ROLES + ['HR','HR Assistant']:
-        return redirect('/')
+    if session.get('role') not in FULL_ACCESS_ROLES + ['HR','HR Assistant']: return redirect('/')
     from_date = request.args.get('from_date', str(now_eat().date().replace(day=1)))
     to_date = request.args.get('to_date', str(now_eat().date()))
     branch_filter = request.args.get('branch', '')
     employee_filter = request.args.get('employee', '')
-
     emp_query = supabase.table('employees').select('full_name, branch, department, role').eq('status','approved')
     if branch_filter: emp_query = emp_query.eq('branch', branch_filter)
     if employee_filter: emp_query = emp_query.eq('full_name', employee_filter)
     employees = safe_data(execute_query(emp_query.order('full_name').limit(500)))
+    emp_names = [e['full_name'] for e in employees]
+    att_data = safe_data(execute_query(
+        supabase.table('attendance').select('full_name, date')
+               .gte('date', from_date).lte('date', to_date).in_('full_name', emp_names)
+               .not_.is_('check_in', 'null').limit(10000)
+    ))
+    emp_days = defaultdict(set)
+    for a in att_data: emp_days[a['full_name']].add(a['date'])
     summary = []
-    for emp in employees:
-        att_data = safe_data(execute_query(
-            supabase.table('attendance').select('date').eq('full_name', emp['full_name'])
-                .gte('date', from_date).lte('date', to_date).not_.is_('check_in', 'null')
-        ))
-        days_present = len(set(d['date'] for d in att_data))
-        summary.append({**emp, 'days_present': days_present})
+    for e in employees:
+        days_present = len(emp_days.get(e['full_name'], set()))
+        summary.append({**e, 'days_present': days_present})
     si = io.StringIO()
     cw = csv.writer(si)
     cw.writerow(['Employee','Department','Branch','Role','Days Present'])
-    for s in summary:
-        cw.writerow([s['full_name'], s['department'], s['branch'], s['role'], s['days_present']])
+    for s in summary: cw.writerow([s['full_name'], s['department'], s['branch'], s['role'], s['days_present']])
     output = si.getvalue(); si.close()
-    return Response(output, mimetype='text/csv',
-                    headers={"Content-Disposition": "attachment;filename=attendance_summary.csv"})
+    return Response(output, mimetype='text/csv', headers={"Content-Disposition": "attachment;filename=attendance_summary.csv"})
 
-# ---------- SHIFT CHANGE REQUEST ----------
+# ---------- SHIFT CHANGE (updated permissions) ----------
 @app.route('/shift-change', methods=['GET','POST'])
 @login_required
 def shift_change_page():
-    if session.get('role') not in ['Branch Manager', 'admin', 'ceo']:
-        return redirect('/')
+    user_role = session.get('role')
     un = session.get('user')
     ub = session.get('branch','')
-    if request.method == 'POST':
+    if user_role not in ['Branch Manager','Stock Controller','Assistant Stock Controller','admin','ceo']:
+        return redirect('/')
+
+    if request.method == 'POST' and user_role == 'Branch Manager':
         employee_name = request.form.get('employee','').strip()
         new_start = request.form.get('shift_start','')
         new_end   = request.form.get('shift_end','')
@@ -1272,10 +1290,19 @@ def shift_change_page():
             'reason': reason, 'status': 'pending'
         }).execute()
         return redirect('/shift-change?success=1')
-    requests_data = safe_data(execute_query(
-        supabase.table('shift_change_requests').select('*').eq('branch', ub).order('created_at',desc=True).limit(100)
-    ))
-    employees = get_branch_employees(ub)
+
+    if user_role in ['Stock Controller','Assistant Stock Controller','admin','ceo']:
+        requests_data = safe_data(execute_query(
+            supabase.table('shift_change_requests').select('*').in_('status', ['pending','approved','rejected'])
+                   .order('created_at',desc=True).limit(200)
+        ))
+    else:
+        requests_data = safe_data(execute_query(
+            supabase.table('shift_change_requests').select('*').eq('branch', ub)
+                   .order('created_at',desc=True).limit(100)
+        ))
+
+    employees = get_branch_employees(ub) if user_role == 'Branch Manager' else []
     return render_template('shift_change.html', requests=requests_data, employees=employees,
                            success=request.args.get('success',''), company=COMPANY_NAME)
 
