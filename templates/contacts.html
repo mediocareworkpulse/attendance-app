@@ -1,18 +1,25 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="page-title">Directorate</h1>
+<h1 class="page-title">📇 Directorate</h1>
 <p class="page-subtitle">{{ company }}</p>
 
 <div class="table-container">
     <table>
-        <thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Branch</th></tr></thead>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Branch</th>
+                <th>Phone</th>
+            </tr>
+        </thead>
         <tbody>
         {% for c in contacts %}
         <tr>
             <td class="td-name">{{ c.full_name }}</td>
             <td>{{ c.role }}</td>
-            <td>{{ c.phone or '—' }}</td>
             <td>{{ c.branch or '—' }}</td>
+            <td>{{ c.phone or '—' }}</td>
         </tr>
         {% endfor %}
         </tbody>
