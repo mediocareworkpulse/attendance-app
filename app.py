@@ -16,6 +16,7 @@ app.config.update(
 )
 
 SUPABASE_URL = 'https://lznqrkujlrcxcxizygzq.supabase.co'
+# ⚠️  SERVICE ROLE KEY – DO NOT SHARE PUBLICLY
 SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6bnFya3VqbHJjeGN4aXp5Z3pxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDU2MjA2NSwiZXhwIjoyMTAwMTM4MDY1fQ.XmMAGB1G8hOOLr7PTnn100cifWMkja2gcZfKRSBI5Ec'
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -48,9 +49,9 @@ TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller','Sales Ma
 DIRECTORATE_ROLES = ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager','Assistant Operations Manager']
 
 COMPANY_NAME = 'Mediocare Pharmaceuticals Ltd'
-LATE_GRACE_MINUTES = 20   # changed from 30
+LATE_GRACE_MINUTES = 30
 
-# ---------- HELPERS ----------
+# ---------- HELPER FUNCTIONS ----------
 def login_required(f):
     @wraps(f)
     def d(*a,**k):
@@ -93,14 +94,20 @@ def now_eat():
     return datetime.now(EAT)
 
 def normalize_role(role):
+    """Return the correctly cased role from ALL_ROLES, falling back to original."""
     role_lower = role.strip().lower()
     for r in ALL_ROLES:
-        if r.lower() == role_lower: return r
+        if r.lower() == role_lower:
+            return r
     return role
 
 def get_active_delegation(user_id):
     data = safe_data(execute_query(
-        supabase.table('role_delegations').select('role').eq('delegate_id', user_id).eq('active', True).maybe_single()
+        supabase.table('role_delegations')
+               .select('role')
+               .eq('delegate_id', user_id)
+               .eq('active', True)
+               .maybe_single()
     ))
     return data.get('role') if data else None
 
@@ -112,12 +119,17 @@ def get_effective_roles():
     ))
     if emp:
         del_role = get_active_delegation(emp[0]['id'])
-        if del_role: roles.append(del_role)
+        if del_role:
+            roles.append(del_role)
     return roles
 
 def get_branch_employees(branch):
     return safe_data(execute_query(
-        supabase.table('employees').select('full_name').eq('status','approved').eq('branch', branch).order('full_name')
+        supabase.table('employees')
+               .select('full_name')
+               .eq('status','approved')
+               .eq('branch', branch)
+               .order('full_name')
     ))
 
 # ---------- LEAVE APPROVAL CHAIN ----------
@@ -220,7 +232,9 @@ def count_employees_on_leave(team_names=None, single_user=None):
     query = (supabase.table('leaves')
              .select('full_name')
              .in_('status', ['approved_final','approved_by_manager','approved_by_procurement','approved_by_ops'])
-             .lte('leave_start', today).gte('leave_end', today).limit(500))
+             .lte('leave_start', today)
+             .gte('leave_end', today)
+             .limit(500))
     if single_user: query = query.eq('full_name', single_user)
     elif team_names: query = query.in_('full_name', team_names)
     data = safe_data(execute_query(query))
@@ -241,32 +255,32 @@ def block_check():
 @app.route('/login', methods=['GET','POST'])
 def login():
     if request.method == 'POST':
-        email = request.form['email'].strip()
-        password = request.form['password'].strip()
-        emp = safe_data(execute_query(
-            supabase.table('employees').select('*').eq('email', email).limit(1)
-        ))
-        if emp:
-            emp = emp[0]
-            if emp.get('blocked'):
-                return render_template('login.html', error='Account blocked. Contact admin.')
-            if check_password_hash(emp['password'], password):
-                session['user'] = emp['full_name']
-                session['email'] = emp['email']
-                session['role'] = emp['role']
-                session['branch'] = emp.get('branch','')
-                session['id'] = emp['id']
-                # Check trusted device
-                device = safe_data(execute_query(
-                    supabase.table('trusted_devices').select('*').eq('user_id', emp['id']).eq('device', request.headers.get('User-Agent','')).limit(1)
-                ))
-                if not device and emp['role'] not in NO_CHECKIN_ROLES:
-                    return redirect('/trust-device')
-                return redirect('/dashboard')
+        name = request.form.get('full_name','').strip()
+        pw = request.form.get('password','').strip()
+        r = execute_query(supabase.table('employees').select('*').eq('full_name',name))
+        data = safe_data(r)
+        if data:
+            emp = data[0]
+            if emp.get('blocked') == True:
+                return render_template('login.html', error='Account suspended. Contact admin.')
+            stored_pw = emp.get('password','')
+            if check_password_hash(stored_pw, pw):
+                pass
+            elif stored_pw == pw:
+                supabase.table('employees').update({'password': generate_password_hash(pw)}).eq('id', emp['id']).execute()
             else:
-                return render_template('login.html', error='Invalid password')
-        else:
-            return render_template('login.html', error='Email not found')
+                return render_template('login.html', error='Invalid credentials.')
+            if emp.get('status','') not in ['','approved']:
+                return render_template('login.html', error='Account pending approval.')
+            session['user'] = emp['full_name']
+            raw_role = emp.get('role','Staff')
+            session['role'] = normalize_role(raw_role)
+            session['department'] = emp.get('department','')
+            session['branch'] = emp.get('branch','')
+            session['shift_end'] = emp.get('shift_end','17:00')
+            session['shift_start'] = emp.get('shift_start','08:00')
+            return redirect('/')
+        return render_template('login.html', error='Invalid credentials.')
     return render_template('login.html')
 
 @app.route('/logout')
@@ -274,184 +288,806 @@ def logout():
     session.clear()
     return redirect('/login')
 
-@app.route('/trust-device', methods=['GET','POST'])
-@login_required
-def trust_device():
-    user_id = session.get('id')
-    if request.method == 'POST':
-        code = request.form['code'].strip()
-        # validate code from DB (simple 4-digit)
-        emp = safe_data(execute_query(
-            supabase.table('employees').select('device_code').eq('id', user_id).limit(1)
-        ))
-        if emp and emp[0].get('device_code') == code:
-            supabase.table('trusted_devices').insert({
-                'user_id': user_id,
-                'device': request.headers.get('User-Agent',''),
-                'created_at': str(now_eat())
-            }).execute()
-            return redirect('/dashboard')
-        return render_template('trust_device.html', error='Invalid code')
-    return render_template('trust_device.html')
+@app.route('/keep-alive')
+def keep_alive():
+    return 'OK', 200
 
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
+
+# ---------- TRUST ROUTES ----------
+@app.route('/privacy')
+def privacy():
+    return render_template('privacy.html', company=COMPANY_NAME)
+
+@app.route('/.well-known/security.txt')
+def security_txt():
+    return (
+        "Contact: mailto:support@mediocarepharma.com\n"
+        "Expires: 2027-12-31T23:59:59.000Z\n"
+        "Preferred-Languages: en\n"
+        "Canonical: https://attendance-app-h847.onrender.com/.well-known/security.txt\n",
+        200,
+        {'Content-Type': 'text/plain'}
+    )
+
+@app.route('/robots.txt')
+def robots():
+    return (
+        "User-agent: *\n"
+        "Disallow: /admin\n"
+        "Disallow: /check-in\n"
+        "Disallow: /sales\n"
+        "Disallow: /leaves\n"
+        "Allow: /\n",
+        200,
+        {'Content-Type': 'text/plain'}
+    )
+
+@app.route('/google1102f1c28cc82b57.html')
+def google_verification():
+    return 'google-site-verification: google1102f1c28cc82b57.html', 200, {'Content-Type': 'text/html'}
+
+# ---------- SIGNUP ----------
 @app.route('/signup', methods=['GET','POST'])
 def signup():
+    signup_roles = [r for r in ALL_ROLES if r not in ['admin','ceo']]
     if request.method == 'POST':
-        full_name = request.form['full_name'].strip()
-        email = request.form['email'].strip()
-        phone = request.form['phone'].strip()
-        password = request.form['password'].strip()
-        branch = request.form['branch'].strip()
-        role = request.form['role'].strip()
-        existing = safe_data(execute_query(
-            supabase.table('employees').select('id').eq('email', email).limit(1)
-        ))
-        if existing:
-            return render_template('signup.html', error='Email already registered', branches=get_branch_names(), roles=ALL_ROLES)
-        hashed = generate_password_hash(password)
+        name = request.form.get('full_name','').strip()
+        phone = request.form.get('phone','').strip()
+        pw = request.form.get('password','').strip()
+        dept = request.form.get('department','').strip()
+        branch = request.form.get('branch','').strip()
+        role = request.form.get('role','').strip()
+        shift_start = request.form.get('shift_start','08:00').strip()
+        shift_end = request.form.get('shift_end','17:00').strip()
+        if role not in signup_roles: role = 'Staff'
+        if not name or not phone or not pw or not branch:
+            return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS,
+                roles=signup_roles, error='All fields are required, including Branch.')
+        if branch not in get_branch_names():
+            return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS,
+                roles=signup_roles, error='Please select a valid branch.')
+        check = execute_query(supabase.table('employees').select('id').eq('full_name',name))
+        if safe_data(check):
+            return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS,
+                roles=signup_roles, error='Name already exists.')
         supabase.table('employees').insert({
-            'full_name': full_name, 'email': email, 'phone': phone,
-            'password': hashed, 'branch': branch, 'role': role,
-            'status': 'pending', 'created_at': str(now_eat())
+            'full_name':name,'phone':phone,'password': generate_password_hash(pw),
+            'department':dept,'branch':branch,'role': normalize_role(role),
+            'status':'pending','shift_start':shift_start,'shift_end':shift_end
         }).execute()
-        return redirect('/login?registered=1')
-    return render_template('signup.html', branches=get_branch_names(), roles=ALL_ROLES)
+        return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS,
+            roles=signup_roles,
+            success='Registration submitted! Welcome to {}!'.format(COMPANY_NAME))
+    return render_template('signup.html', branches=get_branch_names(), departments=DEPARTMENTS,
+        roles=signup_roles)
 
 # ---------- DASHBOARD ----------
 @app.route('/')
-@app.route('/dashboard')
 @login_required
-def dashboard():
-    uname = session['user']
-    role = session['role']
-    branch = session.get('branch','')
+def home():
     today = str(now_eat().date())
-    # Attendance today
-    att = safe_data(execute_query(
-        supabase.table('attendance').select('*').eq('full_name', uname).eq('date', today).maybe_single()
+    role = session.get('role','Staff')
+    ub = session.get('branch','')
+    un = session.get('user','')
+
+    show_sales_card = (
+        role in ['Staff','Branch Manager','admin','ceo'] or
+        session.get('department','') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant']
+    )
+
+    if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant'] or can_view_all():
+        emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').eq('blocked',False))
+        att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50))
+        sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today))
+        on_leave_count = count_employees_on_leave()
+    elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
+        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)))]
+        att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
+        sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names)) if show_sales_card else []
+        emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM))
+        on_leave_count = count_employees_on_leave(team_names=team_names)
+    elif role == 'Sales Manager':
+        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',[MARKETER_ROLE,'Telesales'])))]
+        team_names.append(un)
+        att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
+        sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names)) if show_sales_card else []
+        emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').in_('full_name',team_names))
+        on_leave_count = count_employees_on_leave(team_names=team_names)
+    elif role == 'Branch Manager':
+        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('branch',ub)))]
+        att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
+        sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names)) if show_sales_card else []
+        emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').eq('branch',ub))
+        on_leave_count = count_employees_on_leave(team_names=team_names)
+    else:
+        emp_r = None
+        att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).eq('full_name',un))
+        sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).eq('full_name',un))
+        on_leave_count = count_employees_on_leave(single_user=un)
+
+    total_emp = len(safe_data(emp_r)) if emp_r else 0
+    att_data = safe_data(att_r)
+    working = sum(1 for a in att_data if a.get('check_in') and not a.get('check_out'))
+    checked_out = sum(1 for a in att_data if a.get('check_out'))
+    late_count = sum(1 for a in att_data if a.get('status')=='late')
+    total_sales = sum(float(s.get('total_sales',0)) for s in safe_data(sales_r)) if show_sales_card else 0
+
+    my_leaves = safe_data(execute_query(
+        supabase.table('leaves').select('*').eq('full_name',un)
+        .in_('status',['approved_final','approved_by_manager'])
+        .gte('leave_end',today)
+        .order('leave_start')
+        .limit(1)
     ))
-    checked_in = att and att.get('check_in') is not None
-    checked_out = att and att.get('check_out') is not None
-    # Quick stats
-    team_on_leave = count_employees_on_leave(team_names=[e['full_name'] for e in get_branch_employees(branch)]) if branch else 0
-    return render_template('dashboard.html', user=uname, role=role, branch=branch,
-                           checked_in=checked_in, checked_out=checked_out,
-                           team_on_leave=team_on_leave, company=COMPANY_NAME)
+    leave_remaining = None
+    if my_leaves:
+        lv = my_leaves[0]
+        end_date = datetime.strptime(lv['leave_end'], '%Y-%m-%d').date()
+        remaining_days = (end_date - now_eat().date()).days
+        if remaining_days >= 0:
+            leave_remaining = {'end_date': lv['leave_end'], 'days': remaining_days}
+
+    records = []
+    for rec in att_data[:10]:
+        st = rec.get('status','present')
+        if rec.get('check_out'): label = 'Checked Out'
+        elif st == 'late': label = 'Arrived Late'
+        else: label = 'Working'
+        try:
+            emp_detail = safe_data(execute_query(supabase.table('employees').select('role,department').eq('full_name',rec['full_name'])))
+        except: emp_detail = []
+        role_disp = emp_detail[0].get('role','') if emp_detail else ''
+        dept_disp = emp_detail[0].get('department','') if emp_detail else rec.get('department','')
+        records.append({
+            'full_name':rec['full_name'],'department':dept_disp,'role':role_disp,
+            'check_in':rec.get('check_in','—'),'check_out':rec.get('check_out','—'),
+            'status':st,'label':label
+        })
+
+    uci=uco=False; user_status=''
+    if role not in NO_CHECKIN_ROLES:
+        my = safe_data(execute_query(supabase.table('attendance').select('*').eq('full_name',un).eq('date',today)))
+        if my:
+            uci = bool(my[0].get('check_in'))
+            uco = bool(my[0].get('check_out'))
+            if uco: user_status = 'Checked Out'
+            elif uci: user_status = 'Working'
+            else: user_status = 'Not Checked In'
+
+    pending = len(safe_data(execute_query(supabase.table('employees').select('id').eq('status','pending')))) if role in FULL_ACCESS_ROLES else 0
+
+    target_achieved = False
+    if role in SALES_SUBMIT_ROLES:
+        month_str = str(now_eat().date().replace(day=1))
+        target = safe_data(execute_query(supabase.table('sales_targets').select('target_amount').eq('full_name',un).eq('month',month_str).limit(1)))
+        if target:
+            target_amt = float(target[0]['target_amount'])
+            ms = today.replace(day=1)
+            my_sales = safe_data(execute_query(supabase.table('sales').select('total_sales').eq('full_name',un).gte('date',str(ms)).lte('date',today)))
+            month_total = sum(float(s['total_sales']) for s in my_sales)
+            if month_total >= target_amt and target_amt > 0:
+                target_achieved = True
+
+    return render_template('index.html',
+        total_employees=total_emp, working=working, checked_out=checked_out,
+        late_count=late_count, on_leave_count=on_leave_count,
+        total_sales=total_sales, recent_records=records,
+        user_checked_in=uci, user_checked_out=uco, user_status=user_status,
+        pending_count=pending, show_sales_card=show_sales_card,
+        target_achieved=target_achieved, leave_remaining=leave_remaining,
+        company=COMPANY_NAME)
+
+# ---------- ADMIN PANEL ----------
+@app.route('/admin')
+@login_required
+@admin_required
+def admin_panel():
+    total_emp = len(safe_data(execute_query(supabase.table('employees').select('id').eq('status','approved'))))
+    pending = len(safe_data(execute_query(supabase.table('employees').select('id').eq('status','pending'))))
+    blocked_count = len(safe_data(execute_query(supabase.table('employees').select('id').eq('blocked',True))))
+    total_branches = len(get_branches())
+    att_today = len(safe_data(execute_query(supabase.table('attendance').select('id').eq('date',str(now_eat().date())))))
+    return render_template('admin.html', total_employees=total_emp, pending_count=pending,
+                         blocked_count=blocked_count, total_branches=total_branches,
+                         att_today=att_today, company=COMPANY_NAME)
+
+@app.route('/admin/block/<int:eid>', methods=['POST'])
+@login_required
+@admin_required
+def block_employee(eid):
+    supabase.table('employees').update({'blocked':True}).eq('id',eid).execute()
+    return redirect('/employees')
+
+@app.route('/admin/unblock/<int:eid>', methods=['POST'])
+@login_required
+@admin_required
+def unblock_employee(eid):
+    supabase.table('employees').update({'blocked':False}).eq('id',eid).execute()
+    return redirect('/employees')
+
+# ---------- APPROVALS ----------
+@app.route('/approvals')
+@login_required
+@admin_required
+def approvals_page():
+    pending = safe_data(execute_query(supabase.table('employees').select('*').eq('status','pending').order('created_at',desc=True).limit(50)))
+    return render_template('approvals.html', pending=pending)
+
+@app.route('/approvals/approve/<int:eid>', methods=['POST'])
+@login_required
+@admin_required
+def approve(eid):
+    supabase.table('employees').update({'status':'approved'}).eq('id',eid).execute()
+    return redirect('/approvals')
+
+@app.route('/approvals/reject/<int:eid>', methods=['POST'])
+@login_required
+@admin_required
+def reject(eid):
+    supabase.table('employees').delete().eq('id',eid).execute()
+    return redirect('/approvals')
+
+# ---------- ADMIN SALES MANAGEMENT (with edit) ----------
+@app.route('/admin/sales')
+@login_required
+@admin_required
+def admin_sales():
+    fd = request.args.get('from_date','')
+    td = request.args.get('to_date','')
+    if fd and td:
+        sales = safe_data(execute_query(
+            supabase.table('sales').select('*').gte('date',fd).lte('date',td).order('date',desc=True).limit(500)
+        ))
+    else:
+        sales = safe_data(execute_query(
+            supabase.table('sales').select('*').order('date',desc=True).limit(200)
+        ))
+    return render_template('admin_sales.html', sales=sales, from_date=fd, to_date=td, company=COMPANY_NAME)
+
+@app.route('/admin/sales/delete/<int:sid>', methods=['POST'])
+@login_required
+@admin_required
+def delete_sale(sid):
+    supabase.table('sales').delete().eq('id',sid).execute()
+    return redirect(request.referrer or '/admin/sales')
+
+@app.route('/admin/sales/edit/<int:sid>', methods=['POST'])
+@login_required
+@admin_required
+def edit_sale(sid):
+    mpesa = float(request.form.get('mpesa_sales','0') or 0)
+    cash  = float(request.form.get('cash_sales','0') or 0)
+    notes = request.form.get('notes','')
+    expense_names  = request.form.getlist('expense_name[]')
+    expense_amounts = request.form.getlist('expense_amount[]')
+    expenses = []
+    expense_total = 0.0
+    for i in range(len(expense_names)):
+        nm = expense_names[i].strip()
+        amt_str = expense_amounts[i] if i < len(expense_amounts) else '0'
+        try: amt = float(amt_str) if amt_str else 0.0
+        except: amt = 0.0
+        if nm and amt > 0:
+            expenses.append({'name': nm, 'amount': amt})
+            expense_total += amt
+    total = mpesa + cash + expense_total
+    supabase.table('sales').update({
+        'mpesa_sales': mpesa,
+        'cash_sales': cash,
+        'total_sales': total,
+        'notes': notes,
+        'expenses': expenses
+    }).eq('id', sid).execute()
+    return redirect(request.referrer or '/admin/sales')
+
+# ---------- EMPLOYEES ----------
+@app.route('/employees')
+@login_required
+@admin_required
+def employees_page():
+    emps = safe_data(execute_query(supabase.table('employees').select('*').order('full_name').limit(200)))
+    return render_template('employees.html', employees=emps, branches=get_branch_names(),
+                         departments=DEPARTMENTS, roles=ALL_ROLES, company=COMPANY_NAME)
+
+@app.route('/employees/add', methods=['POST'])
+@login_required
+@admin_required
+def add_employee():
+    d = {
+        'full_name':request.form.get('full_name','').strip(),
+        'department':request.form.get('department','').strip(),
+        'branch':request.form.get('branch','').strip(),
+        'role': normalize_role(request.form.get('role','Staff').strip()),
+        'password': generate_password_hash(request.form.get('password','1234').strip()),
+        'status':'approved','blocked':False
+    }
+    if d['full_name']:
+        check = execute_query(supabase.table('employees').select('id').eq('full_name',d['full_name']))
+        if not safe_data(check):
+            supabase.table('employees').insert(d).execute()
+    return redirect('/employees')
+
+@app.route('/employees/delete/<int:eid>', methods=['POST'])
+@login_required
+@admin_required
+def delete_employee(eid):
+    emp = safe_data(execute_query(supabase.table('employees').select('full_name').eq('id',eid)))
+    if emp:
+        n = emp[0]['full_name']
+        supabase.table('attendance').delete().eq('full_name',n).execute()
+        supabase.table('sales').delete().eq('full_name',n).execute()
+        supabase.table('leaves').delete().eq('full_name',n).execute()
+        supabase.table('journeys').delete().eq('full_name',n).execute()
+        supabase.table('marketer_checkins').delete().eq('full_name',n).execute()
+        supabase.table('customer_reports').delete().eq('full_name',n).execute()
+        supabase.table('marketer_locations').delete().eq('full_name',n).execute()
+        supabase.table('contacts').delete().eq('full_name',n).execute()
+    supabase.table('employees').delete().eq('id',eid).execute()
+    return redirect('/employees')
+
+@app.route('/employees/edit/<int:eid>', methods=['POST'])
+@login_required
+@admin_required
+def edit_employee(eid):
+    data = {
+        'full_name':request.form.get('full_name','').strip(),
+        'department':request.form.get('department','').strip(),
+        'branch':request.form.get('branch','').strip(),
+        'role': normalize_role(request.form.get('role','Staff').strip()),
+        'shift_start':request.form.get('shift_start','08:00').strip(),
+        'shift_end':request.form.get('shift_end','17:00').strip(),
+        'updated_at':now_eat().isoformat()
+    }
+    new_pw = request.form.get('password','').strip()
+    if new_pw: data['password'] = generate_password_hash(new_pw)
+    if data['full_name']: supabase.table('employees').update(data).eq('id',eid).execute()
+    return redirect('/employees')
+
+# ---------- BRANCHES ----------
+@app.route('/branches')
+@login_required
+@admin_required
+def branches_page():
+    branches = get_branches()
+    return render_template('branches.html', branches=branches, company=COMPANY_NAME)
+
+@app.route('/branches/add', methods=['POST'])
+@login_required
+@admin_required
+def add_branch():
+    n = request.form.get('name','').strip()
+    ss = request.form.get('shift_start','08:00')
+    se = request.form.get('shift_end','17:00')
+    if n: supabase.table('branches').insert({'name':n,'shift_start':ss,'shift_end':se}).execute()
+    return redirect('/branches')
+
+@app.route('/branches/edit/<int:bid>', methods=['POST'])
+@login_required
+@admin_required
+def edit_branch(bid):
+    supabase.table('branches').update({
+        'name':request.form.get('name','').strip(),
+        'shift_start':request.form.get('shift_start','08:00'),
+        'shift_end':request.form.get('shift_end','17:00')
+    }).eq('id',bid).execute()
+    return redirect('/branches')
+
+@app.route('/branches/delete/<int:bid>', methods=['POST'])
+@login_required
+@admin_required
+def delete_branch(bid):
+    supabase.table('branches').delete().eq('id',bid).execute()
+    return redirect('/branches')
+
+# ---------- DIRECTORATE (Contacts – shows ALL employees) ----------
+@app.route('/contacts')
+@login_required
+def contacts_page():
+    allowed_roles = DIRECTORATE_ROLES + ['Procurement Officer']
+    if session.get('role') not in allowed_roles:
+        return redirect('/')
+    contacts = safe_data(execute_query(
+        supabase.table('contacts').select('*').order('full_name')
+    ))
+    return render_template('contacts.html', contacts=contacts, company=COMPANY_NAME)
 
 # ---------- CHECK IN / OUT ----------
+@app.route('/check-in')
+@login_required
+def check_in_page():
+    today = str(now_eat().date())
+    role = session.get('role')
+    un = session.get('user')
+    ub = session.get('branch','')
+
+    marketer_pending = False; marketer_approved = False
+    if role == MARKETER_ROLE:
+        mc = safe_data(execute_query(supabase.table('marketer_checkins').select('*').eq('full_name',un).eq('date',today).order('created_at',desc=True).limit(1)))
+        if mc:
+            if mc[0]['status'] == 'approved': marketer_approved = True
+            elif mc[0]['status'] == 'pending': marketer_pending = True
+
+    emp = safe_data(execute_query(supabase.table('employees').select('shift_start,shift_end,role,department,branch').eq('full_name',un)))
+    emp_info = emp[0] if emp else {}
+    shift_start = emp_info.get('shift_start','08:00') if role not in RIDER_DRIVER_ROLES + [MARKETER_ROLE] else None
+    shift_end = emp_info.get('shift_end','17:00') if role not in RIDER_DRIVER_ROLES + [MARKETER_ROLE] else None
+
+    my_att = safe_data(execute_query(supabase.table('attendance').select('*').eq('full_name',un).eq('date',today)))
+    current_status = 'none'; check_in_time = None
+    if my_att:
+        rec = my_att[0]
+        if rec.get('check_out'): current_status = 'completed'
+        elif rec.get('check_in'):
+            current_status = 'checked_in'
+            check_in_time = rec.get('check_in')
+
+    if role == MARKETER_ROLE:
+        if marketer_approved: current_status = 'approved'
+        elif marketer_pending: current_status = 'pending'
+        else: current_status = 'none'
+
+    journeys = []
+    if role in RIDER_DRIVER_ROLES:
+        journeys = safe_data(execute_query(supabase.table('journeys').select('*').eq('full_name',un).eq('date',today).order('journey_number')))
+
+    if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant']:
+        r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50)))
+    elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
+        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)))]
+        r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names)))
+    elif role == 'Sales Manager':
+        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',[MARKETER_ROLE,'Telesales'])))]
+        team_names.append(un)
+        r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names)))
+    elif role == 'Branch Manager':
+        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('branch',ub)))]
+        r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names)))
+    elif role in ['Stock Controller','Assistant Stock Controller']:
+        r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50)))
+    else:
+        r = my_att
+
+    records = []
+    for rec in r:
+        st = rec.get('status','present')
+        if rec.get('check_out'): label = 'Checked Out'
+        elif st == 'late': label = 'Arrived Late'
+        else: label = 'Working'
+        try:
+            emp_det = safe_data(execute_query(supabase.table('employees').select('role,department').eq('full_name',rec['full_name'])))
+        except: emp_det = []
+        role_disp = emp_det[0].get('role','') if emp_det else ''
+        dept_disp = emp_det[0].get('department','') if emp_det else rec.get('department','')
+        records.append({
+            'full_name':rec['full_name'],'department':dept_disp,'role':role_disp,
+            'check_in':rec.get('check_in','—'),'check_out':rec.get('check_out','—'),
+            'status':st,'label':label
+        })
+
+    return render_template('check_in.html',
+        records=records, user_status=current_status, today=today, company=COMPANY_NAME,
+        check_in_time=check_in_time, shift_start=shift_start, shift_end=shift_end,
+        journeys=journeys, role=role)
+
 @app.route('/check-in', methods=['POST'])
 @login_required
-def check_in():
-    uname = session['user']
-    role = session['role']
-    if role in NO_CHECKIN_ROLES:
-        return redirect('/')
+def process_attendance():
+    if session.get('role') in NO_CHECKIN_ROLES: return redirect('/')
+    un = session.get('user')
+    action = request.form.get('action')
     today = str(now_eat().date())
-    att = safe_data(execute_query(
-        supabase.table('attendance').select('*').eq('full_name', uname).eq('date', today).maybe_single()
-    ))
-    if att and att.get('check_in'):
-        return redirect('/dashboard?error=already_checked_in')
-    time_in = now_eat().strftime('%H:%M:%S')
-    status = 'present'
-    # Check late
-    shift_start = '08:00:00'  # default
-    emp = safe_data(execute_query(
-        supabase.table('employees').select('shift_start').eq('full_name', uname).limit(1)
-    ))
-    if emp and emp[0].get('shift_start'):
-        shift_start = emp[0]['shift_start']
-    if datetime.strptime(time_in, '%H:%M:%S') > (datetime.strptime(shift_start, '%H:%M:%S') + timedelta(minutes=LATE_GRACE_MINUTES)):
-        status = 'late'
-    supabase.table('attendance').insert({
-        'full_name': uname,
-        'date': today,
-        'check_in': time_in,
-        'status': status,
-        'branch': session.get('branch','')
-    }).execute()
-    return redirect('/dashboard?checked_in=1')
+    now = now_eat().strftime('%H:%M:%S')
+    lat = request.form.get('lat', '') or '0'
+    lng = request.form.get('lng', '') or '0'
+    loc = request.form.get('location', '') or 'Not provided'
+    emp = safe_data(execute_query(supabase.table('employees').select('department,branch,shift_start,role').eq('full_name', un)))
+    if not emp: return redirect('/check-in')
+    dept = emp[0].get('department', '') or ''
+    branch = emp[0].get('branch', '') or ''
+    role = emp[0].get('role', '') or ''
+    shift_start = emp[0].get('shift_start', '08:00') or '08:00'
+    shift_start = shift_start.strip()
+    if len(shift_start) > 5: shift_start = shift_start[:5]
+    if not shift_start or ':' not in shift_start: shift_start = '08:00'
 
-@app.route('/check-out', methods=['POST'])
+    existing = safe_data(execute_query(supabase.table('attendance').select('*').eq('full_name', un).eq('date', today)))
+    exd = existing[0] if existing else None
+
+    if action == 'check_in':
+        if role == MARKETER_ROLE: return redirect('/check-in')
+        if exd and exd.get('check_in'): return redirect('/check-in')
+        late_threshold = (datetime.strptime(shift_start, '%H:%M') + timedelta(minutes=LATE_GRACE_MINUTES)).strftime('%H:%M')
+        status = 'late' if now[:5] > late_threshold else 'present'
+        d = {'check_in': now, 'status': status, 'check_in_lat': lat, 'check_in_lng': lng, 'check_in_location': loc}
+        if exd: supabase.table('attendance').update(d).eq('full_name', un).eq('date', today).execute()
+        else:
+            d.update({'full_name': un, 'department': dept, 'branch': branch, 'date': today})
+            supabase.table('attendance').insert(d).execute()
+    elif action == 'check_out':
+        if exd and exd.get('check_in') and not exd.get('check_out'):
+            supabase.table('attendance').update({
+                'check_out': now, 'status': 'checked_out',
+                'check_out_lat': lat, 'check_out_lng': lng, 'check_out_location': loc
+            }).eq('full_name', un).eq('date', today).execute()
+            return redirect('/')
+    return redirect('/check-in')
+
+# ---------- JOURNEY ROUTES ----------
+@app.route('/journey/start', methods=['POST'])
 @login_required
-def check_out():
-    uname = session['user']
-    today = str(now_eat().date())
-    att = safe_data(execute_query(
-        supabase.table('attendance').select('*').eq('full_name', uname).eq('date', today).maybe_single()
-    ))
-    if not att or att.get('check_out'):
-        return redirect('/dashboard?error=already_checked_out')
-    time_out = now_eat().strftime('%H:%M:%S')
-    supabase.table('attendance').update({'check_out': time_out}).eq('id', att['id']).execute()
-    return redirect('/dashboard?checked_out=1')
+def start_journey():
+    if session.get('role') not in RIDER_DRIVER_ROLES: return redirect('/check-in')
+    un = session.get('user'); today = str(now_eat().date()); now = now_eat().strftime('%H:%M:%S')
+    lat = request.form.get('lat',''); lng = request.form.get('lng',''); loc = request.form.get('location','')
+    existing = safe_data(execute_query(supabase.table('journeys').select('journey_number').eq('full_name',un).eq('date',today).order('journey_number', desc=True).limit(1)))
+    next_num = (existing[0]['journey_number'] + 1) if existing else 1
+    supabase.table('journeys').insert({
+        'full_name': un, 'date': today, 'journey_number': next_num,
+        'start_time': now, 'start_lat': lat, 'start_lng': lng, 'start_location': loc, 'status': 'active'
+    }).execute()
+    return redirect('/check-in')
 
-# ---------- INDIVIDUAL SALES ENTRY ----------
+@app.route('/journey/end/<int:jid>', methods=['POST'])
+@login_required
+def end_journey(jid):
+    if session.get('role') not in RIDER_DRIVER_ROLES: return redirect('/check-in')
+    now = now_eat().strftime('%H:%M:%S')
+    lat = request.form.get('lat',''); lng = request.form.get('lng',''); loc = request.form.get('location','')
+    supabase.table('journeys').update({
+        'end_time': now, 'end_lat': lat, 'end_lng': lng, 'end_location': loc, 'status': 'completed'
+    }).eq('id', jid).execute()
+    return redirect('/check-in')
+
+# ---------- ATTENDANCE HISTORY ----------
+@app.route('/attendance-history')
+@login_required
+def attendance_history():
+    role = session.get('role'); un = session.get('user'); ub = session.get('branch','')
+    period = request.args.get('period','month')
+    fd = request.args.get('from_date',''); td = request.args.get('to_date','')
+    today = now_eat().date()
+    if fd and td: sd, ed = fd, td
+    elif period == 'week': sd = str(today - timedelta(days=7)); ed = str(today)
+    elif period == 'month': sd = str(today.replace(day=1)); ed = str(today)
+    elif period == 'last_month':
+        first_of_month = today.replace(day=1)
+        last_month_end = first_of_month - timedelta(days=1)
+        last_month_start = last_month_end.replace(day=1)
+        sd = str(last_month_start); ed = str(last_month_end)
+    else: sd = str(today - timedelta(days=30)); ed = str(today)
+
+    if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant']:
+        r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).order('date',desc=True).limit(200)))
+    elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
+        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)))]
+        r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).in_('full_name',team_names).order('date',desc=True).limit(200)))
+    elif role == 'Sales Manager':
+        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',[MARKETER_ROLE,'Telesales'])))]
+        team_names.append(un)
+        r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).in_('full_name',team_names).order('date',desc=True).limit(200)))
+    elif role == 'Branch Manager':
+        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('branch',ub)))]
+        r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).in_('full_name',team_names).order('date',desc=True).limit(200)))
+    elif role in ['Stock Controller','Assistant Stock Controller']:
+        r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).order('date',desc=True).limit(200)))
+    else:
+        r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).eq('full_name',un).order('date',desc=True).limit(200)))
+
+    records = []
+    for rec in r:
+        st = rec.get('status','present')
+        if rec.get('check_out'): label = 'Checked Out'
+        elif st == 'late': label = 'Arrived Late'
+        else: label = 'Working'
+        records.append({
+            'date':rec.get('date',''),'full_name':rec.get('full_name',''),
+            'check_in':rec.get('check_in','—'),'check_out':rec.get('check_out','—'),
+            'status':st,'label':label
+        })
+    return render_template('attendance_history.html', records=records, period=period,
+                         from_date=sd, to_date=ed, today=str(today), company=COMPANY_NAME)
+
+# ---------- SALES (strict visibility, back-dated, separate individual/branch) ----------
 @app.route('/sales', methods=['GET','POST'])
 @login_required
 def sales_page():
-    role = session.get('role','')
-    if role not in SALES_SUBMIT_ROLES:
-        return redirect('/')
+    role = session.get('role', '').strip()
+    if role.lower() == 'staff': role = session['role'] = 'Staff'
+    elif role.lower() == 'branch manager': role = session['role'] = 'Branch Manager'
+
+    un = session.get('user'); ub = session.get('branch','')
+    today = str(now_eat().date())
+
     if request.method == 'POST':
-        date_sale = request.form['date']
-        mpesa = float(request.form.get('mpesa_sales',0))
-        cash = float(request.form.get('cash_sales',0))
-        total = mpesa + cash
-        expenses = []
-        exp_names = request.form.getlist('expense_name[]')
-        exp_amounts = request.form.getlist('expense_amount[]')
-        for n, a in zip(exp_names, exp_amounts):
-            if n.strip():
-                expenses.append({'name': n.strip(), 'amount': float(a)})
-        notes = request.form.get('notes','')
-        supabase.table('sales').insert({
-            'date': date_sale,
-            'full_name': session['user'],
-            'branch': session.get('branch',''),
-            'mpesa_sales': mpesa,
-            'cash_sales': cash,
-            'total_sales': total,
-            'expenses': expenses,
-            'notes': notes
-        }).execute()
+        sales_type = request.form.get('sales_type','individual')
+        sale_date = request.form.get('sale_date', today).strip()
+        if not sale_date: sale_date = today
+        if sale_date > today: sale_date = today
+
+        if sales_type == 'individual' and role in SALES_SUBMIT_ROLES:
+            try:
+                mpesa = float(request.form.get('mpesa_sales','0') or 0)
+                cash  = float(request.form.get('cash_sales','0') or 0)
+                notes = request.form.get('notes','')
+                expense_names  = request.form.getlist('expense_name[]')
+                expense_amounts = request.form.getlist('expense_amount[]')
+                expenses = []
+                expense_total = 0.0
+                for i in range(len(expense_names)):
+                    nm = expense_names[i].strip()
+                    amt_str = expense_amounts[i] if i < len(expense_amounts) else '0'
+                    try: amt = float(amt_str) if amt_str else 0.0
+                    except: amt = 0.0
+                    if nm and amt > 0:
+                        expenses.append({'name': nm, 'amount': amt})
+                        expense_total += amt
+                total = mpesa + cash + expense_total
+                emp = safe_data(execute_query(
+                    supabase.table('employees').select('department,branch').eq('full_name', un)
+                ))
+                if emp and total > 0:
+                    supabase.table('sales').insert({
+                        'full_name': un, 'department': emp[0].get('department',''),
+                        'branch': emp[0].get('branch',''), 'date': sale_date,
+                        'mpesa_sales': mpesa, 'cash_sales': cash, 'total_sales': total,
+                        'sales_type': 'individual', 'notes': notes, 'expenses': expenses
+                    }).execute()
+            except Exception as e: print(f"Individual sale error: {e}")
+        elif sales_type == 'branch' and role == 'Branch Manager':
+            try:
+                mpesa = float(request.form.get('mpesa_sales','0') or 0)
+                cash  = float(request.form.get('cash_sales','0') or 0)
+                notes = request.form.get('notes','')
+                expense_names  = request.form.getlist('expense_name[]')
+                expense_amounts = request.form.getlist('expense_amount[]')
+                expenses = []
+                expense_total = 0.0
+                for i in range(len(expense_names)):
+                    nm = expense_names[i].strip()
+                    amt_str = expense_amounts[i] if i < len(expense_amounts) else '0'
+                    try: amt = float(amt_str) if amt_str else 0.0
+                    except: amt = 0.0
+                    if nm and amt > 0:
+                        expenses.append({'name': nm, 'amount': amt})
+                        expense_total += amt
+                total = mpesa + cash + expense_total
+                if total > 0:
+                    supabase.table('branch_sales').insert({
+                        'branch': ub, 'date': sale_date,
+                        'mpesa_sales': mpesa, 'cash_sales': cash, 'total_sales': total,
+                        'submitted_by': un, 'notes': notes, 'expenses': expenses
+                    }).execute()
+            except Exception as e: print(f"Branch sale error: {e}")
         return redirect('/sales?success=1')
-    return render_template('sales.html', company=COMPANY_NAME)
 
-# ---------- BRANCH SALES (for branch managers) ----------
-@app.route('/branch-sales', methods=['GET','POST'])
+    view_type = request.args.get('view_type','individual')
+    filter_from = request.args.get('from_date','')
+    filter_to = request.args.get('to_date','')
+    period = request.args.get('period','')
+
+    today_date = now_eat().date()
+    if period == 'week': filter_from = str(today_date - timedelta(days=7)); filter_to = str(today_date)
+    elif period == 'month': filter_from = str(today_date.replace(day=1)); filter_to = str(today_date)
+    elif period == 'year': filter_from = str(today_date.replace(month=1, day=1)); filter_to = str(today_date)
+    elif not filter_from: filter_from = str(today_date)
+    if not filter_to: filter_to = str(today_date)
+
+    if role == 'Staff':
+        individual_sales = safe_data(execute_query(
+            supabase.table('sales').select('*').eq('full_name', un)
+                .gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(200)
+        ))
+        branch_sales = []
+        employees = []; branches_for_filter = []; filter_branch = ''; filter_employee = ''
+    elif role == 'Branch Manager':
+        filter_branch = ub
+        filter_employee = request.args.get('employee','')
+        ind_query = supabase.table('sales').select('*').eq('branch', ub)
+        if filter_employee: ind_query = ind_query.eq('full_name', filter_employee)
+        ind_query = ind_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
+        individual_sales = safe_data(execute_query(ind_query))
+        br_query = supabase.table('branch_sales').select('*').eq('branch', ub)
+        br_query = br_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
+        branch_sales = safe_data(execute_query(br_query))
+        employees = safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').eq('branch', ub).order('full_name')
+        ))
+        branches_for_filter = [ub]
+    else:
+        allowed_branches = get_branch_names()
+        filter_branch = request.args.get('branch','')
+        filter_employee = request.args.get('employee','')
+        ind_query = supabase.table('sales').select('*')
+        if filter_branch and filter_branch in allowed_branches: ind_query = ind_query.eq('branch', filter_branch)
+        if filter_employee: ind_query = ind_query.eq('full_name', filter_employee)
+        ind_query = ind_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
+        individual_sales = safe_data(execute_query(ind_query))
+        br_query = supabase.table('branch_sales').select('*')
+        if filter_branch and filter_branch in allowed_branches: br_query = br_query.eq('branch', filter_branch)
+        if filter_employee: br_query = br_query.eq('submitted_by', filter_employee)
+        br_query = br_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(500)
+        branch_sales = safe_data(execute_query(br_query))
+        if filter_branch:
+            employees = safe_data(execute_query(
+                supabase.table('employees').select('full_name').eq('status','approved').eq('branch', filter_branch).order('full_name')
+            ))
+        else:
+            employees = safe_data(execute_query(
+                supabase.table('employees').select('full_name').eq('status','approved').order('full_name')
+            ))
+        branches_for_filter = allowed_branches
+
+    target_progress = None
+    month_str = str(now_eat().date().replace(day=1))
+    target = safe_data(execute_query(supabase.table('sales_targets').select('target_amount').eq('full_name',un).eq('month',month_str).limit(1)))
+    if target:
+        target_amt = float(target[0]['target_amount'])
+        ms = today.replace(day=1)
+        my_sales = safe_data(execute_query(supabase.table('sales').select('total_sales').eq('full_name',un).gte('date',str(ms)).lte('date',today)))
+        month_total = sum(float(s['total_sales']) for s in my_sales)
+        remaining = max(0, target_amt - month_total)
+        target_progress = {'target': target_amt, 'current': month_total, 'remaining': remaining,
+                           'percent': round((month_total / target_amt * 100), 1) if target_amt > 0 else 0,
+                           'achieved': month_total >= target_amt}
+
+    return render_template('sales.html',
+        individual_sales=individual_sales, branch_sales=branch_sales, view_type=view_type,
+        filter_branch=filter_branch, filter_employee=filter_employee, filter_from=filter_from, filter_to=filter_to,
+        period=period, branches=branches_for_filter, employees=employees, target_progress=target_progress,
+        today=today, company=COMPANY_NAME, success_msg=request.args.get('success',''))
+
+# ---------- PROFILE ----------
+@app.route('/profile', methods=['GET','POST'])
 @login_required
-def branch_sales_page():
-    role = session.get('role','')
-    if role not in ['Branch Manager','Stock Controller','Assistant Stock Controller','admin','ceo']:
-        return redirect('/')
+def profile():
+    un = session.get('user'); sm = ''
     if request.method == 'POST':
-        date_sale = request.form['date']
-        branch = session.get('branch','')
-        mpesa = float(request.form.get('mpesa_sales',0))
-        cash = float(request.form.get('cash_sales',0))
-        total = mpesa + cash
-        expenses = []
-        exp_names = request.form.getlist('expense_name[]')
-        exp_amounts = request.form.getlist('expense_amount[]')
-        for n, a in zip(exp_names, exp_amounts):
-            if n.strip():
-                expenses.append({'name': n.strip(), 'amount': float(a)})
-        notes = request.form.get('notes','')
-        supabase.table('branch_sales').insert({
-            'date': date_sale,
-            'branch': branch,
-            'mpesa_sales': mpesa,
-            'cash_sales': cash,
-            'total_sales': total,
-            'expenses': expenses,
-            'submitted_by': session['user'],
-            'notes': notes
-        }).execute()
-        return redirect('/branch-sales?success=1')
-    return render_template('branch_sales.html', company=COMPANY_NAME)
+        old_pw = request.form.get('old_password','').strip()
+        new_pw = request.form.get('new_password','').strip()
+        if old_pw and new_pw:
+            emp = safe_data(execute_query(supabase.table('employees').select('password').eq('full_name',un).limit(1)))
+            if emp:
+                stored = emp[0]['password']
+                if check_password_hash(stored, old_pw) or stored == old_pw:
+                    supabase.table('employees').update({'password': generate_password_hash(new_pw)}).eq('full_name',un).execute()
+                    sm = 'Password updated!'
+                else: sm = 'Current password is incorrect.'
+    emp = safe_data(execute_query(supabase.table('employees').select('*').eq('full_name',un)))
+    ed = emp[0] if emp else {}
+    today = now_eat().date(); ms = today.replace(day=1)
+    dp = len(set(a['date'] for a in safe_data(execute_query(supabase.table('attendance').select('date,check_in').eq('full_name',un).gte('date',str(ms)).lte('date',str(today)))) if a.get('check_in')))
+    tms = sum(float(s.get('total_sales',0)) for s in safe_data(execute_query(supabase.table('sales').select('total_sales').eq('full_name',un).gte('date',str(ms)).lte('date',str(today)))))
+    return render_template('profile.html', employee=ed, days_present=dp, total_my_sales=tms, success_msg=sm, company=COMPANY_NAME)
 
-# ---------- SALES REPORT (individual with names) ----------
+# ---------- REPORTS (restricted from Branch Managers) ----------
+@app.route('/reports')
+@login_required
+def reports():
+    if not (session.get('role') in FULL_ACCESS_ROLES + ['Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant']):
+        return redirect('/')
+    fd = request.args.get('from_date',str(now_eat().date().replace(day=1)))
+    td = request.args.get('to_date',str(now_eat().date()))
+    rt = request.args.get('type','attendance')
+    records = []; srecs = []; brecs = []
+    if rt == 'attendance':
+        for rec in safe_data(execute_query(supabase.table('attendance').select('*').gte('date',fd).lte('date',td).order('date',desc=True).limit(200))):
+            st = rec.get('status','present')
+            if rec.get('check_out'): label = 'Checked Out'
+            elif st == 'late': label = 'Arrived Late'
+            else: label = 'Working'
+            records.append({'date':rec.get('date',''),'full_name':rec.get('full_name',''),'check_in':rec.get('check_in','—'),'check_out':rec.get('check_out','—'),'status':st,'label':label})
+    elif rt == 'sales':
+        srecs = safe_data(execute_query(supabase.table('sales').select('*').gte('date',fd).lte('date',td).order('date',desc=True).limit(200)))
+        brecs = safe_data(execute_query(supabase.table('branch_sales').select('*').gte('date',fd).lte('date',td).order('date',desc=True).limit(200)))
+    return render_template('reports.html',records=records,sales_recs=srecs,branch_recs=brecs,from_date=fd,to_date=td,report_type=rt,
+                         total_sales_amount=sum(float(s.get('total_sales',0)) for s in srecs),
+                         total_branch_amount=sum(float(s.get('total_sales',0)) for s in brecs),
+                         company=COMPANY_NAME)
+
+# ---------- SALES REPORT (Admin, Accountant, Stock Controller, CEO) ----------
 @app.route('/sales-report')
 @login_required
 def sales_report():
@@ -459,7 +1095,6 @@ def sales_report():
         return redirect('/')
     view_type = request.args.get('view_type','individual')
     filter_branch = request.args.get('branch','')
-    filter_employee = request.args.get('employee','')
     filter_from = request.args.get('from_date','')
     filter_to = request.args.get('to_date','')
     period = request.args.get('period','')
@@ -471,56 +1106,54 @@ def sales_report():
     elif period == 'year': filter_from = str(now_eat().date().replace(month=1, day=1)); filter_to = today
 
     branches = get_branch_names()
-    employees_list = safe_data(execute_query(
-        supabase.table('employees').select('full_name').eq('status','approved').order('full_name')
-    ))
-    totals = []
-
+    totals = {}
     if view_type == 'individual':
-        query = supabase.table('sales').select('*')
+        query = supabase.table('sales').select('date, branch, mpesa_sales, cash_sales, total_sales')
         if filter_branch: query = query.eq('branch', filter_branch)
-        if filter_employee: query = query.eq('full_name', filter_employee)
-        query = query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(2000)
-        sales = safe_data(execute_query(query))
-        grouped = defaultdict(lambda: {'mpesa':0, 'cash':0, 'expenses':[], 'total':0})
-        for s in sales:
-            key = (s['date'], s['full_name'], s['branch'])
-            rec = grouped[key]
-            rec['mpesa'] += float(s.get('mpesa_sales',0))
-            rec['cash'] += float(s.get('cash_sales',0))
-            if s.get('expenses'):
-                rec['expenses'].extend(s['expenses'])
-            rec['total'] += float(s.get('total_sales',0))
-        for (dt, emp, br), vals in grouped.items():
-            expenses_total = sum(e['amount'] for e in vals['expenses']) if vals['expenses'] else 0
-            totals.append({
-                'date': dt, 'employee': emp, 'branch': br,
-                'mpesa': vals['mpesa'], 'cash': vals['cash'],
-                'expenses_total': expenses_total, 'total': vals['total']
-            })
-        totals.sort(key=lambda x: x['date'], reverse=True)
-    else:
-        query = supabase.table('branch_sales').select('date, branch, mpesa_sales, cash_sales, total_sales, submitted_by')
-        if filter_branch: query = query.eq('branch', filter_branch)
-        query = query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True).limit(2000)
-        data = safe_data(execute_query(query))
-        grouped = defaultdict(lambda: {'mpesa':0, 'cash':0, 'total':0})
+        data = safe_data(execute_query(query.gte('date', filter_from).lte('date', filter_to).order('date',desc=True).limit(2000)))
         for s in data:
             key = (s['date'], s['branch'])
-            rec = grouped[key]
-            rec['mpesa'] += float(s.get('mpesa_sales',0))
-            rec['cash'] += float(s.get('cash_sales',0))
-            rec['total'] += float(s.get('total_sales',0))
-        totals = [{'date': dt, 'branch': br, 'mpesa': vals['mpesa'], 'cash': vals['cash'], 'total': vals['total']}
-                  for (dt, br), vals in grouped.items()]
-        totals.sort(key=lambda x: x['date'], reverse=True)
+            if key not in totals: totals[key] = {'mpesa':0, 'cash':0, 'total':0}
+            totals[key]['mpesa'] += float(s.get('mpesa_sales',0))
+            totals[key]['cash']  += float(s.get('cash_sales',0))
+            totals[key]['total'] += float(s.get('total_sales',0))
+    else:
+        query = supabase.table('branch_sales').select('date, branch, mpesa_sales, cash_sales, total_sales')
+        if filter_branch: query = query.eq('branch', filter_branch)
+        data = safe_data(execute_query(query.gte('date', filter_from).lte('date', filter_to).order('date',desc=True).limit(2000)))
+        for s in data:
+            key = (s['date'], s['branch'])
+            if key not in totals: totals[key] = {'mpesa':0, 'cash':0, 'total':0}
+            totals[key]['mpesa'] += float(s.get('mpesa_sales',0))
+            totals[key]['cash']  += float(s.get('cash_sales',0))
+            totals[key]['total'] += float(s.get('total_sales',0))
 
     return render_template('sales_report.html', view_type=view_type, filter_branch=filter_branch,
-                         filter_employee=filter_employee, filter_from=filter_from, filter_to=filter_to,
-                         period=period, branches=branches, employees=employees_list, totals=totals,
-                         company=COMPANY_NAME)
+                         filter_from=filter_from, filter_to=filter_to, period=period,
+                         branches=branches, totals=totals, company=COMPANY_NAME)
 
-# ---------- EXPORT SALES (CSV) – updated with employee column ----------
+# ---------- EXPORT ATTENDANCE (CSV) ----------
+@app.route('/export-attendance')
+@login_required
+def export_attendance():
+    if session.get('role') not in FULL_ACCESS_ROLES + ['HR','HR Assistant','Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant']:
+        return redirect('/')
+    from_date = request.args.get('from_date', str(now_eat().date().replace(day=1)))
+    to_date   = request.args.get('to_date', str(now_eat().date()))
+    records = safe_data(execute_query(
+        supabase.table('attendance').select('*').gte('date', from_date).lte('date', to_date).order('date',desc=True).limit(2000)
+    ))
+    si = io.StringIO()
+    cw = csv.writer(si)
+    cw.writerow(['Date','Employee','Department','Branch','Check In','Check Out','Status'])
+    for r in records:
+        cw.writerow([r['date'], r['full_name'], r.get('department',''), r.get('branch',''),
+                     r.get('check_in',''), r.get('check_out',''), r.get('status','present')])
+    output = si.getvalue(); si.close()
+    return Response(output, mimetype='text/csv',
+                    headers={"Content-Disposition": "attachment;filename=attendance_report.csv"})
+
+# ---------- EXPORT SALES (CSV) – enhanced ----------
 @app.route('/export-sales')
 @login_required
 def export_sales():
@@ -531,100 +1164,30 @@ def export_sales():
     to_date   = request.args.get('to_date', str(now_eat().date()))
     branch = request.args.get('branch','')
     employee = request.args.get('employee','')
-    si = io.StringIO()
-    cw = csv.writer(si)
     if view_type == 'individual':
-        cw.writerow(['Date','Employee','Branch','M-Pesa','Cash','Expenses','Total Sales','Notes'])
         query = supabase.table('sales').select('*').gte('date', from_date).lte('date', to_date).order('date',desc=True).limit(2000)
         if branch: query = query.eq('branch', branch)
         if employee: query = query.eq('full_name', employee)
         data = safe_data(execute_query(query))
+        si = io.StringIO(); cw = csv.writer(si)
+        cw.writerow(['Date','Employee','Branch','M-Pesa','Cash','Expenses','Total Sales','Notes'])
         for s in data:
             expenses_str = '; '.join([f"{e['name']}:{e['amount']}" for e in s.get('expenses',[])]) if s.get('expenses') else ''
             cw.writerow([s['date'], s['full_name'], s['branch'], s['mpesa_sales'], s['cash_sales'], expenses_str, s['total_sales'], s.get('notes','')])
     else:
-        cw.writerow(['Date','Branch','M-Pesa','Cash','Expenses','Total Sales','Submitted By','Notes'])
         query = supabase.table('branch_sales').select('*').gte('date', from_date).lte('date', to_date).order('date',desc=True).limit(2000)
         if branch: query = query.eq('branch', branch)
         data = safe_data(execute_query(query))
+        si = io.StringIO(); cw = csv.writer(si)
+        cw.writerow(['Date','Branch','M-Pesa','Cash','Expenses','Total Sales','Submitted By','Notes'])
         for s in data:
             expenses_str = '; '.join([f"{e['name']}:{e['amount']}" for e in s.get('expenses',[])]) if s.get('expenses') else ''
             cw.writerow([s['date'], s['branch'], s['mpesa_sales'], s['cash_sales'], expenses_str, s['total_sales'], s.get('submitted_by',''), s.get('notes','')])
     output = si.getvalue(); si.close()
-    return Response(output, mimetype='text/csv', headers={"Content-Disposition": "attachment;filename=sales_report.csv"})
+    return Response(output, mimetype='text/csv',
+                    headers={"Content-Disposition": "attachment;filename=sales_report.csv"})
 
-# ---------- LEAVES ----------
-@app.route('/leaves', methods=['GET','POST'])
-@login_required
-def leaves_page():
-    uname = session['user']
-    role = session.get('role','')
-    if request.method == 'POST':
-        start = request.form['leave_start']
-        end = request.form['leave_end']
-        reason = request.form['reason']
-        emp = safe_data(execute_query(
-            supabase.table('employees').select('role').eq('full_name', uname).limit(1)
-        ))
-        emp_role = emp[0]['role'] if emp else role
-        supabase.table('leaves').insert({
-            'full_name': uname,
-            'leave_start': start,
-            'leave_end': end,
-            'reason': reason,
-            'status': 'pending',
-            'employee_role': emp_role
-        }).execute()
-        return redirect('/leaves?submitted=1')
-    # View leaves
-    my_leaves = safe_data(execute_query(
-        supabase.table('leaves').select('*').eq('full_name', uname).order('created_at', desc=True).limit(50)
-    ))
-    # Approvals for managers
-    pending = []
-    eff_roles = get_effective_roles()
-    # Fetch all pending leaves
-    all_pending = safe_data(execute_query(
-        supabase.table('leaves').select('*').eq('status', 'pending').limit(500)
-    ))
-    # For each, check if user can approve
-    for lv in all_pending:
-        chain = get_approval_chain(lv.get('employee_role', ''))
-        for stage in chain:
-            if stage['from_status'] == lv['status'] and any(r in eff_roles for r in stage['allowed_roles']):
-                pending.append(lv)
-                break
-            elif stage['from_status'] != 'pending':
-                # Also check later stages if current status matches
-                if stage['from_status'] == lv['status'] and any(r in eff_roles for r in stage['allowed_roles']):
-                    pending.append(lv)
-                    break
-    return render_template('leaves.html', my_leaves=my_leaves, pending=pending, company=COMPANY_NAME)
-
-@app.route('/leave/approve/<int:leave_id>', methods=['POST'])
-@login_required
-def approve_leave(leave_id):
-    leave = safe_data(execute_query(
-        supabase.table('leaves').select('*').eq('id', leave_id).maybe_single()
-    ))
-    if not leave: return redirect('/leaves')
-    chain = get_approval_chain(leave['employee_role'])
-    new_status = None
-    for stage in chain:
-        if stage['from_status'] == leave['status'] and session.get('role') in stage['allowed_roles']:
-            new_status = stage['to_status']
-            break
-    if new_status:
-        supabase.table('leaves').update({'status': new_status}).eq('id', leave_id).execute()
-    return redirect('/leaves')
-
-@app.route('/leave/reject/<int:leave_id>', methods=['POST'])
-@login_required
-def reject_leave(leave_id):
-    supabase.table('leaves').update({'status': 'rejected'}).eq('id', leave_id).execute()
-    return redirect('/leaves')
-
-# ---------- ATTENDANCE SUMMARY (fast single query) ----------
+# ---------- ATTENDANCE SUMMARY (days worked) ----------
 @app.route('/attendance-summary')
 @login_required
 def attendance_summary():
@@ -639,23 +1202,15 @@ def attendance_summary():
     if branch_filter: emp_query = emp_query.eq('branch', branch_filter)
     if employee_filter: emp_query = emp_query.eq('full_name', employee_filter)
     employees = safe_data(execute_query(emp_query.order('full_name').limit(500)))
-    emp_names = [e['full_name'] for e in employees]
 
-    att_data = safe_data(execute_query(
-        supabase.table('attendance')
-               .select('full_name, date')
-               .gte('date', from_date).lte('date', to_date)
-               .in_('full_name', emp_names)
-               .not_.is_('check_in', 'null')
-               .limit(10000)
-    ))
-    emp_days = defaultdict(set)
-    for a in att_data:
-        emp_days[a['full_name']].add(a['date'])
     summary = []
-    for e in employees:
-        days_present = len(emp_days.get(e['full_name'], set()))
-        summary.append({**e, 'days_present': days_present})
+    for emp in employees:
+        att_data = safe_data(execute_query(
+            supabase.table('attendance').select('date').eq('full_name', emp['full_name'])
+                .gte('date', from_date).lte('date', to_date).not_.is_('check_in', 'null')
+        ))
+        days_present = len(set(d['date'] for d in att_data))
+        summary.append({**emp, 'days_present': days_present})
 
     branches = get_branch_names()
     all_employees = safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').order('full_name')))
@@ -666,45 +1221,43 @@ def attendance_summary():
 @app.route('/export-attendance-summary')
 @login_required
 def export_attendance_summary():
-    if session.get('role') not in FULL_ACCESS_ROLES + ['HR','HR Assistant']: return redirect('/')
+    if session.get('role') not in FULL_ACCESS_ROLES + ['HR','HR Assistant']:
+        return redirect('/')
     from_date = request.args.get('from_date', str(now_eat().date().replace(day=1)))
     to_date = request.args.get('to_date', str(now_eat().date()))
     branch_filter = request.args.get('branch', '')
     employee_filter = request.args.get('employee', '')
+
     emp_query = supabase.table('employees').select('full_name, branch, department, role').eq('status','approved')
     if branch_filter: emp_query = emp_query.eq('branch', branch_filter)
     if employee_filter: emp_query = emp_query.eq('full_name', employee_filter)
     employees = safe_data(execute_query(emp_query.order('full_name').limit(500)))
-    emp_names = [e['full_name'] for e in employees]
-    att_data = safe_data(execute_query(
-        supabase.table('attendance').select('full_name, date')
-               .gte('date', from_date).lte('date', to_date).in_('full_name', emp_names)
-               .not_.is_('check_in', 'null').limit(10000)
-    ))
-    emp_days = defaultdict(set)
-    for a in att_data: emp_days[a['full_name']].add(a['date'])
     summary = []
-    for e in employees:
-        days_present = len(emp_days.get(e['full_name'], set()))
-        summary.append({**e, 'days_present': days_present})
+    for emp in employees:
+        att_data = safe_data(execute_query(
+            supabase.table('attendance').select('date').eq('full_name', emp['full_name'])
+                .gte('date', from_date).lte('date', to_date).not_.is_('check_in', 'null')
+        ))
+        days_present = len(set(d['date'] for d in att_data))
+        summary.append({**emp, 'days_present': days_present})
     si = io.StringIO()
     cw = csv.writer(si)
     cw.writerow(['Employee','Department','Branch','Role','Days Present'])
-    for s in summary: cw.writerow([s['full_name'], s['department'], s['branch'], s['role'], s['days_present']])
+    for s in summary:
+        cw.writerow([s['full_name'], s['department'], s['branch'], s['role'], s['days_present']])
     output = si.getvalue(); si.close()
-    return Response(output, mimetype='text/csv', headers={"Content-Disposition": "attachment;filename=attendance_summary.csv"})
+    return Response(output, mimetype='text/csv',
+                    headers={"Content-Disposition": "attachment;filename=attendance_summary.csv"})
 
-# ---------- SHIFT CHANGE ----------
+# ---------- SHIFT CHANGE REQUEST ----------
 @app.route('/shift-change', methods=['GET','POST'])
 @login_required
 def shift_change_page():
-    user_role = session.get('role')
+    if session.get('role') not in ['Branch Manager', 'admin', 'ceo']:
+        return redirect('/')
     un = session.get('user')
     ub = session.get('branch','')
-    if user_role not in ['Branch Manager','Stock Controller','Assistant Stock Controller','admin','ceo']:
-        return redirect('/')
-
-    if request.method == 'POST' and user_role == 'Branch Manager':
+    if request.method == 'POST':
         employee_name = request.form.get('employee','').strip()
         new_start = request.form.get('shift_start','')
         new_end   = request.form.get('shift_end','')
@@ -719,144 +1272,485 @@ def shift_change_page():
             'reason': reason, 'status': 'pending'
         }).execute()
         return redirect('/shift-change?success=1')
-
-    if user_role in ['Stock Controller','Assistant Stock Controller','admin','ceo']:
-        requests_data = safe_data(execute_query(
-            supabase.table('shift_change_requests').select('*').in_('status', ['pending','approved','rejected'])
-                   .order('created_at',desc=True).limit(200)
-        ))
-    else:
-        requests_data = safe_data(execute_query(
-            supabase.table('shift_change_requests').select('*').eq('branch', ub)
-                   .order('created_at',desc=True).limit(100)
-        ))
-
-    employees = get_branch_employees(ub) if user_role == 'Branch Manager' else []
+    requests_data = safe_data(execute_query(
+        supabase.table('shift_change_requests').select('*').eq('branch', ub).order('created_at',desc=True).limit(100)
+    ))
+    employees = get_branch_employees(ub)
     return render_template('shift_change.html', requests=requests_data, employees=employees,
                            success=request.args.get('success',''), company=COMPANY_NAME)
 
-@app.route('/shift-change/approve/<int:req_id>', methods=['POST'])
+@app.route('/shift-change/approve/<int:rid>', methods=['POST'])
 @login_required
-def approve_shift_change(req_id):
-    if session.get('role') not in ['Stock Controller','Assistant Stock Controller','admin','ceo']:
-        return redirect('/')
-    supabase.table('shift_change_requests').update({'status': 'approved'}).eq('id', req_id).execute()
+def approve_shift_change(rid):
+    if session.get('role') not in ['Stock Controller','Assistant Stock Controller','admin','ceo']: return redirect('/')
+    req_data = safe_data(execute_query(supabase.table('shift_change_requests').select('*').eq('id', rid).limit(1)))
+    if not req_data or req_data[0]['status'] != 'pending': return redirect('/shift-change')
+    rec = req_data[0]
+    supabase.table('employees').update({
+        'shift_start': rec['new_shift_start'], 'shift_end': rec['new_shift_end']
+    }).eq('full_name', rec['employee_full_name']).execute()
+    supabase.table('shift_change_requests').update({'status':'approved'}).eq('id', rid).execute()
     return redirect('/shift-change')
 
-@app.route('/shift-change/reject/<int:req_id>', methods=['POST'])
+@app.route('/shift-change/reject/<int:rid>', methods=['POST'])
 @login_required
-def reject_shift_change(req_id):
-    if session.get('role') not in ['Stock Controller','Assistant Stock Controller','admin','ceo']:
-        return redirect('/')
-    supabase.table('shift_change_requests').update({'status': 'rejected'}).eq('id', req_id).execute()
+def reject_shift_change(rid):
+    if session.get('role') not in ['Stock Controller','Assistant Stock Controller','admin','ceo']: return redirect('/')
+    supabase.table('shift_change_requests').update({'status':'rejected'}).eq('id', rid).execute()
     return redirect('/shift-change')
 
-# ---------- DIRECTORATE (Contacts) ----------
-@app.route('/contacts')
+# ---------- LEAVES ----------
+@app.route('/leaves', methods=['GET','POST'])
 @login_required
-def contacts_page():
-    allowed_roles = DIRECTORATE_ROLES + ['Procurement Officer']
-    if session.get('role') not in allowed_roles: return redirect('/')
-    contacts = safe_data(execute_query(
-        supabase.table('contacts').select('*').order('full_name')
+def leaves():
+    un = session.get('user'); role = session.get('role'); today = str(now_eat().date())
+    if request.method == 'POST':
+        leave_start = request.form.get('leave_start',''); leave_end = request.form.get('leave_end','')
+        leave_date = leave_start if leave_start else request.form.get('leave_date','')
+        if leave_date:
+            leave_type = request.form.get('leave_type','Annual Leave')
+            total_days = int(request.form.get('total_days',1))
+            if leave_type == 'Annual Leave':
+                year_start = leave_start[:4]
+                used_data = safe_data(execute_query(
+                    supabase.table('leaves').select('total_days')
+                           .eq('full_name', un).eq('leave_type', 'Annual Leave')
+                           .eq('status', 'approved_final')
+                           .gte('leave_start', f'{year_start}-01-01')
+                           .lte('leave_start', f'{year_start}-12-31')
+                ))
+                used_days = sum(d['total_days'] for d in used_data)
+                if used_days + total_days > 21:
+                    my_leaves = safe_data(execute_query(supabase.table('leaves').select('*').eq('full_name',un).order('created_at',desc=True).limit(50)))
+                    return render_template('leaves.html', leaves=my_leaves, today=today, company=COMPANY_NAME,
+                        error='Annual leave limit is 21 days. You have already used {} day(s).'.format(used_days),
+                        departments=DEPARTMENTS, roles=ALL_ROLES)
+            emp_data = safe_data(execute_query(
+                supabase.table('employees').select('branch, department, role').eq('full_name', un).limit(1)
+            ))
+            branch = emp_data[0].get('branch','') if emp_data else session.get('branch','')
+            department = emp_data[0].get('department','') if emp_data else session.get('department','')
+            db_role = emp_data[0].get('role','') if emp_data else role
+            supabase.table('leaves').insert({
+                'full_name': un,'role': db_role,'branch': branch,
+                'leave_date': leave_date,'leave_start': leave_start,'leave_end': leave_end,
+                'total_days': total_days, 'leave_type': leave_type,
+                'reason': request.form.get('reason',''),
+                'remaining_balance': request.form.get('remaining_balance',''),
+                'handover_notes': request.form.get('handover_notes',''),
+                'backup_person': request.form.get('backup_person',''),
+                'emergency_contact': request.form.get('emergency_contact',''),
+                'department': department, 'position': db_role,
+                'phone': request.form.get('phone',''), 'email': request.form.get('email',''),
+                'status': 'pending'
+            }).execute()
+        return redirect('/leaves?success=1')
+    my_leaves = safe_data(execute_query(supabase.table('leaves').select('*').eq('full_name',un).order('created_at',desc=True).limit(50)))
+    year = str(now_eat().year)
+    used_annual = safe_data(execute_query(
+        supabase.table('leaves').select('total_days').eq('full_name', un)
+               .eq('leave_type', 'Annual Leave').eq('status', 'approved_final')
+               .gte('leave_start', f'{year}-01-01').lte('leave_start', f'{year}-12-31')
     ))
-    return render_template('contacts.html', contacts=contacts, company=COMPANY_NAME)
+    used_days = sum(d['total_days'] for d in used_annual)
+    annual_remaining = max(0, 21 - used_days)
+    return render_template('leaves.html',
+        leaves=my_leaves, today=today, company=COMPANY_NAME,
+        success_msg=request.args.get('success',''), error=request.args.get('error',''),
+        departments=DEPARTMENTS, roles=ALL_ROLES,
+        annual_remaining=annual_remaining, used_annual=used_days)
 
-# ---------- ADMIN PANEL (manage employees, branches, delegations) ----------
-@app.route('/admin')
-@admin_required
-def admin_page():
-    employees = safe_data(execute_query(
-        supabase.table('employees').select('*').order('full_name')
-    ))
-    branches = get_branches()
-    contacts = safe_data(execute_query(
-        supabase.table('contacts').select('*').order('full_name')
-    ))
-    delegations = safe_data(execute_query(
-        supabase.table('role_delegations').select('*, employees!inner(full_name)').eq('active', True).limit(100)
-    ))
-    return render_template('admin.html', employees=employees, branches=branches, contacts=contacts,
-                           delegations=delegations, company=COMPANY_NAME)
-
-@app.route('/admin/employee/<int:emp_id>/update', methods=['POST'])
-@admin_required
-def update_employee(emp_id):
-    data = request.form
-    updates = {}
-    for field in ['role','branch','status','blocked']:
-        if field in data: updates[field] = data[field]
-    if data.get('password'):
-        updates['password'] = generate_password_hash(data['password'])
-    supabase.table('employees').update(updates).eq('id', emp_id).execute()
-    return redirect('/admin')
-
-@app.route('/admin/employee/<int:emp_id>/delete', methods=['POST'])
-@admin_required
-def delete_employee(emp_id):
-    supabase.table('employees').delete().eq('id', emp_id).execute()
-    return redirect('/admin')
-
-@app.route('/admin/branch/add', methods=['POST'])
-@admin_required
-def add_branch():
-    supabase.table('branches').insert({'name': request.form['name']}).execute()
-    return redirect('/admin')
-
-@app.route('/admin/branch/<int:branch_id>/delete', methods=['POST'])
-@admin_required
-def delete_branch(branch_id):
-    supabase.table('branches').delete().eq('id', branch_id).execute()
-    return redirect('/admin')
-
-@app.route('/admin/contact/add', methods=['POST'])
-@admin_required
-def add_contact():
-    supabase.table('contacts').insert({
-        'full_name': request.form['full_name'],
-        'role': request.form['role'],
-        'branch': request.form.get('branch',''),
-        'phone': request.form['phone']
-    }).execute()
-    return redirect('/admin')
-
-@app.route('/admin/contact/<int:cid>/delete', methods=['POST'])
-@admin_required
-def delete_contact(cid):
-    supabase.table('contacts').delete().eq('id', cid).execute()
-    return redirect('/admin')
-
-@app.route('/admin/delegation/add', methods=['POST'])
-@admin_required
-def add_delegation():
-    delegate_id = request.form['delegate_id']
-    role = request.form['role']
-    supabase.table('role_delegations').insert({
-        'delegate_id': delegate_id,
-        'role': role,
-        'active': True
-    }).execute()
-    return redirect('/admin')
-
-@app.route('/admin/delegation/<int:did>/revoke', methods=['POST'])
-@admin_required
-def revoke_delegation(did):
-    supabase.table('role_delegations').update({'active': False}).eq('id', did).execute()
-    return redirect('/admin')
-
-# ---------- PROFILE ----------
-@app.route('/profile')
+@app.route('/leaves/edit/<int:lid>', methods=['POST'])
 @login_required
-def profile():
-    emp = safe_data(execute_query(
-        supabase.table('employees').select('*').eq('full_name', session['user']).limit(1)
+def edit_leave(lid):
+    un = session.get('user')
+    leave = safe_data(execute_query(supabase.table('leaves').select('*').eq('id', lid).eq('full_name', un).limit(1)))
+    if not leave or leave[0]['status'] != 'pending': return redirect('/leaves')
+    data = {
+        'leave_start': request.form.get('leave_start',''), 'leave_end': request.form.get('leave_end',''),
+        'total_days': int(request.form.get('total_days',1)), 'leave_type': request.form.get('leave_type','Annual Leave'),
+        'reason': request.form.get('reason',''), 'handover_notes': request.form.get('handover_notes',''),
+        'backup_person': request.form.get('backup_person',''), 'emergency_contact': request.form.get('emergency_contact',''),
+    }
+    supabase.table('leaves').update(data).eq('id', lid).execute()
+    return redirect('/leaves?updated=1')
+
+@app.route('/leaves/delete/<int:lid>', methods=['POST'])
+@login_required
+def delete_leave(lid):
+    un = session.get('user')
+    leave = safe_data(execute_query(supabase.table('leaves').select('*').eq('id', lid).eq('full_name', un).limit(1)))
+    if leave and leave[0]['status'] == 'pending':
+        supabase.table('leaves').delete().eq('id', lid).execute()
+    return redirect('/leaves')
+
+@app.route('/leave-pdf/<int:lid>')
+@login_required
+def leave_pdf(lid):
+    leave = safe_data(execute_query(supabase.table('leaves').select('*').eq('id', lid)))
+    if not leave: return "Leave not found", 404
+    return render_template('leave_pdf.html', lv=leave[0], company=COMPANY_NAME)
+
+# ---------- APPROVE LEAVES ----------
+@app.route('/approve-leaves')
+@login_required
+def approve_leaves():
+    effective_roles = get_effective_roles()
+    effective_roles_lower = [r.lower().strip() for r in effective_roles]
+    user_role = session.get('role')
+    user_branch = session.get('branch','')
+    approver_roles = [
+        'Operations Manager','Assistant Operations Manager','Procurement Officer',
+        'HR','HR Assistant','CEO','Branch Manager','Stock Controller','Assistant Stock Controller',
+        'Sales Manager','Store Manager','Accountant','Accountant Assistant','admin','ceo'
+    ]
+    if not any(r.lower() in [ar.lower() for ar in approver_roles + FULL_ACCESS_ROLES] for r in effective_roles):
+        return redirect('/')
+    all_leaves = safe_data(execute_query(
+        supabase.table('leaves').select('*')
+               .in_('status', ['pending','approved_by_manager','approved_by_procurement','approved_by_ops'])
+               .order('created_at',desc=True).limit(200)
     ))
-    if emp:
-        emp = emp[0]
+    pending = []
+    for leave in all_leaves:
+        emp_role = leave.get('role','Staff')
+        chain = get_approval_chain(emp_role)
+        for stage in chain:
+            allowed_lower = [r.lower() for r in stage['allowed_roles']]
+            if leave['status'] == stage['from_status'] and any(r in allowed_lower for r in effective_roles_lower):
+                if user_role.lower() == 'branch manager':
+                    if leave.get('branch','').lower() == user_branch.lower():
+                        pending.append(leave)
+                else:
+                    pending.append(leave)
+                break
+    return render_template('approve_leaves.html', pending=pending, role=user_role)
+
+@app.route('/approve-leaves/<int:lid>/<action>', methods=['POST'])
+@login_required
+def process_leave(lid, action):
+    effective_roles = get_effective_roles()
+    effective_roles_lower = [r.lower().strip() for r in effective_roles]
+    user_role = session.get('role')
+    user_branch = session.get('branch','')
+    leave = safe_data(execute_query(supabase.table('leaves').select('*').eq('id',lid)))
+    if not leave: return redirect('/approve-leaves')
+    leave = leave[0]
+    emp_role = leave.get('role','Staff')
+    chain = get_approval_chain(emp_role)
+    current_stage = None
+    for stage in chain:
+        allowed_lower = [r.lower() for r in stage['allowed_roles']]
+        if leave['status'] == stage['from_status'] and any(r in allowed_lower for r in effective_roles_lower):
+            if user_role.lower() == 'branch manager' and leave.get('branch','').lower() != user_branch.lower(): continue
+            current_stage = stage
+            break
+    if not current_stage: return redirect('/approve-leaves')
+    acting_role = None
+    for r in effective_roles:
+        if r.lower() in [x.lower() for x in current_stage['allowed_roles']]:
+            acting_role = r; break
+    if not acting_role: acting_role = user_role
+    if action == 'approve':
+        if acting_role.lower() in ['admin','ceo'] or user_role.lower() in ['admin','ceo']:
+            new_status = 'approved_final'
+        else:
+            new_status = current_stage['to_status']
+        rejection_reason = None
+    elif action == 'reject':
+        new_status = 'rejected'
+        rejection_reason = request.form.get('rejection_reason','').strip()
+        if not rejection_reason: rejection_reason = 'No reason provided'
+    else: return redirect('/approve-leaves')
+    update_data = {'status': new_status, 'approved_by': acting_role}
+    if action == 'reject': update_data['rejection_reason'] = rejection_reason
+    supabase.table('leaves').update(update_data).eq('id', lid).execute()
+    return redirect('/approve-leaves')
+
+# ---------- MARKETER ROUTES ----------
+@app.route('/marketer/checkin', methods=['POST'])
+@login_required
+def marketer_checkin():
+    if session.get('role') != MARKETER_ROLE: return redirect('/check-in')
+    un = session.get('user'); today = str(now_eat().date()); now = now_eat().strftime('%H:%M:%S')
+    lat = request.form.get('lat',''); lng = request.form.get('lng',''); loc = request.form.get('location','')
+    supabase.table('marketer_checkins').insert({
+        'full_name': un, 'date': today, 'check_in_time': now,
+        'lat': lat, 'lng': lng, 'location': loc, 'status': 'pending'
+    }).execute()
+    return redirect('/check-in?pending=1')
+
+@app.route('/marketer/report', methods=['POST'])
+@login_required
+def marketer_report():
+    if session.get('role') != MARKETER_ROLE: return redirect('/check-in')
+    un = session.get('user'); today = str(now_eat().date())
+    customer_name = request.form.get('customer_name','').strip()
+    customer_phone = request.form.get('customer_phone','').strip()
+    details = request.form.get('details','').strip()
+    expenses = request.form.get('expenses','0')
+    expected_order_date = request.form.get('expected_order_date','').strip()
+    lat = request.form.get('lat',''); lng = request.form.get('lng','')
+    location = request.form.get('location','').strip()
+    try: exp = float(expenses) if expenses else 0.0
+    except: exp = 0.0
+    if not customer_name: return redirect('/check-in?report=error')
+    existing = safe_data(execute_query(
+        supabase.table('customer_reports').select('id')
+               .eq('full_name', un).eq('date', today).eq('customer_name', customer_name).limit(1)
+    ))
+    if existing: return redirect('/check-in?report=duplicate')
+    supabase.table('customer_reports').insert({
+        'full_name': un, 'date': today, 'customer_name': customer_name,
+        'customer_phone': customer_phone, 'details': details, 'expenses': exp,
+        'expected_order_date': expected_order_date if expected_order_date else None,
+        'lat': lat if lat else None, 'lng': lng if lng else None, 'location': location if location else None
+    }).execute()
+    return redirect('/check-in?report=1')
+
+@app.route('/marketer/submit-location', methods=['POST'])
+@login_required
+def submit_marketer_location():
+    if session.get('role') != MARKETER_ROLE: return redirect('/check-in')
+    un = session.get('user'); today = str(now_eat().date()); now = now_eat().strftime('%H:%M:%S')
+    lat = request.form.get('lat',''); lng = request.form.get('lng',''); loc = request.form.get('location','')
+    supabase.table('marketer_locations').insert({
+        'full_name': un, 'date': today, 'time': now, 'lat': lat, 'lng': lng, 'location': loc
+    }).execute()
+    return redirect('/check-in?location=ok')
+
+# ---------- SALES MANAGER DASHBOARD ----------
+@app.route('/sales-manager')
+@login_required
+def sales_manager_dashboard():
+    if session.get('role') != SALES_MANAGER_ROLE: return redirect('/')
+    today = str(now_eat().date())
+    pending_checkins = safe_data(execute_query(
+        supabase.table('marketer_checkins').select('*').eq('date',today).eq('status','pending').order('created_at',desc=True).limit(50)
+    ))
+    approved_checkins = safe_data(execute_query(
+        supabase.table('marketer_checkins').select('*').eq('date',today).eq('status','approved').order('check_in_time').limit(50)
+    ))
+    reports = safe_data(execute_query(
+        supabase.table('customer_reports').select('*').eq('date',today).order('created_at',desc=True).limit(50)
+    ))
+    assigned = safe_data(execute_query(
+        supabase.table('assigned_places').select('*').order('date_assigned',desc=True).limit(100)
+    ))
+    location_pings = safe_data(execute_query(
+        supabase.table('marketer_locations').select('*').eq('date', today).order('time').limit(200)
+    ))
+    marketers = safe_data(execute_query(
+        supabase.table('employees').select('full_name').eq('status','approved').eq('role','Marketers').order('full_name')
+    ))
+    return render_template('sales_manager.html',
+        pending_checkins=pending_checkins, approved_checkins=approved_checkins,
+        reports=reports, assigned=assigned, location_pings=location_pings,
+        marketers=marketers, today=today, company=COMPANY_NAME)
+
+@app.route('/sales-manager/approve/<int:cid>', methods=['POST'])
+@login_required
+def approve_checkin(cid):
+    if session.get('role') != SALES_MANAGER_ROLE: return redirect('/')
+    supabase.table('marketer_checkins').update({'status':'approved'}).eq('id',cid).execute()
+    req = safe_data(execute_query(supabase.table('marketer_checkins').select('*').eq('id',cid)))
+    if req:
+        r = req[0]
+        existing = safe_data(execute_query(supabase.table('attendance').select('id').eq('full_name',r['full_name']).eq('date',r['date'])))
+        if not existing:
+            supabase.table('attendance').insert({
+                'full_name': r['full_name'], 'date': r['date'], 'check_in': r['check_in_time'],
+                'status': 'present', 'check_in_lat': r.get('lat',''), 'check_in_lng': r.get('lng',''),
+                'check_in_location': r.get('location',''), 'department': '', 'branch': ''
+            }).execute()
+    return redirect('/sales-manager')
+
+@app.route('/sales-manager/reject/<int:cid>', methods=['POST'])
+@login_required
+def reject_checkin(cid):
+    if session.get('role') != SALES_MANAGER_ROLE: return redirect('/')
+    supabase.table('marketer_checkins').update({'status':'rejected'}).eq('id',cid).execute()
+    return redirect('/sales-manager')
+
+@app.route('/sales-manager/assign', methods=['POST'])
+@login_required
+def assign_place():
+    if session.get('role') != SALES_MANAGER_ROLE: return redirect('/')
+    marketer = request.form.get('marketer_name','').strip()
+    place = request.form.get('place_name','').strip()
+    if marketer and place:
+        supabase.table('assigned_places').insert({
+            'marketer_name': marketer, 'place_name': place, 'date_assigned': str(now_eat().date())
+        }).execute()
+    return redirect('/sales-manager')
+
+@app.route('/my-places')
+@login_required
+def my_places():
+    if session.get('role') != MARKETER_ROLE: return redirect('/')
+    un = session.get('user')
+    places = safe_data(execute_query(supabase.table('assigned_places').select('*').eq('marketer_name',un).order('date_assigned',desc=True).limit(50)))
+    return render_template('my_places.html', places=places, company=COMPANY_NAME)
+
+# ---------- TARGET SETTING ----------
+@app.route('/targets', methods=['GET','POST'])
+@login_required
+def targets_page():
+    if session.get('role') not in TARGET_SETTER_ROLES: return redirect('/')
+    user_role = session.get('role')
+    if request.method == 'POST':
+        employee = request.form.get('employee_name','').strip()
+        month = request.form.get('month',''); amount = request.form.get('amount','0')
+        try:
+            amt = float(amount)
+            if employee and month and amt > 0:
+                supabase.table('sales_targets').upsert({
+                    'full_name': employee, 'month': month, 'target_amount': amt, 'set_by': session.get('user')
+                }, on_conflict='full_name,month').execute()
+        except: pass
+        return redirect('/targets')
+    if user_role == 'Sales Manager':
+        employees = safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').eq('role','Marketers').order('full_name')
+        ))
     else:
-        emp = {}
-    return render_template('profile.html', employee=emp, company=COMPANY_NAME)
+        employees = safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').order('full_name')
+        ))
+    targets = safe_data(execute_query(supabase.table('sales_targets').select('*').order('month', desc=True).order('full_name').limit(100)))
+    return render_template('targets.html', employees=employees, targets=targets, today=str(now_eat().date()), company=COMPANY_NAME)
 
-# ---------- RUN ----------
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+# ---------- LIVE STATUS ----------
+@app.route('/live-status')
+@login_required
+def live_status():
+    role = session.get('role')
+    ub = session.get('branch',''); un = session.get('user')
+    today = str(now_eat().date())
+    team_names = None
+    if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant']: pass
+    elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
+        team_names = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)
+        ))]
+    elif role == 'Sales Manager':
+        team_names = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').in_('role',[MARKETER_ROLE,'Telesales'])
+        ))]
+        team_names.append(un)
+    elif role == 'Branch Manager':
+        team_names = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').eq('branch', ub)
+        ))]
+    elif role == 'Procurement Officer': pass
+    else: return redirect('/')
+    working_query = supabase.table('attendance').select('full_name, check_in, department, branch, status').eq('date', today).not_.is_('check_in', 'null').is_('check_out', 'null')
+    checked_out_query = supabase.table('attendance').select('full_name, check_out, department, branch').eq('date', today).not_.is_('check_out', 'null')
+    on_leave_query = supabase.table('leaves').select('full_name, leave_type').in_('status', ['approved_final','approved_by_manager','approved_by_procurement','approved_by_ops']).lte('leave_start', today).gte('leave_end', today)
+    if team_names:
+        working_query = working_query.in_('full_name', team_names)
+        checked_out_query = checked_out_query.in_('full_name', team_names)
+        on_leave_query = on_leave_query.in_('full_name', team_names)
+    working = safe_data(execute_query(working_query.order('check_in').limit(200)))
+    checked_out = safe_data(execute_query(checked_out_query.order('check_out').limit(200)))
+    on_leave = safe_data(execute_query(on_leave_query.limit(200)))
+    return render_template('live_status.html', working=working, checked_out=checked_out, on_leave=on_leave, today=today, company=COMPANY_NAME)
+
+# ---------- PROCUREMENT OFFICER ROUTES ----------
+@app.route('/procurement/status')
+@login_required
+def procurement_status():
+    if session.get('role') != 'Procurement Officer': return redirect('/')
+    return redirect('/live-status')
+
+@app.route('/procurement/delegation', methods=['GET','POST'])
+@login_required
+def procurement_delegation():
+    if session.get('role') != 'Procurement Officer': return redirect('/')
+    po = safe_data(execute_query(supabase.table('employees').select('id').eq('full_name', session.get('user')).limit(1)))
+    if not po: return redirect('/')
+    po_id = po[0]['id']
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'delegate':
+            delegate_name = request.form.get('delegate_name','').strip()
+            if delegate_name:
+                delegate = safe_data(execute_query(supabase.table('employees').select('id').eq('full_name', delegate_name).limit(1)))
+                if delegate:
+                    execute_query(supabase.table('role_delegations').update({'active': False}).eq('delegator_id', po_id).eq('active', True))
+                    supabase.table('role_delegations').insert({
+                        'delegator_id': po_id, 'delegate_id': delegate[0]['id'],
+                        'role': 'Procurement Officer', 'start_date': str(now_eat().date()), 'active': True
+                    }).execute()
+                    return redirect('/procurement/delegation?success=1')
+        elif action == 'resume':
+            execute_query(supabase.table('role_delegations').update({'active': False}).eq('delegator_id', po_id).eq('active', True))
+            return redirect('/procurement/delegation?resumed=1')
+    active_deleg = safe_data(execute_query(
+        supabase.table('role_delegations').select('*, delegate:employees!delegate_id(full_name)').eq('delegator_id', po_id).eq('active', True).maybe_single()
+    ))
+    delegate_name = active_deleg.get('delegate',{}).get('full_name','') if active_deleg else None
+    eligible = safe_data(execute_query(
+        supabase.table('employees').select('full_name, branch, department').eq('status','approved')
+               .or_('branch.eq.Kisumu HQ,department.eq.Management').neq('full_name', session.get('user')).order('full_name').limit(100)
+    ))
+    return render_template('procurement_delegation.html', delegate_name=delegate_name, eligible=eligible,
+                         success=request.args.get('success',''), resumed=request.args.get('resumed',''), company=COMPANY_NAME)
+
+# ---------- HR ANNUAL LEAVE MANAGER ----------
+@app.route('/hr/annual-leave')
+@login_required
+def hr_annual_leave():
+    if session.get('role') not in ['HR','HR Assistant']: return redirect('/')
+    year = str(now_eat().year)
+    employees = safe_data(execute_query(
+        supabase.table('employees').select('id, full_name, department, branch, role, annual_leave_remaining_override')
+               .eq('status','approved').order('full_name').limit(500)
+    ))
+    for emp in employees:
+        used = safe_data(execute_query(
+            supabase.table('leaves').select('total_days').eq('full_name', emp['full_name'])
+                   .eq('leave_type', 'Annual Leave').eq('status', 'approved_final')
+                   .gte('leave_start', f'{year}-01-01').lte('leave_start', f'{year}-12-31')
+        ))
+        emp['used_days'] = sum(d['total_days'] for d in used)
+        override = emp.get('annual_leave_remaining_override')
+        emp['remaining'] = override if override is not None else max(0, 21 - emp['used_days'])
+    return render_template('hr_annual_leave.html', employees=employees, year=year, company=COMPANY_NAME)
+
+@app.route('/hr/annual-leave/update/<int:eid>', methods=['POST'])
+@login_required
+def update_annual_leave_override(eid):
+    if session.get('role') not in ['HR','HR Assistant']: return redirect('/')
+    remaining = request.form.get('remaining', '').strip()
+    try: remaining_int = int(remaining) if remaining else None
+    except ValueError: remaining_int = None
+    supabase.table('employees').update({'annual_leave_remaining_override': remaining_int}).eq('id', eid).execute()
+    return redirect('/hr/annual-leave')
+
+# ---------- MARKETER REPORTS ----------
+@app.route('/marketer-reports')
+@login_required
+def marketer_reports():
+    if session.get('role') not in ['admin','ceo','Sales Manager']: return redirect('/')
+    today = str(now_eat().date())
+    filter_from = request.args.get('from_date', today)
+    filter_to   = request.args.get('to_date', today)
+    filter_marketer = request.args.get('marketer', '')
+    query = supabase.table('customer_reports').select('*').gte('date', filter_from).lte('date', filter_to)
+    if filter_marketer: query = query.eq('full_name', filter_marketer)
+    reports = safe_data(execute_query(query.order('date', desc=True).order('full_name').limit(500)))
+    marketers = safe_data(execute_query(
+        supabase.table('employees').select('full_name').eq('status','approved').eq('role','Marketers').order('full_name')
+    ))
+    return render_template('marketer_reports.html', reports=reports, marketers=marketers,
+                         filter_from=filter_from, filter_to=filter_to, filter_marketer=filter_marketer, company=COMPANY_NAME)
+
+# ---------- ERROR HANDLER ----------
+@app.errorhandler(Exception)
+def handle_exception(e):
+    print(f"Unhandled error: {e}")
+    return render_template('error.html', error=str(e)), 500
+
+if __name__=='__main__':
+    app.run(host='0.0.0.0',port=5000)
