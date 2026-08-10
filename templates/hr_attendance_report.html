@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">📊 Attendance Report</h1>
+<p class="page-subtitle">{{ company }} – {{ start_date }} to {{ end_date }}</p>
+
+<form method="GET" class="form-grid" style="margin-bottom:16px;">
+    <div>
+        <label>Period</label>
+        <select name="period">
+            <option value="week" {% if period=='week' %}selected{% endif %}>Week</option>
+            <option value="month" {% if period=='month' %}selected{% endif %}>Month</option>
+        </select>
+    </div>
+    <div>
+        <label>Starting Date</label>
+        <input type="date" name="date" value="{{ start_date }}">
+    </div>
+    <div><button type="submit" class="btn">Generate</button></div>
+</form>
+
+<div style="overflow-x:auto;">
+    <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse; min-width:100%;">
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Branch</th>
+                <th>Dept</th>
+                {% for d in days %}<th>{{ d[-5:] }}</th>{% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for row in table %}
+        <tr>
+            <td class="td-name">{{ row.name }}</td>
+            <td>{{ row.branch }}</td>
+            <td>{{ row.dept }}</td>
+            {% for d in days %}
+            <td>
+                {% set val = row[d] %}
+                {% if val == 'Present' %}<span style="background:#d4edda; color:#155724; padding:2px 6px; border-radius:4px;">P</span>
+                {% elif val == 'Late' %}<span style="background:#fff3cd; color:#856404; padding:2px 6px; border-radius:4px;">L</span>
+                {% else %}<span style="background:#f8d7da; color:#721c24; padding:2px 6px; border-radius:4px;">A</span>
+                {% endif %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
