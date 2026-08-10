@@ -131,7 +131,7 @@ def count_weekdays(start_str, end_str):
         return 0
     count = 0
     while d1 <= d2:
-        if d1.weekday() < 5:   # Monday=0 ... Friday=4
+        if d1.weekday() < 5:
             count += 1
         d1 += timedelta(days=1)
     return count
@@ -532,18 +532,39 @@ def reject(eid):
     supabase.table('employees').delete().eq('id',eid).execute()
     return redirect('/approvals')
 
-# ---------- ADMIN SALES MANAGEMENT (shows ALL sales by default) ----------
+# ---------- ADMIN SALES MANAGEMENT (shows individual + branch sales) ----------
 @app.route('/admin/sales')
 @login_required
 @admin_required
 def admin_sales():
     fd = request.args.get('from_date','')
     td = request.args.get('to_date','')
-    query = supabase.table('sales').select('*').order('date',desc=True).limit(5000)
-    if fd and td:
-        query = query.gte('date',fd).lte('date',td)
-    sales = safe_data(execute_query(query))
-    return render_template('admin_sales.html', sales=sales, from_date=fd, to_date=td, company=COMPANY_NAME)
+    stype = request.args.get('type','all')   # individual, branch, all
+
+    sales = []
+    branch_sales = []
+
+    if stype in ['individual','all']:
+        q1 = supabase.table('sales').select('*').order('date',desc=True).limit(5000)
+        if fd and td:
+            q1 = q1.gte('date',fd).lte('date',td)
+        sales = safe_data(execute_query(q1))
+        for s in sales:
+            s['_type'] = 'Individual'
+
+    if stype in ['branch','all']:
+        q2 = supabase.table('branch_sales').select('*').order('date',desc=True).limit(5000)
+        if fd and td:
+            q2 = q2.gte('date',fd).lte('date',td)
+        branch_sales = safe_data(execute_query(q2))
+        for s in branch_sales:
+            s['_type'] = 'Branch'
+
+    all_sales = sales + branch_sales
+    # sort by date descending, then by id (or order by date)
+    all_sales.sort(key=lambda x: (x['date'], x.get('id',0)), reverse=True)
+
+    return render_template('admin_sales.html', sales=all_sales, from_date=fd, to_date=td, stype=stype, company=COMPANY_NAME)
 
 @app.route('/admin/sales/delete/<int:sid>', methods=['POST'])
 @login_required
@@ -887,7 +908,7 @@ def attendance_history():
     return render_template('attendance_history.html', records=records, period=period,
                          from_date=sd, to_date=ed, today=str(today), company=COMPANY_NAME)
 
-# ---------- SALES ----------
+# ---------- SALES (with duplicate check and confirmation) ----------
 @app.route('/sales', methods=['GET','POST'])
 @login_required
 def sales_page():
@@ -904,24 +925,58 @@ def sales_page():
         if not sale_date: sale_date = today
         if sale_date > today: sale_date = today
 
+        # Gather form data (for possible re‑display in confirmation)
+        mpesa = float(request.form.get('mpesa_sales','0') or 0)
+        cash  = float(request.form.get('cash_sales','0') or 0)
+        notes = request.form.get('notes','')
+        expense_names  = request.form.getlist('expense_name[]')
+        expense_amounts = request.form.getlist('expense_amount[]')
+        expenses = []
+        expense_total = 0.0
+        for i in range(len(expense_names)):
+            nm = expense_names[i].strip()
+            amt_str = expense_amounts[i] if i < len(expense_amounts) else '0'
+            try: amt = float(amt_str) if amt_str else 0.0
+            except: amt = 0.0
+            if nm and amt > 0:
+                expenses.append({'name': nm, 'amount': amt})
+                expense_total += amt
+        total = mpesa + cash + expense_total
+
+        force = request.form.get('force','0')
+
+        # Duplicate check (skip if force == '1')
+        if force != '1':
+            if sales_type == 'individual' and role in SALES_SUBMIT_ROLES:
+                existing = safe_data(execute_query(
+                    supabase.table('sales').select('*').eq('full_name', un).eq('date', sale_date).limit(1)
+                ))
+                if existing:
+                    return render_template('sales_confirm.html',
+                        existing_sales=existing,
+                        form_data={
+                            'sales_type':'individual','sale_date':sale_date,
+                            'mpesa_sales':mpesa,'cash_sales':cash,'notes':notes,
+                            'expenses':expenses, 'total':total
+                        },
+                        company=COMPANY_NAME)
+            elif sales_type == 'branch' and role == 'Branch Manager':
+                existing = safe_data(execute_query(
+                    supabase.table('branch_sales').select('*').eq('branch', ub).eq('date', sale_date).limit(1)
+                ))
+                if existing:
+                    return render_template('sales_confirm.html',
+                        existing_sales=existing,
+                        form_data={
+                            'sales_type':'branch','sale_date':sale_date,
+                            'mpesa_sales':mpesa,'cash_sales':cash,'notes':notes,
+                            'expenses':expenses, 'total':total
+                        },
+                        company=COMPANY_NAME)
+
+        # Proceed with insertion
         if sales_type == 'individual' and role in SALES_SUBMIT_ROLES:
             try:
-                mpesa = float(request.form.get('mpesa_sales','0') or 0)
-                cash  = float(request.form.get('cash_sales','0') or 0)
-                notes = request.form.get('notes','')
-                expense_names  = request.form.getlist('expense_name[]')
-                expense_amounts = request.form.getlist('expense_amount[]')
-                expenses = []
-                expense_total = 0.0
-                for i in range(len(expense_names)):
-                    nm = expense_names[i].strip()
-                    amt_str = expense_amounts[i] if i < len(expense_amounts) else '0'
-                    try: amt = float(amt_str) if amt_str else 0.0
-                    except: amt = 0.0
-                    if nm and amt > 0:
-                        expenses.append({'name': nm, 'amount': amt})
-                        expense_total += amt
-                total = mpesa + cash + expense_total
                 emp = safe_data(execute_query(
                     supabase.table('employees').select('department,branch').eq('full_name', un)
                 ))
@@ -935,22 +990,6 @@ def sales_page():
             except Exception as e: print(f"Individual sale error: {e}")
         elif sales_type == 'branch' and role == 'Branch Manager':
             try:
-                mpesa = float(request.form.get('mpesa_sales','0') or 0)
-                cash  = float(request.form.get('cash_sales','0') or 0)
-                notes = request.form.get('notes','')
-                expense_names  = request.form.getlist('expense_name[]')
-                expense_amounts = request.form.getlist('expense_amount[]')
-                expenses = []
-                expense_total = 0.0
-                for i in range(len(expense_names)):
-                    nm = expense_names[i].strip()
-                    amt_str = expense_amounts[i] if i < len(expense_amounts) else '0'
-                    try: amt = float(amt_str) if amt_str else 0.0
-                    except: amt = 0.0
-                    if nm and amt > 0:
-                        expenses.append({'name': nm, 'amount': amt})
-                        expense_total += amt
-                total = mpesa + cash + expense_total
                 if total > 0:
                     supabase.table('branch_sales').insert({
                         'branch': ub, 'date': sale_date,
@@ -960,6 +999,7 @@ def sales_page():
             except Exception as e: print(f"Branch sale error: {e}")
         return redirect('/sales?success=1')
 
+    # GET request – display sales with totals
     view_type = request.args.get('view_type','individual')
     filter_from = request.args.get('from_date','')
     filter_to = request.args.get('to_date','')
@@ -979,6 +1019,8 @@ def sales_page():
         ))
         branch_sales = []
         employees = []; branches_for_filter = []; filter_branch = ''; filter_employee = ''
+        total_individual = sum(float(s['total_sales']) for s in individual_sales)
+        total_branch = 0
     elif role == 'Branch Manager':
         filter_branch = ub
         filter_employee = request.args.get('employee','')
@@ -993,6 +1035,8 @@ def sales_page():
             supabase.table('employees').select('full_name').eq('status','approved').eq('branch', ub).order('full_name')
         ))
         branches_for_filter = [ub]
+        total_individual = sum(float(s['total_sales']) for s in individual_sales)
+        total_branch = sum(float(s['total_sales']) for s in branch_sales)
     else:
         allowed_branches = get_branch_names()
         filter_branch = request.args.get('branch','')
@@ -1016,6 +1060,8 @@ def sales_page():
                 supabase.table('employees').select('full_name').eq('status','approved').order('full_name')
             ))
         branches_for_filter = allowed_branches
+        total_individual = sum(float(s['total_sales']) for s in individual_sales)
+        total_branch = sum(float(s['total_sales']) for s in branch_sales)
 
     target_progress = None
     month_str = str(now_eat().date().replace(day=1))
@@ -1034,7 +1080,8 @@ def sales_page():
         individual_sales=individual_sales, branch_sales=branch_sales, view_type=view_type,
         filter_branch=filter_branch, filter_employee=filter_employee, filter_from=filter_from, filter_to=filter_to,
         period=period, branches=branches_for_filter, employees=employees, target_progress=target_progress,
-        today=today, company=COMPANY_NAME, success_msg=request.args.get('success',''))
+        today=today, company=COMPANY_NAME, success_msg=request.args.get('success',''),
+        total_individual=total_individual, total_branch=total_branch)
 
 # ---------- PROFILE ----------
 @app.route('/profile', methods=['GET','POST'])
@@ -1348,7 +1395,6 @@ def leaves():
         leave_date = leave_start if leave_start else request.form.get('leave_date','')
         if leave_date:
             leave_type = request.form.get('leave_type','Annual Leave')
-            # Calculate weekdays only
             total_days = count_weekdays(leave_start, leave_end) if leave_start and leave_end else 1
             if leave_type == 'Annual Leave':
                 year_start = leave_start[:4]
@@ -1433,7 +1479,6 @@ def leave_pdf(lid):
     leave = safe_data(execute_query(supabase.table('leaves').select('*').eq('id', lid)))
     if not leave:
         return "Leave not found", 404
-    # Restrict access: only admin/ceo/HR/HR Assistant or the owner
     allowed_roles = ['admin','ceo','HR','HR Assistant']
     if session.get('role') not in allowed_roles and session.get('user') != leave[0].get('full_name'):
         return redirect('/')
@@ -1810,7 +1855,7 @@ def hr_attendance_report():
     except:
         base_date = now_eat().date()
     if period == 'week':
-        start_date = base_date - timedelta(days=base_date.weekday())  # Monday
+        start_date = base_date - timedelta(days=base_date.weekday())
         end_date = start_date + timedelta(days=6)
     elif period == 'month':
         start_date = base_date.replace(day=1)
