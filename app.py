@@ -120,6 +120,22 @@ def get_branch_employees(branch):
         supabase.table('employees').select('full_name').eq('status','approved').eq('branch', branch).order('full_name')
     ))
 
+# ---------- LEAVE WEEKDAY COUNT ----------
+def count_weekdays(start_str, end_str):
+    if not start_str or not end_str:
+        return 0
+    try:
+        d1 = datetime.strptime(start_str, '%Y-%m-%d').date()
+        d2 = datetime.strptime(end_str, '%Y-%m-%d').date()
+    except:
+        return 0
+    count = 0
+    while d1 <= d2:
+        if d1.weekday() < 5:   # Monday=0 ... Friday=4
+            count += 1
+        d1 += timedelta(days=1)
+    return count
+
 # ---------- LEAVE APPROVAL CHAIN ----------
 def get_approval_chain(employee_role):
     role_lower = employee_role.strip().lower()
@@ -516,21 +532,17 @@ def reject(eid):
     supabase.table('employees').delete().eq('id',eid).execute()
     return redirect('/approvals')
 
-# ---------- ADMIN SALES MANAGEMENT (with edit) ----------
+# ---------- ADMIN SALES MANAGEMENT (increased limit) ----------
 @app.route('/admin/sales')
 @login_required
 @admin_required
 def admin_sales():
     fd = request.args.get('from_date','')
     td = request.args.get('to_date','')
+    query = supabase.table('sales').select('*').order('date',desc=True).limit(5000)
     if fd and td:
-        sales = safe_data(execute_query(
-            supabase.table('sales').select('*').gte('date',fd).lte('date',td).order('date',desc=True).limit(500)
-        ))
-    else:
-        sales = safe_data(execute_query(
-            supabase.table('sales').select('*').order('date',desc=True).limit(200)
-        ))
+        query = query.gte('date',fd).lte('date',td)
+    sales = safe_data(execute_query(query))
     return render_template('admin_sales.html', sales=sales, from_date=fd, to_date=td, company=COMPANY_NAME)
 
 @app.route('/admin/sales/delete/<int:sid>', methods=['POST'])
@@ -668,7 +680,7 @@ def delete_branch(bid):
     supabase.table('branches').delete().eq('id',bid).execute()
     return redirect('/branches')
 
-# ---------- DIRECTORATE (Contacts) – updated ----------
+# ---------- DIRECTORATE (Contacts) ----------
 @app.route('/contacts')
 @login_required
 def contacts_page():
@@ -1072,7 +1084,7 @@ def reports():
                          total_branch_amount=sum(float(s.get('total_sales',0)) for s in brecs),
                          company=COMPANY_NAME)
 
-# ---------- SALES REPORT (updated) ----------
+# ---------- SALES REPORT ----------
 @app.route('/sales-report')
 @login_required
 def sales_report():
@@ -1326,7 +1338,7 @@ def reject_shift_change(rid):
     supabase.table('shift_change_requests').update({'status':'rejected'}).eq('id', rid).execute()
     return redirect('/shift-change')
 
-# ---------- LEAVES ----------
+# ---------- LEAVES (with weekday-only calculation) ----------
 @app.route('/leaves', methods=['GET','POST'])
 @login_required
 def leaves():
@@ -1336,7 +1348,8 @@ def leaves():
         leave_date = leave_start if leave_start else request.form.get('leave_date','')
         if leave_date:
             leave_type = request.form.get('leave_type','Annual Leave')
-            total_days = int(request.form.get('total_days',1))
+            # Calculate weekdays only
+            total_days = count_weekdays(leave_start, leave_end) if leave_start and leave_end else 1
             if leave_type == 'Annual Leave':
                 year_start = leave_start[:4]
                 used_data = safe_data(execute_query(
@@ -1393,9 +1406,12 @@ def edit_leave(lid):
     un = session.get('user')
     leave = safe_data(execute_query(supabase.table('leaves').select('*').eq('id', lid).eq('full_name', un).limit(1)))
     if not leave or leave[0]['status'] != 'pending': return redirect('/leaves')
+    leave_start = request.form.get('leave_start','')
+    leave_end = request.form.get('leave_end','')
     data = {
-        'leave_start': request.form.get('leave_start',''), 'leave_end': request.form.get('leave_end',''),
-        'total_days': int(request.form.get('total_days',1)), 'leave_type': request.form.get('leave_type','Annual Leave'),
+        'leave_start': leave_start, 'leave_end': leave_end,
+        'total_days': count_weekdays(leave_start, leave_end),
+        'leave_type': request.form.get('leave_type','Annual Leave'),
         'reason': request.form.get('reason',''), 'handover_notes': request.form.get('handover_notes',''),
         'backup_person': request.form.get('backup_person',''), 'emergency_contact': request.form.get('emergency_contact',''),
     }
@@ -1415,7 +1431,12 @@ def delete_leave(lid):
 @login_required
 def leave_pdf(lid):
     leave = safe_data(execute_query(supabase.table('leaves').select('*').eq('id', lid)))
-    if not leave: return "Leave not found", 404
+    if not leave:
+        return "Leave not found", 404
+    # Restrict access: only admin/ceo/HR/HR Assistant or the owner
+    allowed_roles = ['admin','ceo','HR','HR Assistant']
+    if session.get('role') not in allowed_roles and session.get('user') != leave[0].get('full_name'):
+        return redirect('/')
     return render_template('leave_pdf.html', lv=leave[0], company=COMPANY_NAME)
 
 # ---------- APPROVE LEAVES ----------
@@ -1754,6 +1775,88 @@ def update_annual_leave_override(eid):
     except ValueError: remaining_int = None
     supabase.table('employees').update({'annual_leave_remaining_override': remaining_int}).eq('id', eid).execute()
     return redirect('/hr/annual-leave')
+
+# ---------- HR ALL LEAVES VIEW (NEW) ----------
+@app.route('/hr/leaves')
+@login_required
+def hr_leaves():
+    if session.get('role') not in ['HR','HR Assistant']:
+        return redirect('/')
+    status_filter = request.args.get('status', '')
+    from_date = request.args.get('from_date', '')
+    to_date = request.args.get('to_date', '')
+    query = supabase.table('leaves').select('*').order('created_at', desc=True).limit(2000)
+    if status_filter:
+        query = query.eq('status', status_filter)
+    if from_date:
+        query = query.gte('leave_start', from_date)
+    if to_date:
+        query = query.lte('leave_end', to_date)
+    leaves = safe_data(execute_query(query))
+    return render_template('hr_leaves.html', leaves=leaves,
+                           status_filter=status_filter, from_date=from_date, to_date=to_date,
+                           company=COMPANY_NAME)
+
+# ---------- HR ATTENDANCE REPORT (NEW) ----------
+@app.route('/hr/attendance-report')
+@login_required
+def hr_attendance_report():
+    if session.get('role') not in ['HR','HR Assistant']:
+        return redirect('/')
+    period = request.args.get('period', 'week')
+    date_str = request.args.get('date', str(now_eat().date()))
+    try:
+        base_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except:
+        base_date = now_eat().date()
+    if period == 'week':
+        start_date = base_date - timedelta(days=base_date.weekday())  # Monday
+        end_date = start_date + timedelta(days=6)
+    elif period == 'month':
+        start_date = base_date.replace(day=1)
+        next_month = start_date.replace(day=28) + timedelta(days=4)
+        end_date = next_month - timedelta(days=next_month.day)
+    else:
+        start_date = base_date
+        end_date = base_date + timedelta(days=6)
+
+    employees = safe_data(execute_query(
+        supabase.table('employees').select('full_name, branch, department')
+        .eq('status', 'approved').order('full_name').limit(500)
+    ))
+    emp_names = [e['full_name'] for e in employees]
+    att_records = safe_data(execute_query(
+        supabase.table('attendance').select('full_name, date, status, check_in')
+        .gte('date', str(start_date)).lte('date', str(end_date))
+        .in_('full_name', emp_names)
+        .limit(2000)
+    ))
+    att_dict = defaultdict(dict)
+    for a in att_records:
+        att_dict[a['full_name']][a['date']] = a.get('status','present')
+
+    days = []
+    cur = start_date
+    while cur <= end_date:
+        days.append(str(cur))
+        cur += timedelta(days=1)
+
+    table = []
+    for emp in employees:
+        row = {'name': emp['full_name'], 'branch': emp['branch'], 'dept': emp['department']}
+        for d in days:
+            st = att_dict.get(emp['full_name'], {}).get(d)
+            if st == 'late':
+                row[d] = 'Late'
+            elif st:
+                row[d] = 'Present'
+            else:
+                row[d] = 'Absent'
+        table.append(row)
+
+    return render_template('hr_attendance_report.html', table=table, days=days,
+                           start_date=str(start_date), end_date=str(end_date),
+                           period=period, company=COMPANY_NAME)
 
 # ---------- MARKETER REPORTS ----------
 @app.route('/marketer-reports')
