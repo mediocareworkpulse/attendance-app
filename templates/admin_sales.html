@@ -4,22 +4,37 @@
 <p class="page-subtitle">{{ company }} — All Sales Entries</p>
 
 <form method="GET" class="form-grid" style="margin-bottom: 16px;">
-    <div><input type="date" name="from_date" value="{{ from_date }}"></div>
-    <div><input type="date" name="to_date" value="{{ to_date }}"></div>
-    <div><button type="submit" class="btn">Filter</button></div>
+    <div>
+        <label>From</label>
+        <input type="date" name="from_date" value="{{ from_date }}">
+    </div>
+    <div>
+        <label>To</label>
+        <input type="date" name="to_date" value="{{ to_date }}">
+    </div>
+    <div>
+        <label>Sales Type</label>
+        <select name="type">
+            <option value="all" {% if stype == 'all' %}selected{% endif %}>All</option>
+            <option value="individual" {% if stype == 'individual' %}selected{% endif %}>Individual</option>
+            <option value="branch" {% if stype == 'branch' %}selected{% endif %}>Branch</option>
+        </select>
+    </div>
+    <div>
+        <button type="submit" class="btn">Filter</button>
+    </div>
 </form>
 
 <div class="table-container">
     <table>
         <thead>
             <tr>
-                <th>ID</th>
                 <th>Date</th>
-                <th>Employee</th>
+                <th>Type</th>
+                <th>Employee / Branch</th>
                 <th>M‑Pesa</th>
                 <th>Cash</th>
                 <th>Total</th>
-                <th>Branch</th>
                 <th>Notes</th>
                 <th>Action</th>
             </tr>
@@ -27,19 +42,34 @@
         <tbody>
         {% for s in sales %}
         <tr>
-            <td>{{ s.id }}</td>
             <td>{{ s.date }}</td>
-            <td class="td-name">{{ s.full_name }}</td>
+            <td>
+                {% if s._type == 'Branch' %}
+                    <span class="badge badge-purple">Branch</span>
+                {% else %}
+                    <span class="badge badge-info">Individual</span>
+                {% endif %}
+            </td>
+            <td class="td-name">
+                {% if s._type == 'Branch' %}
+                    {{ s.branch }} (by {{ s.submitted_by }})
+                {% else %}
+                    {{ s.full_name }}
+                {% endif %}
+            </td>
             <td>{{ s.mpesa_sales }}</td>
             <td>{{ s.cash_sales }}</td>
             <td>{{ s.total_sales }}</td>
-            <td>{{ s.branch }}</td>
             <td>{{ s.notes or '—' }}</td>
             <td>
+                {% if s._type == 'Individual' %}
                 <button class="btn btn-sm" style="background:var(--accent);" onclick="openEditModal({{ s.id }})">Edit</button>
                 <form method="POST" action="/admin/sales/delete/{{ s.id }}" style="display:inline" onsubmit="return confirm('Delete this sale?');">
                     <button class="btn btn-sm btn-danger">Delete</button>
                 </form>
+                {% else %}
+                <span style="color:var(--text-secondary); font-size:12px;">—</span>
+                {% endif %}
             </td>
         </tr>
         {% endfor %}
@@ -47,7 +77,7 @@
     </table>
 </div>
 
-<!-- Edit Modal -->
+<!-- Edit Modal (same as before) -->
 <div id="editModal" class="modal-overlay" style="display:none;">
     <div class="modal-box">
         <h3>Edit Sale</h3>
@@ -72,7 +102,6 @@
 {% block scripts %}
 <script>
     function openEditModal(sid) {
-        // Fetch sale data? For simplicity, just show form; you could pre‑fill with JS if data were embedded.
         document.getElementById('editForm').action = '/admin/sales/edit/' + sid;
         document.getElementById('editModal').style.display = 'flex';
     }
