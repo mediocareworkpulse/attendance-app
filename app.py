@@ -48,7 +48,7 @@ TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller','Sales Ma
 DIRECTORATE_ROLES = ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager','Assistant Operations Manager']
 
 COMPANY_NAME = 'Mediocare Pharmaceuticals Ltd'
-LATE_GRACE_MINUTES = 20   # changed from 30
+LATE_GRACE_MINUTES = 20
 
 # ---------- HELPERS ----------
 def login_required(f):
@@ -532,7 +532,7 @@ def reject(eid):
     supabase.table('employees').delete().eq('id',eid).execute()
     return redirect('/approvals')
 
-# ---------- ADMIN SALES MANAGEMENT (increased limit) ----------
+# ---------- ADMIN SALES MANAGEMENT (shows ALL sales by default) ----------
 @app.route('/admin/sales')
 @login_required
 @admin_required
@@ -1174,7 +1174,7 @@ def export_attendance():
     return Response(output, mimetype='text/csv',
                     headers={"Content-Disposition": "attachment;filename=attendance_report.csv"})
 
-# ---------- EXPORT SALES (CSV) – updated with Employee column ----------
+# ---------- EXPORT SALES (CSV) ----------
 @app.route('/export-sales')
 @login_required
 def export_sales():
@@ -1277,7 +1277,7 @@ def export_attendance_summary():
     output = si.getvalue(); si.close()
     return Response(output, mimetype='text/csv', headers={"Content-Disposition": "attachment;filename=attendance_summary.csv"})
 
-# ---------- SHIFT CHANGE (updated permissions) ----------
+# ---------- SHIFT CHANGE ----------
 @app.route('/shift-change', methods=['GET','POST'])
 @login_required
 def shift_change_page():
@@ -1338,7 +1338,7 @@ def reject_shift_change(rid):
     supabase.table('shift_change_requests').update({'status':'rejected'}).eq('id', rid).execute()
     return redirect('/shift-change')
 
-# ---------- LEAVES (with weekday-only calculation) ----------
+# ---------- LEAVES (weekday only) ----------
 @app.route('/leaves', methods=['GET','POST'])
 @login_required
 def leaves():
@@ -1776,7 +1776,7 @@ def update_annual_leave_override(eid):
     supabase.table('employees').update({'annual_leave_remaining_override': remaining_int}).eq('id', eid).execute()
     return redirect('/hr/annual-leave')
 
-# ---------- HR ALL LEAVES VIEW (NEW) ----------
+# ---------- HR ALL LEAVES VIEW ----------
 @app.route('/hr/leaves')
 @login_required
 def hr_leaves():
@@ -1797,7 +1797,7 @@ def hr_leaves():
                            status_filter=status_filter, from_date=from_date, to_date=to_date,
                            company=COMPANY_NAME)
 
-# ---------- HR ATTENDANCE REPORT (NEW) ----------
+# ---------- HR ATTENDANCE REPORT ----------
 @app.route('/hr/attendance-report')
 @login_required
 def hr_attendance_report():
