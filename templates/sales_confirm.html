@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">⚠️ Duplicate Sale Detected</h1>
+<p class="page-subtitle">{{ company }} – Existing sale for this date</p>
+
+<div class="form-card" style="border-left: 5px solid #f59e0b;">
+    <h2 style="color:#b45309;">You have already submitted a sale for this date:</h2>
+    <div class="table-container" style="margin-top:10px;">
+        <table>
+            <thead><tr><th>Date</th><th>Type</th><th>M‑Pesa</th><th>Cash</th><th>Total</th></tr></thead>
+            <tbody>
+            {% for s in existing_sales %}
+            <tr>
+                <td>{{ s.date }}</td>
+                <td>{{ s._type if s._type else 'Individual' }}</td>
+                <td>{{ s.mpesa_sales }}</td>
+                <td>{{ s.cash_sales }}</td>
+                <td>{{ s.total_sales }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p style="margin-top:12px;">Do you want to add <strong>another</strong> sale for the same date?</p>
+    <form method="POST" action="/sales" style="display:flex; gap:12px; align-items:center; margin-top:16px;">
+        <!-- Hidden fields to re‑send the original data -->
+        <input type="hidden" name="sales_type" value="{{ form_data.sales_type }}">
+        <input type="hidden" name="sale_date" value="{{ form_data.sale_date }}">
+        <input type="hidden" name="mpesa_sales" value="{{ form_data.mpesa_sales }}">
+        <input type="hidden" name="cash_sales" value="{{ form_data.cash_sales }}">
+        <input type="hidden" name="notes" value="{{ form_data.notes }}">
+        <input type="hidden" name="force" value="1">
+        {% for exp in form_data.expenses %}
+        <input type="hidden" name="expense_name[]" value="{{ exp.name }}">
+        <input type="hidden" name="expense_amount[]" value="{{ exp.amount }}">
+        {% endfor %}
+        <button type="submit" class="btn" style="background: #f59e0b; color:#0b1329;">Yes, Submit Another Sale</button>
+        <a href="/sales" class="btn btn-danger">Cancel</a>
+    </form>
+</div>
+{% endblock %}
