@@ -56,6 +56,8 @@
             <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}">✍️ Approve Leaves</a>
         {% endif %}
         {% if session.role in ['HR','HR Assistant'] %}
+            <a href="/hr/leaves" class="{% if request.path == '/hr/leaves' %}active{% endif %}">📋 All Leaves</a>
+            <a href="/hr/attendance-report" class="{% if request.path == '/hr/attendance-report' %}active{% endif %}">📊 Attendance Report</a>
             <a href="/hr/annual-leave" class="{% if request.path == '/hr/annual-leave' %}active{% endif %}">📅 Annual Leave</a>
         {% endif %}
         {% if role_lower in ['admin','ceo','hr','hr assistant','store manager','operations manager','assistant operations manager','sales manager','branch manager','procurement officer'] %}
