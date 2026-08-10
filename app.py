@@ -532,14 +532,14 @@ def reject(eid):
     supabase.table('employees').delete().eq('id',eid).execute()
     return redirect('/approvals')
 
-# ---------- ADMIN SALES MANAGEMENT (shows individual + branch sales) ----------
+# ---------- ADMIN SALES MANAGEMENT (shows individual + branch sales, edit/delete both) ----------
 @app.route('/admin/sales')
 @login_required
 @admin_required
 def admin_sales():
     fd = request.args.get('from_date','')
     td = request.args.get('to_date','')
-    stype = request.args.get('type','all')   # individual, branch, all
+    stype = request.args.get('type','all')
 
     sales = []
     branch_sales = []
@@ -561,7 +561,6 @@ def admin_sales():
             s['_type'] = 'Branch'
 
     all_sales = sales + branch_sales
-    # sort by date descending, then by id (or order by date)
     all_sales.sort(key=lambda x: (x['date'], x.get('id',0)), reverse=True)
 
     return render_template('admin_sales.html', sales=all_sales, from_date=fd, to_date=td, stype=stype, company=COMPANY_NAME)
@@ -570,13 +569,18 @@ def admin_sales():
 @login_required
 @admin_required
 def delete_sale(sid):
-    supabase.table('sales').delete().eq('id',sid).execute()
+    stype = request.args.get('type', 'individual')
+    if stype == 'branch':
+        supabase.table('branch_sales').delete().eq('id', sid).execute()
+    else:
+        supabase.table('sales').delete().eq('id', sid).execute()
     return redirect(request.referrer or '/admin/sales')
 
 @app.route('/admin/sales/edit/<int:sid>', methods=['POST'])
 @login_required
 @admin_required
 def edit_sale(sid):
+    stype = request.args.get('type', 'individual')
     mpesa = float(request.form.get('mpesa_sales','0') or 0)
     cash  = float(request.form.get('cash_sales','0') or 0)
     notes = request.form.get('notes','')
@@ -593,13 +597,23 @@ def edit_sale(sid):
             expenses.append({'name': nm, 'amount': amt})
             expense_total += amt
     total = mpesa + cash + expense_total
-    supabase.table('sales').update({
-        'mpesa_sales': mpesa,
-        'cash_sales': cash,
-        'total_sales': total,
-        'notes': notes,
-        'expenses': expenses
-    }).eq('id', sid).execute()
+
+    if stype == 'branch':
+        supabase.table('branch_sales').update({
+            'mpesa_sales': mpesa,
+            'cash_sales': cash,
+            'total_sales': total,
+            'notes': notes,
+            'expenses': expenses
+        }).eq('id', sid).execute()
+    else:
+        supabase.table('sales').update({
+            'mpesa_sales': mpesa,
+            'cash_sales': cash,
+            'total_sales': total,
+            'notes': notes,
+            'expenses': expenses
+        }).eq('id', sid).execute()
     return redirect(request.referrer or '/admin/sales')
 
 # ---------- EMPLOYEES ----------
@@ -925,7 +939,6 @@ def sales_page():
         if not sale_date: sale_date = today
         if sale_date > today: sale_date = today
 
-        # Gather form data (for possible re‑display in confirmation)
         mpesa = float(request.form.get('mpesa_sales','0') or 0)
         cash  = float(request.form.get('cash_sales','0') or 0)
         notes = request.form.get('notes','')
@@ -945,7 +958,6 @@ def sales_page():
 
         force = request.form.get('force','0')
 
-        # Duplicate check (skip if force == '1')
         if force != '1':
             if sales_type == 'individual' and role in SALES_SUBMIT_ROLES:
                 existing = safe_data(execute_query(
@@ -974,7 +986,6 @@ def sales_page():
                         },
                         company=COMPANY_NAME)
 
-        # Proceed with insertion
         if sales_type == 'individual' and role in SALES_SUBMIT_ROLES:
             try:
                 emp = safe_data(execute_query(
@@ -999,7 +1010,6 @@ def sales_page():
             except Exception as e: print(f"Branch sale error: {e}")
         return redirect('/sales?success=1')
 
-    # GET request – display sales with totals
     view_type = request.args.get('view_type','individual')
     filter_from = request.args.get('from_date','')
     filter_to = request.args.get('to_date','')
