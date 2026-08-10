@@ -41,9 +41,15 @@
                     <span style="font-size:20px;">⏰</span> Clock In
                 </button>
             {% elif user_status in ['checked_in','working'] %}
+                {% if shift_end %}
+                <button type="button" class="checkin-btn btn-check-out" style="width:auto; min-width:160px;" onclick="confirmCheckOut()">
+                    <span style="font-size:20px;">🔚</span> Clock Out
+                </button>
+                {% else %}
                 <button type="submit" name="action" value="check_out" class="checkin-btn btn-check-out" onclick="getLocation()" style="width:auto; min-width:160px;">
                     <span style="font-size:20px;">🔚</span> Clock Out
                 </button>
+                {% endif %}
             {% endif %}
         </form>
     </div>
@@ -151,6 +157,38 @@
                 document.getElementById('j-end-lng-'+jid).value = pos.coords.longitude;
                 document.getElementById('j-end-loc-'+jid).value = 'Lat:'+pos.coords.latitude+', Lng:'+pos.coords.longitude;
             });
+        }
+    }
+
+    // Checkout confirmation with remaining time
+    function confirmCheckOut() {
+        const shiftEnd = "{{ shift_end }}";
+        if (!shiftEnd) {
+            document.getElementById('attendanceForm').submit();
+            return;
+        }
+        const now = new Date();
+        const [sh, sm] = shiftEnd.split(':').map(Number);
+        const shiftEndDate = new Date();
+        shiftEndDate.setHours(sh, sm, 0, 0);
+        let remainingMinutes = Math.floor((shiftEndDate - now) / 60000);
+        let message = 'Are you sure you want to check out?';
+        if (remainingMinutes > 0) {
+            const hours = Math.floor(remainingMinutes / 60);
+            const mins = remainingMinutes % 60;
+            message += `\n\nYou are checking out early. Remaining time: ${hours}h ${mins}m.`;
+        }
+        if (confirm(message)) {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(pos) {
+                    document.getElementById('att-lat').value = pos.coords.latitude;
+                    document.getElementById('att-lng').value = pos.coords.longitude;
+                    document.getElementById('att-location').value = pos.coords.latitude+', '+pos.coords.longitude;
+                    document.getElementById('attendanceForm').submit();
+                });
+            } else {
+                document.getElementById('attendanceForm').submit();
+            }
         }
     }
 </script>
