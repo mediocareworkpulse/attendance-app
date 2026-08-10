@@ -148,6 +148,14 @@
 </div>
 {% endif %}
 
+<!-- Total Sales Summary (NEW) -->
+<div class="alert alert-info" style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+    <span>📊 Total Individual Sales: <strong>Ksh {{ "%.2f"|format(total_individual) }}</strong></span>
+    {% if session.role in ['Branch Manager','admin','ceo','Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant'] %}
+    <span>🏢 Total Branch Sales: <strong>Ksh {{ "%.2f"|format(total_branch) }}</strong></span>
+    {% endif %}
+</div>
+
 <!-- Individual Sales Table -->
 {% if view_type == 'individual' or session.role in ['Staff','Branch Manager'] %}
 <div class="form-card" style="margin-top:20px;">
