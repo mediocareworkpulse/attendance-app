@@ -37,6 +37,28 @@
     </div>
 </div>
 
+<!-- Late Arrivals Today -->
+<div class="form-card" style="margin-top:20px;">
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">⏰ Late Arrivals Today ({{ working | selectattr('status','equalto','late') | list | length }})</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr><th>Name</th><th>Department</th><th>Branch</th><th>Check‑In</th></tr>
+            </thead>
+            <tbody>
+            {% for w in working if w.status == 'late' %}
+            <tr>
+                <td class="td-name">{{ w.full_name }}</td>
+                <td>{{ w.department or '—' }}</td>
+                <td>{{ w.branch or '—' }}</td>
+                <td>{{ w.check_in }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
 <div class="form-card" style="margin-top:20px;">
     <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">Checked Out Today ({{ checked_out|length }})</h2>
     <div class="table-container">
