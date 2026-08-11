@@ -33,12 +33,12 @@
     {% if role not in ['Marketers','admin','ceo'] %}
     <div>
         <form method="POST" action="/check-in" id="attendanceForm" style="display:inline;">
-            <input type="hidden" name="lat" id="att-lat">
-            <input type="hidden" name="lng" id="att-lng">
-            <input type="hidden" name="location" id="att-location">
-            <input type="hidden" name="action" id="att-action">
+            <input type="hidden" name="lat" id="att-lat" value="">
+            <input type="hidden" name="lng" id="att-lng" value="">
+            <input type="hidden" name="location" id="att-location" value="">
+            <input type="hidden" name="action" id="att-action" value="">
             {% if user_status == 'none' %}
-                <button type="submit" name="action" value="check_in" class="checkin-btn btn-check-in" onclick="getLocation()" style="width:auto; min-width:160px;">
+                <button type="button" class="checkin-btn btn-check-in" onclick="confirmCheckIn()" style="width:auto; min-width:160px;">
                     <span style="font-size:20px;">⏰</span> Clock In
                 </button>
             {% elif user_status in ['checked_in','working'] %}
@@ -127,34 +127,15 @@
 
 {% block scripts %}
 <script>
-    function getLocation() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function(pos) {
-                document.getElementById('att-lat').value = pos.coords.latitude;
-                document.getElementById('att-lng').value = pos.coords.longitude;
-                document.getElementById('att-location').value = pos.coords.latitude+', '+pos.coords.longitude;
-            });
-        }
-    }
-    function getJourneyStartLocation() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function(pos) {
-                document.getElementById('j-start-lat').value = pos.coords.latitude;
-                document.getElementById('j-start-lng').value = pos.coords.longitude;
-                document.getElementById('j-start-loc').value = pos.coords.latitude+', '+pos.coords.longitude;
-            });
-        }
-    }
-    function getEndLocation(jid) {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function(pos) {
-                document.getElementById('j-end-lat-'+jid).value = pos.coords.latitude;
-                document.getElementById('j-end-lng-'+jid).value = pos.coords.longitude;
-                document.getElementById('j-end-loc-'+jid).value = 'Lat:'+pos.coords.latitude+', Lng:'+pos.coords.longitude;
-            });
+    // ========== CHECK IN ==========
+    function confirmCheckIn() {
+        if (confirm('Are you sure you want to check in now?')) {
+            document.getElementById('att-action').value = 'check_in';
+            captureLocationAndSubmit();
         }
     }
 
+    // ========== CHECK OUT ==========
     function confirmCheckOut() {
         const shiftEnd = "{{ shift_end }}";
         let message = 'Are you sure you want to check out?';
@@ -173,27 +154,58 @@
         }
 
         if (confirm(message)) {
-            // Set action to check_out
             document.getElementById('att-action').value = 'check_out';
+            captureLocationAndSubmit();
+        }
+    }
 
-            // Capture location if possible, then submit
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    function(pos) {
-                        document.getElementById('att-lat').value = pos.coords.latitude;
-                        document.getElementById('att-lng').value = pos.coords.longitude;
-                        document.getElementById('att-location').value = pos.coords.latitude+', '+pos.coords.longitude;
-                        document.getElementById('attendanceForm').submit();
-                    },
-                    function(error) {
-                        // If location fails, submit anyway
-                        document.getElementById('attendanceForm').submit();
-                    },
-                    { timeout: 5000 }
-                );
-            } else {
+    // ========== CAPTURE LOCATION (shared) ==========
+    function captureLocationAndSubmit() {
+        if (navigator.geolocation) {
+            // Set a timeout to submit even if location takes too long
+            const locationTimeout = setTimeout(function() {
+                // Submit without location
                 document.getElementById('attendanceForm').submit();
-            }
+            }, 4000);  // 4 seconds max
+
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    clearTimeout(locationTimeout);
+                    document.getElementById('att-lat').value = pos.coords.latitude;
+                    document.getElementById('att-lng').value = pos.coords.longitude;
+                    document.getElementById('att-location').value = pos.coords.latitude + ', ' + pos.coords.longitude;
+                    document.getElementById('attendanceForm').submit();
+                },
+                function(error) {
+                    clearTimeout(locationTimeout);
+                    // Location failed – submit anyway
+                    document.getElementById('attendanceForm').submit();
+                },
+                { timeout: 3000 }  // wait up to 3 seconds for location
+            );
+        } else {
+            // Geolocation not supported – submit immediately
+            document.getElementById('attendanceForm').submit();
+        }
+    }
+
+    // Journey helpers (unchanged)
+    function getJourneyStartLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(pos) {
+                document.getElementById('j-start-lat').value = pos.coords.latitude;
+                document.getElementById('j-start-lng').value = pos.coords.longitude;
+                document.getElementById('j-start-loc').value = pos.coords.latitude+', '+pos.coords.longitude;
+            });
+        }
+    }
+    function getEndLocation(jid) {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(pos) {
+                document.getElementById('j-end-lat-'+jid).value = pos.coords.latitude;
+                document.getElementById('j-end-lng-'+jid).value = pos.coords.longitude;
+                document.getElementById('j-end-loc-'+jid).value = 'Lat:'+pos.coords.latitude+', Lng:'+pos.coords.longitude;
+            });
         }
     }
 </script>
