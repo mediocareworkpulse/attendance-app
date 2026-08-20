@@ -43,7 +43,8 @@ OPERATIONS_MANAGER_TEAM = [
 RIDER_DRIVER_ROLES = ['Riders','Drivers']
 MARKETER_ROLE = 'Marketers'
 SALES_MANAGER_ROLE = 'Sales Manager'
-TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller','Sales Manager']
+# Updated: Admin and CEO can also set targets
+TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller','Sales Manager','admin','ceo']
 
 DIRECTORATE_ROLES = ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager','Assistant Operations Manager']
 
@@ -1461,6 +1462,7 @@ def leaves():
     ))
     used_days = sum(d['total_days'] for d in used_annual)
 
+    # Manual override acts as starting balance, remaining = override - used
     emp_override = safe_data(execute_query(
         supabase.table('employees').select('annual_leave_remaining_override')
         .eq('full_name', un).limit(1)
@@ -1739,6 +1741,12 @@ def targets_page():
         employees = safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved')
             .eq('role', MARKETER_ROLE).order('full_name')
+        ))
+    elif user_role in ['admin','ceo']:
+        # Admin/CEO can set targets for Staff and Branch Managers
+        employees = safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved')
+            .in_('role', ['Staff','Branch Manager']).order('full_name')
         ))
     else:  # Stock Controller / Assistant Stock Controller
         employees = safe_data(execute_query(
@@ -2031,6 +2039,26 @@ def marketer_reports():
     ))
     return render_template('marketer_reports.html', reports=reports, marketers=marketers,
                          filter_from=filter_from, filter_to=filter_to, filter_marketer=filter_marketer, company=COMPANY_NAME)
+
+# ---------- ADMIN RESET ATTENDANCE ----------
+@app.route('/admin/reset-attendance', methods=['GET','POST'])
+@login_required
+@admin_required
+def reset_attendance():
+    if request.method == 'POST':
+        emp_name = request.form.get('employee_name','').strip()
+        att_date = request.form.get('attendance_date','').strip()
+        if emp_name and att_date:
+            # Delete the attendance record for that employee and date
+            supabase.table('attendance').delete().eq('full_name', emp_name).eq('date', att_date).execute()
+            return redirect('/admin/reset-attendance?success=1')
+        return redirect('/admin/reset-attendance?error=1')
+    employees = safe_data(execute_query(
+        supabase.table('employees').select('full_name').eq('status','approved').order('full_name')
+    ))
+    return render_template('admin_reset_attendance.html', employees=employees,
+                           success=request.args.get('success',''), error=request.args.get('error',''),
+                           company=COMPANY_NAME)
 
 # ---------- ERROR HANDLER ----------
 @app.errorhandler(Exception)
