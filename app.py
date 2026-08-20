@@ -1449,13 +1449,19 @@ def leaves():
                .gte('leave_start', f'{year}-01-01').lte('leave_start', f'{year}-12-31')
     ))
     used_days = sum(d['total_days'] for d in used_annual)
-    # Get override
-    emp_data = safe_data(execute_query(supabase.table('employees').select('annual_leave_remaining_override').eq('full_name', un).limit(1)))
-    override = emp_data[0].get('annual_leave_remaining_override') if emp_data else None
+
+    # Get manual override (if any) and subtract used days
+    emp_override = safe_data(execute_query(
+        supabase.table('employees').select('annual_leave_remaining_override')
+        .eq('full_name', un).limit(1)
+    ))
+    override = emp_override[0].get('annual_leave_remaining_override') if emp_override else None
+
     if override is not None:
-        annual_remaining = override
+        annual_remaining = max(0, override - used_days)
     else:
         annual_remaining = max(0, 21 - used_days)
+
     return render_template('leaves.html',
         leaves=my_leaves, today=today, company=COMPANY_NAME,
         success_msg=request.args.get('success',''), error=request.args.get('error',''),
@@ -1732,7 +1738,7 @@ def targets_page():
     targets = safe_data(execute_query(supabase.table('sales_targets').select('*').order('month', desc=True).order('full_name').limit(100)))
     return render_template('targets.html', employees=employees, targets=targets, today=str(now_eat().date()), company=COMPANY_NAME)
 
-# ---------- TARGET PROGRESS (visible to management roles) ----------
+# ---------- TARGET PROGRESS ----------
 @app.route('/targets-progress')
 @login_required
 def targets_progress():
@@ -1844,21 +1850,44 @@ def procurement_delegation():
 @app.route('/hr/annual-leave')
 @login_required
 def hr_annual_leave():
-    if session.get('role') not in ['HR','HR Assistant']: return redirect('/')
+    if session.get('role') not in ['HR','HR Assistant']:
+        return redirect('/')
     year = str(now_eat().year)
-    employees = safe_data(execute_query(
-        supabase.table('employees').select('id, full_name, department, branch, role, annual_leave_remaining_override')
-               .eq('status','approved').order('full_name').limit(500)
+
+    # Fetch all approved annual leaves for the year in ONE query
+    leaves = safe_data(execute_query(
+        supabase.table('leaves')
+        .select('full_name, total_days, leave_type, status')
+        .eq('leave_type', 'Annual Leave')
+        .eq('status', 'approved_final')
+        .gte('leave_start', f'{year}-01-01')
+        .lte('leave_start', f'{year}-12-31')
+        .limit(10000)
     ))
+
+    # Group used days per employee
+    used_days = defaultdict(int)
+    for l in leaves:
+        used_days[l['full_name']] += int(l['total_days'])
+
+    # Fetch all approved employees in ONE query
+    employees = safe_data(execute_query(
+        supabase.table('employees')
+        .select('id, full_name, department, branch, role, annual_leave_remaining_override')
+        .eq('status', 'approved')
+        .order('full_name')
+        .limit(1000)
+    ))
+
+    # Attach used days and remaining (override reduces with usage)
     for emp in employees:
-        used = safe_data(execute_query(
-            supabase.table('leaves').select('total_days').eq('full_name', emp['full_name'])
-                   .eq('leave_type', 'Annual Leave').eq('status', 'approved_final')
-                   .gte('leave_start', f'{year}-01-01').lte('leave_start', f'{year}-12-31')
-        ))
-        emp['used_days'] = sum(d['total_days'] for d in used)
+        emp['used_days'] = used_days.get(emp['full_name'], 0)
         override = emp.get('annual_leave_remaining_override')
-        emp['remaining'] = override if override is not None else max(0, 21 - emp['used_days'])
+        if override is not None:
+            emp['remaining'] = max(0, override - emp['used_days'])
+        else:
+            emp['remaining'] = max(0, 21 - emp['used_days'])
+
     return render_template('hr_annual_leave.html', employees=employees, year=year, company=COMPANY_NAME)
 
 @app.route('/hr/annual-leave/update/<int:eid>', methods=['POST'])
@@ -1880,7 +1909,7 @@ def hr_leaves():
     status_filter = request.args.get('status', '')
     from_date = request.args.get('from_date', '')
     to_date = request.args.get('to_date', '')
-    query = supabase.table('leaves').select('*').order('created_at', desc=True).limit(2000)
+    query = supabase.table('leaves').select('id, full_name, role, leave_start, leave_end, total_days, leave_type, status, approved_by').order('created_at', desc=True).limit(1000)
     if status_filter:
         query = query.eq('status', status_filter)
     if from_date:
