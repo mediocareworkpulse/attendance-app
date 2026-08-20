@@ -922,7 +922,7 @@ def attendance_history():
     return render_template('attendance_history.html', records=records, period=period,
                          from_date=sd, to_date=ed, today=str(today), company=COMPANY_NAME)
 
-# ---------- SALES (with duplicate check and confirmation) ----------
+# ---------- SALES ----------
 @app.route('/sales', methods=['GET','POST'])
 @login_required
 def sales_page():
@@ -1449,7 +1449,13 @@ def leaves():
                .gte('leave_start', f'{year}-01-01').lte('leave_start', f'{year}-12-31')
     ))
     used_days = sum(d['total_days'] for d in used_annual)
-    annual_remaining = max(0, 21 - used_days)
+    # Get override
+    emp_data = safe_data(execute_query(supabase.table('employees').select('annual_leave_remaining_override').eq('full_name', un).limit(1)))
+    override = emp_data[0].get('annual_leave_remaining_override') if emp_data else None
+    if override is not None:
+        annual_remaining = override
+    else:
+        annual_remaining = max(0, 21 - used_days)
     return render_template('leaves.html',
         leaves=my_leaves, today=today, company=COMPANY_NAME,
         success_msg=request.args.get('success',''), error=request.args.get('error',''),
@@ -1712,16 +1718,50 @@ def targets_page():
                 }, on_conflict='full_name,month').execute()
         except: pass
         return redirect('/targets')
+    # Filter employees based on role
     if user_role == 'Sales Manager':
         employees = safe_data(execute_query(
-            supabase.table('employees').select('full_name').eq('status','approved').eq('role','Marketers').order('full_name')
+            supabase.table('employees').select('full_name').eq('status','approved')
+            .eq('role', MARKETER_ROLE).order('full_name')
         ))
-    else:
+    else:  # Stock Controller / Assistant Stock Controller
         employees = safe_data(execute_query(
-            supabase.table('employees').select('full_name').eq('status','approved').order('full_name')
+            supabase.table('employees').select('full_name').eq('status','approved')
+            .in_('role', ['Staff','Branch Manager']).order('full_name')
         ))
     targets = safe_data(execute_query(supabase.table('sales_targets').select('*').order('month', desc=True).order('full_name').limit(100)))
     return render_template('targets.html', employees=employees, targets=targets, today=str(now_eat().date()), company=COMPANY_NAME)
+
+# ---------- TARGET PROGRESS (visible to management roles) ----------
+@app.route('/targets-progress')
+@login_required
+def targets_progress():
+    allowed = ['admin','ceo','Stock Controller','Assistant Stock Controller','HR','HR Assistant','Accountant','Accountant Assistant']
+    if session.get('role') not in allowed:
+        return redirect('/')
+    month = request.args.get('month', str(now_eat().date().replace(day=1)))
+    targets = safe_data(execute_query(
+        supabase.table('sales_targets').select('*').eq('month', month).limit(1000)
+    ))
+    progress = []
+    for t in targets:
+        emp_name = t['full_name']
+        target_amt = float(t['target_amount'])
+        sales = safe_data(execute_query(
+            supabase.table('sales').select('total_sales')
+            .eq('full_name', emp_name)
+            .gte('date', month + '-01').lte('date', month + '-31')
+        ))
+        total_sales = sum(float(s['total_sales']) for s in sales)
+        percent = round((total_sales / target_amt * 100), 1) if target_amt > 0 else 0
+        progress.append({
+            'full_name': emp_name,
+            'target_amount': target_amt,
+            'total_sales': total_sales,
+            'percent': percent,
+            'achieved': total_sales >= target_amt
+        })
+    return render_template('targets_progress.html', progress=progress, month=month, company=COMPANY_NAME)
 
 # ---------- LIVE STATUS ----------
 @app.route('/live-status')
@@ -1877,34 +1917,59 @@ def hr_attendance_report():
 
     employees = safe_data(execute_query(
         supabase.table('employees').select('full_name, branch, department')
-        .eq('status', 'approved').order('full_name').limit(500)
+        .eq('status','approved').order('full_name').limit(500)
     ))
     emp_names = [e['full_name'] for e in employees]
+
     att_records = safe_data(execute_query(
-        supabase.table('attendance').select('full_name, date, status, check_in')
+        supabase.table('attendance')
+        .select('full_name, date, status, check_in, check_out')
         .gte('date', str(start_date)).lte('date', str(end_date))
         .in_('full_name', emp_names)
-        .limit(2000)
+        .limit(5000)
     ))
     att_dict = defaultdict(dict)
     for a in att_records:
-        att_dict[a['full_name']][a['date']] = a.get('status','present')
+        att_dict[a['full_name']][a['date']] = a
+
+    leave_records = safe_data(execute_query(
+        supabase.table('leaves')
+        .select('full_name, leave_start, leave_end, status')
+        .in_('status', ['approved_final','approved_by_manager','approved_by_procurement','approved_by_ops'])
+        .lte('leave_start', str(end_date))
+        .gte('leave_end', str(start_date))
+        .in_('full_name', emp_names)
+        .limit(5000)
+    ))
+    leave_dates = defaultdict(set)
+    for l in leave_records:
+        lstart = datetime.strptime(l['leave_start'], '%Y-%m-%d').date()
+        lend = datetime.strptime(l['leave_end'], '%Y-%m-%d').date()
+        d = lstart
+        while d <= lend:
+            if d.weekday() < 5:
+                leave_dates[l['full_name']].add(str(d))
+            d += timedelta(days=1)
 
     days = []
     cur = start_date
     while cur <= end_date:
-        days.append(str(cur))
+        if cur.weekday() < 5:
+            days.append(str(cur))
         cur += timedelta(days=1)
 
     table = []
     for emp in employees:
         row = {'name': emp['full_name'], 'branch': emp['branch'], 'dept': emp['department']}
         for d in days:
-            st = att_dict.get(emp['full_name'], {}).get(d)
-            if st == 'late':
-                row[d] = 'Late'
-            elif st:
-                row[d] = 'Present'
+            att = att_dict.get(emp['full_name'], {}).get(d)
+            if d in leave_dates.get(emp['full_name'], set()):
+                row[d] = 'Leave'
+            elif att and att.get('check_in'):
+                if att.get('status') == 'late':
+                    row[d] = 'Late'
+                else:
+                    row[d] = 'Present'
             else:
                 row[d] = 'Absent'
         table.append(row)
