@@ -1462,7 +1462,6 @@ def leaves():
     ))
     used_days = sum(d['total_days'] for d in used_annual)
 
-    # Manual override acts as starting balance, remaining = override - used
     emp_override = safe_data(execute_query(
         supabase.table('employees').select('annual_leave_remaining_override')
         .eq('full_name', un).limit(1)
@@ -1471,14 +1470,16 @@ def leaves():
 
     if override is not None:
         annual_remaining = max(0, override - used_days)
+        total_used_display = 21 - annual_remaining  # days taken total
     else:
         annual_remaining = max(0, 21 - used_days)
+        total_used_display = used_days
 
     return render_template('leaves.html',
         leaves=my_leaves, today=today, company=COMPANY_NAME,
         success_msg=request.args.get('success',''), error=request.args.get('error',''),
         departments=DEPARTMENTS, roles=ALL_ROLES,
-        annual_remaining=annual_remaining, used_annual=used_days)
+        annual_remaining=annual_remaining, used_annual=total_used_display)
 
 @app.route('/leaves/edit/<int:lid>', methods=['POST'])
 @login_required
@@ -1883,9 +1884,9 @@ def hr_annual_leave():
         .limit(10000)
     ))
 
-    used_days = defaultdict(int)
+    system_used = defaultdict(int)
     for l in leaves:
-        used_days[l['full_name']] += int(l['total_days'])
+        system_used[l['full_name']] += int(l['total_days'])
 
     employees = safe_data(execute_query(
         supabase.table('employees')
@@ -1896,12 +1897,16 @@ def hr_annual_leave():
     ))
 
     for emp in employees:
-        emp['used_days'] = used_days.get(emp['full_name'], 0)
+        sys_used = system_used.get(emp['full_name'], 0)
         override = emp.get('annual_leave_remaining_override')
         if override is not None:
-            emp['remaining'] = max(0, override - emp['used_days'])
+            remaining = max(0, override - sys_used)
+            total_used = 21 - remaining
         else:
-            emp['remaining'] = max(0, 21 - emp['used_days'])
+            remaining = max(0, 21 - sys_used)
+            total_used = sys_used
+        emp['used_days'] = total_used
+        emp['remaining'] = remaining
 
     return render_template('hr_annual_leave.html', employees=employees, year=year, company=COMPANY_NAME)
 
@@ -2049,7 +2054,6 @@ def reset_attendance():
         emp_name = request.form.get('employee_name','').strip()
         att_date = request.form.get('attendance_date','').strip()
         if emp_name and att_date:
-            # Delete the attendance record for that employee and date
             supabase.table('attendance').delete().eq('full_name', emp_name).eq('date', att_date).execute()
             return redirect('/admin/reset-attendance?success=1')
         return redirect('/admin/reset-attendance?error=1')
