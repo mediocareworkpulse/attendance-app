@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">🎯 Sales Target Progress</h1>
+<p class="page-subtitle">{{ company }} – Month: {{ month }}</p>
+
+<form method="GET" class="form-grid" style="margin-bottom:16px;">
+    <div>
+        <label>Month</label>
+        <input type="month" name="month" value="{{ month }}" onchange="this.form.submit()">
+    </div>
+</form>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Target</th>
+                <th>Achieved</th>
+                <th>Percent</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for p in progress %}
+        <tr>
+            <td class="td-name">{{ p.full_name }}</td>
+            <td>Ksh {{ "%.2f"|format(p.target_amount) }}</td>
+            <td>Ksh {{ "%.2f"|format(p.total_sales) }}</td>
+            <td>{{ p.percent }}%</td>
+            <td>
+                {% if p.achieved %}
+                <span class="badge badge-success">Achieved</span>
+                {% else %}
+                <span class="badge badge-warning">In Progress</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
