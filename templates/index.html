@@ -54,6 +54,24 @@
 </div>
 {% endif %}
 
+{% if target_progress %}
+<div class="target-progress-card">
+    <h3 style="font-size:15px;">🎯 My Monthly Target</h3>
+    <div style="display:flex; justify-content:space-between;">
+        <span>Ksh {{ "%.2f"|format(target_progress.current) }} / {{ "%.2f"|format(target_progress.target) }}</span>
+        <span>{{ target_progress.percent }}%</span>
+    </div>
+    <div class="progress-bar-bg">
+        <div class="progress-bar-fill" style="width:{{ target_progress.percent }}%;">
+            <span class="progress-text">{{ target_progress.percent }}%</span>
+        </div>
+    </div>
+    {% if target_progress.achieved %}
+    <div class="alert alert-success">🏆 Target achieved!</div>
+    {% endif %}
+</div>
+{% endif %}
+
 {% if target_achieved %}
 <div class="alert alert-success">🎉 Congratulations! You’ve hit your monthly sales target!</div>
 {% endif %}
