@@ -465,7 +465,7 @@ def home():
     target_progress = None
     target_achieved = False
     if role in SALES_SUBMIT_ROLES:
-        month_str = str(now_eat().date().replace(day=1))
+        month_str = now_eat().date().replace(day=1).strftime('%Y-%m')   # FIX: correct month format
         target = safe_data(execute_query(supabase.table('sales_targets').select('target_amount').eq('full_name',un).eq('month',month_str).limit(1)))
         if target:
             target_amt = float(target[0]['target_amount'])
@@ -1085,7 +1085,7 @@ def sales_page():
         total_branch = sum(float(s['total_sales']) for s in branch_sales)
 
     target_progress = None
-    month_str = str(now_eat().date().replace(day=1))
+    month_str = now_eat().date().replace(day=1).strftime('%Y-%m')   # FIX: correct month format
     target = safe_data(execute_query(supabase.table('sales_targets').select('target_amount').eq('full_name',un).eq('month',month_str).limit(1)))
     if target:
         target_amt = float(target[0]['target_amount'])
@@ -1875,12 +1875,10 @@ def hr_annual_leave():
         .limit(10000)
     ))
 
-    # Group used days per employee
     used_days = defaultdict(int)
     for l in leaves:
         used_days[l['full_name']] += int(l['total_days'])
 
-    # Fetch all approved employees in ONE query
     employees = safe_data(execute_query(
         supabase.table('employees')
         .select('id, full_name, department, branch, role, annual_leave_remaining_override')
@@ -1889,7 +1887,6 @@ def hr_annual_leave():
         .limit(1000)
     ))
 
-    # Attach used days and remaining (override reduces with usage)
     for emp in employees:
         emp['used_days'] = used_days.get(emp['full_name'], 0)
         override = emp.get('annual_leave_remaining_override')
