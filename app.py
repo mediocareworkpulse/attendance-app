@@ -465,12 +465,12 @@ def home():
     target_progress = None
     target_achieved = False
     if role in SALES_SUBMIT_ROLES:
-        month_str = now_eat().date().replace(day=1).strftime('%Y-%m')   # FIX: correct month format
+        month_str = now_eat().date().replace(day=1).strftime('%Y-%m')
         target = safe_data(execute_query(supabase.table('sales_targets').select('target_amount').eq('full_name',un).eq('month',month_str).limit(1)))
         if target:
             target_amt = float(target[0]['target_amount'])
-            ms = today.replace(day=1)
-            my_sales = safe_data(execute_query(supabase.table('sales').select('total_sales').eq('full_name',un).gte('date',str(ms)).lte('date',today)))
+            month_start = datetime.strptime(month_str + '-01', '%Y-%m-%d').date()
+            my_sales = safe_data(execute_query(supabase.table('sales').select('total_sales').eq('full_name',un).gte('date',str(month_start)).lte('date',today)))
             month_total = sum(float(s['total_sales']) for s in my_sales)
             remaining = max(0, target_amt - month_total)
             target_progress = {
@@ -1085,12 +1085,12 @@ def sales_page():
         total_branch = sum(float(s['total_sales']) for s in branch_sales)
 
     target_progress = None
-    month_str = now_eat().date().replace(day=1).strftime('%Y-%m')   # FIX: correct month format
+    month_str = now_eat().date().replace(day=1).strftime('%Y-%m')
     target = safe_data(execute_query(supabase.table('sales_targets').select('target_amount').eq('full_name',un).eq('month',month_str).limit(1)))
     if target:
         target_amt = float(target[0]['target_amount'])
-        ms = today.replace(day=1)
-        my_sales = safe_data(execute_query(supabase.table('sales').select('total_sales').eq('full_name',un).gte('date',str(ms)).lte('date',today)))
+        month_start = datetime.strptime(month_str + '-01', '%Y-%m-%d').date()
+        my_sales = safe_data(execute_query(supabase.table('sales').select('total_sales').eq('full_name',un).gte('date',str(month_start)).lte('date',today)))
         month_total = sum(float(s['total_sales']) for s in my_sales)
         remaining = max(0, target_amt - month_total)
         target_progress = {'target': target_amt, 'current': month_total, 'remaining': remaining,
