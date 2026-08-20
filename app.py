@@ -461,6 +461,8 @@ def home():
 
     pending = len(safe_data(execute_query(supabase.table('employees').select('id').eq('status','pending')))) if role in FULL_ACCESS_ROLES else 0
 
+    # Calculate target progress for staff and branch managers
+    target_progress = None
     target_achieved = False
     if role in SALES_SUBMIT_ROLES:
         month_str = str(now_eat().date().replace(day=1))
@@ -470,7 +472,15 @@ def home():
             ms = today.replace(day=1)
             my_sales = safe_data(execute_query(supabase.table('sales').select('total_sales').eq('full_name',un).gte('date',str(ms)).lte('date',today)))
             month_total = sum(float(s['total_sales']) for s in my_sales)
-            if month_total >= target_amt and target_amt > 0:
+            remaining = max(0, target_amt - month_total)
+            target_progress = {
+                'target': target_amt,
+                'current': month_total,
+                'remaining': remaining,
+                'percent': round((month_total / target_amt * 100), 1) if target_amt > 0 else 0,
+                'achieved': month_total >= target_amt
+            }
+            if target_progress['achieved']:
                 target_achieved = True
 
     return render_template('index.html',
@@ -479,7 +489,8 @@ def home():
         total_sales=total_sales, recent_records=records,
         user_checked_in=uci, user_checked_out=uco, user_status=user_status,
         pending_count=pending, show_sales_card=show_sales_card,
-        target_achieved=target_achieved, leave_remaining=leave_remaining,
+        target_achieved=target_achieved, target_progress=target_progress,
+        leave_remaining=leave_remaining,
         company=COMPANY_NAME)
 
 # ---------- ADMIN PANEL ----------
@@ -532,7 +543,7 @@ def reject(eid):
     supabase.table('employees').delete().eq('id',eid).execute()
     return redirect('/approvals')
 
-# ---------- ADMIN SALES MANAGEMENT (shows individual + branch sales, edit/delete both) ----------
+# ---------- ADMIN SALES MANAGEMENT ----------
 @app.route('/admin/sales')
 @login_required
 @admin_required
@@ -1264,7 +1275,7 @@ def export_sales():
     output = si.getvalue(); si.close()
     return Response(output, mimetype='text/csv', headers={"Content-Disposition": "attachment;filename=sales_report.csv"})
 
-# ---------- ATTENDANCE SUMMARY (optimized) ----------
+# ---------- ATTENDANCE SUMMARY ----------
 @app.route('/attendance-summary')
 @login_required
 def attendance_summary():
@@ -1395,7 +1406,7 @@ def reject_shift_change(rid):
     supabase.table('shift_change_requests').update({'status':'rejected'}).eq('id', rid).execute()
     return redirect('/shift-change')
 
-# ---------- LEAVES (weekday only) ----------
+# ---------- LEAVES ----------
 @app.route('/leaves', methods=['GET','POST'])
 @login_required
 def leaves():
@@ -1450,7 +1461,6 @@ def leaves():
     ))
     used_days = sum(d['total_days'] for d in used_annual)
 
-    # Get manual override (if any) and subtract used days
     emp_override = safe_data(execute_query(
         supabase.table('employees').select('annual_leave_remaining_override')
         .eq('full_name', un).limit(1)
