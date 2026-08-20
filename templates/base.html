@@ -72,8 +72,8 @@
         {% if session.role == 'Marketers' %}
             <a href="/my-places" class="{% if request.path == '/my-places' %}active{% endif %}">📍 My Places</a>
         {% endif %}
-        {% if session.role in TARGET_SETTER_ROLES %}
-            <a href="/targets" class="{% if request.path == '/targets' %}active{% endif %}">🎯 Sales Targets</a>
+        {% if session.role in ['Stock Controller','Assistant Stock Controller','Sales Manager'] %}
+            <a href="/targets" class="{% if request.path == '/targets' %}active{% endif %}">🎯 Set Targets</a>
         {% endif %}
         {% if session.role in ['admin','ceo','Stock Controller','Assistant Stock Controller','HR','HR Assistant','Accountant','Accountant Assistant'] %}
             <a href="/targets-progress" class="{% if request.path == '/targets-progress' %}active{% endif %}">🎯 Target Progress</a>
@@ -151,10 +151,8 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('table').forEach(function(table) {
-        // Only add search if table has at least one row
         if (table.querySelector('tbody tr') === null) return;
         
-        // Create search box
         const searchDiv = document.createElement('div');
         searchDiv.style.cssText = 'margin-bottom:10px; text-align:right;';
         const searchInput = document.createElement('input');
@@ -164,7 +162,6 @@ document.addEventListener('DOMContentLoaded', function() {
         searchDiv.appendChild(searchInput);
         table.parentNode.insertBefore(searchDiv, table);
 
-        // Search functionality
         searchInput.addEventListener('keyup', function() {
             const filter = searchInput.value.toLowerCase();
             const rows = table.querySelectorAll('tbody tr');
@@ -174,7 +171,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
-        // Sortable headers
         const headers = table.querySelectorAll('th');
         headers.forEach((header, index) => {
             header.style.cursor = 'pointer';
@@ -182,7 +178,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const tbody = table.querySelector('tbody');
                 const rows = Array.from(tbody.querySelectorAll('tr'));
                 const isAsc = header.classList.contains('asc');
-                // Remove sorting classes from all headers
                 headers.forEach(h => { h.classList.remove('asc','desc'); });
                 header.classList.add(isAsc ? 'desc' : 'asc');
 
