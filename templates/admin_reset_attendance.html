@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">🔄 Reset Attendance</h1>
+<p class="page-subtitle">{{ company }} – Remove a mistaken check-in/check-out</p>
+
+{% if success %}
+<div class="alert alert-success">✅ Attendance record deleted successfully. The employee can now check in again.</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-error">⚠️ Please provide both employee and date.</div>
+{% endif %}
+
+<div class="form-card" style="max-width:600px;">
+    <form method="POST" class="form-grid" style="grid-template-columns:1fr 1fr; gap:12px;">
+        <div>
+            <label>Employee</label>
+            <select name="employee_name" required>
+                <option value="">-- Select Employee --</option>
+                {% for e in employees %}
+                <option value="{{ e.full_name }}">{{ e.full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Attendance Date</label>
+            <input type="date" name="attendance_date" required max="{{ today }}">
+        </div>
+        <div style="grid-column:span 2;">
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Delete this attendance record? The employee will be able to check in again.')">
+                🗑️ Remove Attendance Record
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
