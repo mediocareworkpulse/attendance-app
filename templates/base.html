@@ -75,6 +75,9 @@
         {% if session.role in TARGET_SETTER_ROLES %}
             <a href="/targets" class="{% if request.path == '/targets' %}active{% endif %}">🎯 Sales Targets</a>
         {% endif %}
+        {% if session.role in ['admin','ceo','Stock Controller','Assistant Stock Controller','HR','HR Assistant','Accountant','Accountant Assistant'] %}
+            <a href="/targets-progress" class="{% if request.path == '/targets-progress' %}active{% endif %}">🎯 Target Progress</a>
+        {% endif %}
         {% if session.role == 'Procurement Officer' %}
             <a href="/procurement/delegation" class="{% if request.path == '/procurement/delegation' %}active{% endif %}">🔄 Delegation</a>
         {% endif %}
