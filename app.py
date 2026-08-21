@@ -1423,7 +1423,7 @@ def reject_shift_change(rid):
     supabase.table('shift_change_requests').update({'status':'rejected'}).eq('id', rid).execute()
     return redirect('/shift-change')
 
-# ---------- LEAVES ----------
+# ---------- LEAVES (updated with stand-in and branch employees) ----------
 @app.route('/leaves', methods=['GET','POST'])
 @login_required
 def leaves():
@@ -1452,7 +1452,7 @@ def leaves():
                     my_leaves = safe_data(execute_query(supabase.table('leaves').select('*').eq('full_name',un).order('created_at',desc=True).limit(50)))
                     return render_template('leaves.html', leaves=my_leaves, today=today, company=COMPANY_NAME,
                         error='Annual leave limit is 21 days. You have already used {} day(s).'.format(used_days),
-                        departments=DEPARTMENTS, roles=ALL_ROLES)
+                        departments=DEPARTMENTS, roles=ALL_ROLES, branch_employees=[])
             emp_data = safe_data(execute_query(
                 supabase.table('employees').select('branch, department, role').eq('full_name', un).limit(1)
             ))
@@ -1475,6 +1475,7 @@ def leaves():
                 'status': 'pending'
             }).execute()
         return redirect('/leaves?success=1')
+    # GET request
     my_leaves = safe_data(execute_query(supabase.table('leaves').select('*').eq('full_name',un).order('created_at',desc=True).limit(50)))
     year = str(now_eat().year)
     used_annual = safe_data(execute_query(
@@ -1501,11 +1502,23 @@ def leaves():
         annual_remaining = max(0, 21 - used_days)
         total_used_display = used_days
 
+    # Fetch branch employees for stand-in dropdown
+    emp_branch = safe_data(execute_query(
+        supabase.table('employees').select('branch').eq('full_name', un).limit(1)
+    ))
+    branch = emp_branch[0].get('branch','') if emp_branch else session.get('branch','')
+    branch_employees = []
+    if branch:
+        branch_employees = safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').eq('branch', branch).neq('full_name', un).order('full_name')
+        ))
+
     return render_template('leaves.html',
         leaves=my_leaves, today=today, company=COMPANY_NAME,
         success_msg=request.args.get('success',''), error=request.args.get('error',''),
         departments=DEPARTMENTS, roles=ALL_ROLES,
-        annual_remaining=annual_remaining, used_annual=total_used_display)
+        annual_remaining=annual_remaining, used_annual=total_used_display,
+        branch_employees=branch_employees)
 
 @app.route('/leaves/edit/<int:lid>', methods=['POST'])
 @login_required
@@ -1768,7 +1781,7 @@ def targets_page():
             supabase.table('employees').select('full_name').eq('status','approved')
             .eq('role', MARKETER_ROLE).order('full_name')
         ))
-    else:  # admin/ceo/stock controller
+    else:
         employees = safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved')
             .in_('role', ['Staff','Branch Manager']).order('full_name')
