@@ -84,15 +84,33 @@
             </div>
             <div><label>Emergency Contact Number (optional)</label><input type="text" name="emergency_contact" placeholder="Phone number for urgent matters"></div>
             <div></div>
-            <!-- Stand-in fields -->
-            <div style="grid-column: span 2;">
-                <label>Stand-in Person Name (optional)</label>
-                <input type="text" name="standin_name" placeholder="Who will cover for you on specific days?">
+        </div>
+
+        <!-- STAND-IN SECTION -->
+        <div class="section-title" style="font-weight:800; font-size:13px; border-bottom:1px solid #333; margin:18px 0 10px; text-transform:uppercase;">STAND-IN PERSON (Optional)</div>
+        <p style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">If you have someone covering specific days, select them below and add the dates they will stand in for you. These days won't be deducted from your leave balance.</p>
+        <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+                <label>Stand-in Person (from your branch)</label>
+                <select name="standin_name" id="standin_name">
+                    <option value="">-- None --</option>
+                    {% for emp in branch_employees %}
+                    <option value="{{ emp.full_name }}">{{ emp.full_name }}</option>
+                    {% endfor %}
+                </select>
             </div>
-            <div style="grid-column: span 2;">
-                <label>Stand-in Dates (comma separated, e.g., 2025-08-20,2025-08-21)</label>
-                <input type="text" name="standin_dates" placeholder="Dates covered by stand-in">
+            <div></div>
+        </div>
+        <div style="margin-top:10px;">
+            <label>Stand-in Dates</label>
+            <div id="standinDatesContainer">
+                <div class="standin-date-row" style="display:flex; gap:8px; margin-bottom:6px;">
+                    <input type="date" name="standin_date[]" class="standin-date" min="" max="" style="flex:1;">
+                    <button type="button" class="btn btn-sm" style="background:#e74c3c;color:#fff;width:auto;" onclick="removeStandinDate(this)">✕</button>
+                </div>
             </div>
+            <button type="button" class="btn btn-sm" style="background:var(--accent);color:#fff;width:auto;" onclick="addStandinDate()">+ Add Date</button>
+            <input type="hidden" name="standin_dates" id="standin_dates_hidden">
         </div>
 
         <!-- SECTION 5: DECLARATION -->
@@ -191,8 +209,45 @@
                 d1.setDate(d1.getDate() + 1);
             }
             document.getElementById('total_days').value = count;
+            // Set min/max for stand-in dates
+            document.querySelectorAll('.standin-date').forEach(input => {
+                input.min = start;
+                input.max = end;
+            });
         }
     }
+
+    function addStandinDate() {
+        const container = document.getElementById('standinDatesContainer');
+        const row = document.createElement('div');
+        row.className = 'standin-date-row';
+        row.style.cssText = 'display:flex; gap:8px; margin-bottom:6px;';
+        const start = document.getElementById('start_date').value;
+        const end = document.getElementById('end_date').value;
+        row.innerHTML = `
+            <input type="date" name="standin_date[]" class="standin-date" min="${start}" max="${end}" style="flex:1;">
+            <button type="button" class="btn btn-sm" style="background:#e74c3c;color:#fff;width:auto;" onclick="removeStandinDate(this)">✕</button>
+        `;
+        container.appendChild(row);
+    }
+
+    function removeStandinDate(btn) {
+        btn.parentElement.remove();
+    }
+
+    function collectStandinDates() {
+        const dates = [];
+        document.querySelectorAll('.standin-date').forEach(input => {
+            if (input.value) dates.push(input.value);
+        });
+        document.getElementById('standin_dates_hidden').value = dates.join(',');
+    }
+
+    // Attach submit event to compile dates
+    document.getElementById('leaveForm').addEventListener('submit', function(e) {
+        collectStandinDates();
+    });
+
     function openEditModal(id) {
         document.getElementById('editForm').action = '/leaves/edit/' + id;
         document.getElementById('editModal').style.display = 'flex';
