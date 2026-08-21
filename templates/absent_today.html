@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">🚫 Absent Today</h1>
+<p class="page-subtitle">{{ company }} – {{ today }}</p>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr><th>Employee</th><th>Branch</th><th>Department</th><th>Role</th></tr>
+        </thead>
+        <tbody>
+        {% for emp in absent %}
+        <tr>
+            <td class="td-name">{{ emp.full_name }}</td>
+            <td>{{ emp.branch or '—' }}</td>
+            <td>{{ emp.department or '—' }}</td>
+            <td>{{ emp.role }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
