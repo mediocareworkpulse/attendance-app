@@ -33,6 +33,7 @@
                 <th>Type</th>
                 <th>Status</th>
                 <th>Approved By</th>
+                <th>Stand-in</th>
                 <th>Action</th>
             </tr>
         </thead>
@@ -48,10 +49,25 @@
             <td>
                 {% if l.status == 'approved_final' %}<span class="badge badge-success">Approved</span>
                 {% elif l.status == 'rejected' %}<span class="badge badge-danger">Rejected</span>
-                {% else %}<span class="badge badge-warning">{{ l.status }}</span>{% endif %}
+                {% elif l.status == 'pending' %}<span class="badge badge-warning">Pending</span>
+                {% else %}<span class="badge badge-info">{{ l.status }}</span>{% endif %}
             </td>
             <td>{{ l.approved_by or '—' }}</td>
-            <td><a href="/leave-pdf/{{ l.id }}" class="btn btn-sm">📄</a></td>
+            <td>
+                {% if l.standin_name %}
+                    {{ l.standin_name }}<br><small>{{ l.standin_dates or '' }}</small>
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+            <td>
+                <a href="/leave-pdf/{{ l.id }}" class="btn btn-sm" style="background:var(--primary); color:#fff;">📄</a>
+                {% if session.role in ['admin','ceo','HR','HR Assistant'] %}
+                <form method="POST" action="/delete-leave/{{ l.id }}" style="display:inline;" onsubmit="return confirm('Delete this leave record permanently?');">
+                    <button class="btn btn-sm btn-danger">🗑️</button>
+                </form>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
         </tbody>
