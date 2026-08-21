@@ -1423,7 +1423,7 @@ def reject_shift_change(rid):
     supabase.table('shift_change_requests').update({'status':'rejected'}).eq('id', rid).execute()
     return redirect('/shift-change')
 
-# ---------- LEAVES (updated with stand-in and branch employees) ----------
+# ---------- LEAVES ----------
 @app.route('/leaves', methods=['GET','POST'])
 @login_required
 def leaves():
@@ -2117,6 +2117,16 @@ def absent_today():
         if emp['full_name'] not in checked_in_names and emp['full_name'] not in on_leave_names:
             absent.append(emp)
     return render_template('absent_today.html', absent=absent, today=today, company=COMPANY_NAME)
+
+# ---------- DELETE LEAVE (Admin/HR) ----------
+@app.route('/delete-leave/<int:lid>', methods=['POST'])
+@login_required
+def delete_leave_admin(lid):
+    allowed_roles = ['admin','ceo','HR','HR Assistant']
+    if session.get('role') not in allowed_roles:
+        return redirect('/')
+    supabase.table('leaves').delete().eq('id', lid).execute()
+    return redirect(request.referrer or '/hr/leaves')
 
 # ---------- ERROR HANDLER ----------
 @app.errorhandler(Exception)
