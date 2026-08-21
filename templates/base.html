@@ -153,11 +153,12 @@
     }
 </script>
 
-<!-- Table search & sort -->
+<!-- ═══════════ TABLE SORT & SEARCH ═══════════ -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('table').forEach(function(table) {
         if (table.querySelector('tbody tr') === null) return;
+        
         const searchDiv = document.createElement('div');
         searchDiv.style.cssText = 'margin-bottom:10px; text-align:right;';
         const searchInput = document.createElement('input');
@@ -166,6 +167,7 @@ document.addEventListener('DOMContentLoaded', function() {
         searchInput.style.cssText = 'padding:6px 10px; border-radius:20px; border:1px solid var(--border); width:200px;';
         searchDiv.appendChild(searchInput);
         table.parentNode.insertBefore(searchDiv, table);
+
         searchInput.addEventListener('keyup', function() {
             const filter = searchInput.value.toLowerCase();
             const rows = table.querySelectorAll('tbody tr');
@@ -174,6 +176,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 row.style.display = text.indexOf(filter) > -1 ? '' : 'none';
             });
         });
+
         const headers = table.querySelectorAll('th');
         headers.forEach((header, index) => {
             header.style.cursor = 'pointer';
@@ -183,6 +186,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const isAsc = header.classList.contains('asc');
                 headers.forEach(h => { h.classList.remove('asc','desc'); });
                 header.classList.add(isAsc ? 'desc' : 'asc');
+
                 const sortedRows = rows.sort((a, b) => {
                     const aVal = a.children[index].textContent.trim();
                     const bVal = b.children[index].textContent.trim();
