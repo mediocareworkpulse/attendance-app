@@ -479,6 +479,7 @@ def home():
 
     pending = len(safe_data(execute_query(supabase.table('employees').select('id').eq('status','pending')))) if role in FULL_ACCESS_ROLES else 0
 
+    # target progress
     target_progress = None
     target_achieved = False
     if role in SALES_SUBMIT_ROLES:
@@ -1475,7 +1476,8 @@ def leaves():
                 'status': 'pending'
             }).execute()
         return redirect('/leaves?success=1')
-    # GET request
+
+    # GET
     my_leaves = safe_data(execute_query(supabase.table('leaves').select('*').eq('full_name',un).order('created_at',desc=True).limit(50)))
     year = str(now_eat().year)
     used_annual = safe_data(execute_query(
@@ -1502,7 +1504,6 @@ def leaves():
         annual_remaining = max(0, 21 - used_days)
         total_used_display = used_days
 
-    # Fetch branch employees for stand-in dropdown
     emp_branch = safe_data(execute_query(
         supabase.table('employees').select('branch').eq('full_name', un).limit(1)
     ))
@@ -1528,12 +1529,19 @@ def edit_leave(lid):
     if not leave or leave[0]['status'] != 'pending': return redirect('/leaves')
     leave_start = request.form.get('leave_start','')
     leave_end = request.form.get('leave_end','')
+    standin_name = request.form.get('standin_name','')
+    standin_dates = request.form.get('standin_dates','')
+    total_weekdays = count_weekdays(leave_start, leave_end) if leave_start and leave_end else 1
+    standin_count = parse_standin_dates(standin_dates, leave_start, leave_end) if leave_start and leave_end else 0
+    total_days = max(0, total_weekdays - standin_count)
     data = {
         'leave_start': leave_start, 'leave_end': leave_end,
-        'total_days': count_weekdays(leave_start, leave_end),
+        'total_days': total_days,
         'leave_type': request.form.get('leave_type','Annual Leave'),
         'reason': request.form.get('reason',''), 'handover_notes': request.form.get('handover_notes',''),
         'backup_person': request.form.get('backup_person',''), 'emergency_contact': request.form.get('emergency_contact',''),
+        'standin_name': standin_name,
+        'standin_dates': standin_dates,
     }
     supabase.table('leaves').update(data).eq('id', lid).execute()
     return redirect('/leaves?updated=1')
