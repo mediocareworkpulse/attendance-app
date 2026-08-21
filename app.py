@@ -479,7 +479,6 @@ def home():
 
     pending = len(safe_data(execute_query(supabase.table('employees').select('id').eq('status','pending')))) if role in FULL_ACCESS_ROLES else 0
 
-    # target progress
     target_progress = None
     target_achieved = False
     if role in SALES_SUBMIT_ROLES:
@@ -1476,8 +1475,6 @@ def leaves():
                 'status': 'pending'
             }).execute()
         return redirect('/leaves?success=1')
-
-    # GET
     my_leaves = safe_data(execute_query(supabase.table('leaves').select('*').eq('full_name',un).order('created_at',desc=True).limit(50)))
     year = str(now_eat().year)
     used_annual = safe_data(execute_query(
@@ -2135,6 +2132,25 @@ def delete_leave_admin(lid):
         return redirect('/')
     supabase.table('leaves').delete().eq('id', lid).execute()
     return redirect(request.referrer or '/hr/leaves')
+
+# ---------- ADMIN RESET ATTENDANCE ----------
+@app.route('/admin/reset-attendance', methods=['GET','POST'])
+@login_required
+@admin_required
+def reset_attendance():
+    if request.method == 'POST':
+        emp_name = request.form.get('employee_name','').strip()
+        att_date = request.form.get('attendance_date','').strip()
+        if emp_name and att_date:
+            supabase.table('attendance').delete().eq('full_name', emp_name).eq('date', att_date).execute()
+            return redirect('/admin/reset-attendance?success=1')
+        return redirect('/admin/reset-attendance?error=1')
+    employees = safe_data(execute_query(
+        supabase.table('employees').select('full_name').eq('status','approved').order('full_name')
+    ))
+    return render_template('admin_reset_attendance.html', employees=employees,
+                           success=request.args.get('success',''), error=request.args.get('error',''),
+                           company=COMPANY_NAME)
 
 # ---------- ERROR HANDLER ----------
 @app.errorhandler(Exception)
