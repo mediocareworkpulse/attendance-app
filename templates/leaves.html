@@ -84,6 +84,15 @@
             </div>
             <div><label>Emergency Contact Number (optional)</label><input type="text" name="emergency_contact" placeholder="Phone number for urgent matters"></div>
             <div></div>
+            <!-- Stand-in fields -->
+            <div style="grid-column: span 2;">
+                <label>Stand-in Person Name (optional)</label>
+                <input type="text" name="standin_name" placeholder="Who will cover for you on specific days?">
+            </div>
+            <div style="grid-column: span 2;">
+                <label>Stand-in Dates (comma separated, e.g., 2025-08-20,2025-08-21)</label>
+                <input type="text" name="standin_dates" placeholder="Dates covered by stand-in">
+            </div>
         </div>
 
         <!-- SECTION 5: DECLARATION -->
@@ -178,7 +187,7 @@
             let count = 0;
             while (d1 <= d2) {
                 const day = d1.getDay();
-                if (day !== 0 && day !== 6) count++;  // skip Sunday (0) and Saturday (6)
+                if (day !== 0 && day !== 6) count++;
                 d1.setDate(d1.getDate() + 1);
             }
             document.getElementById('total_days').value = count;
