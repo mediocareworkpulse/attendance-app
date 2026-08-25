@@ -398,78 +398,112 @@ def home():
         session.get('department','') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant']
     )
 
+    # ----- Determine team scope -----
+    team_names = None
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant'] or can_view_all():
-        emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').eq('blocked',False))
-        att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50))
-        sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today))
-        on_leave_count = count_employees_on_leave()
+        pass
     elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
-        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)))]
-        att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
-        sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names)) if show_sales_card else []
-        emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM))
-        on_leave_count = count_employees_on_leave(team_names=team_names)
+        team_names = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)
+        ))]
     elif role == 'Sales Manager':
-        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',[MARKETER_ROLE,'Telesales'])))]
+        team_names = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').in_('role',[MARKETER_ROLE,'Telesales'])
+        ))]
         team_names.append(un)
-        att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
-        sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names)) if show_sales_card else []
-        emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').in_('full_name',team_names))
-        on_leave_count = count_employees_on_leave(team_names=team_names)
     elif role == 'Branch Manager':
-        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('branch',ub)))]
-        att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names))
-        sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).in_('full_name',team_names)) if show_sales_card else []
-        emp_r = execute_query(supabase.table('employees').select('id').eq('status','approved').eq('branch',ub))
-        on_leave_count = count_employees_on_leave(team_names=team_names)
+        team_names = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').eq('branch',ub)
+        ))]
+
+    # ----- Build base queries with team filter if applicable -----
+    def apply_team(query):
+        if team_names is not None:
+            return query.in_('full_name', team_names)
+        return query
+
+    # Total employees
+    if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant'] or can_view_all():
+        emp_query = supabase.table('employees').select('id', count='exact').eq('status','approved').eq('blocked',False)
+        total_emp = execute_query(emp_query).count
+    elif team_names is not None:
+        emp_query = supabase.table('employees').select('id', count='exact').eq('status','approved').in_('full_name', team_names)
+        total_emp = execute_query(emp_query).count
     else:
-        emp_r = None
-        att_r = execute_query(supabase.table('attendance').select('*').eq('date',today).eq('full_name',un))
-        sales_r = execute_query(supabase.table('sales').select('total_sales').eq('date',today).eq('full_name',un))
-        on_leave_count = count_employees_on_leave(single_user=un)
+        total_emp = 0
 
-    total_emp = len(safe_data(emp_r)) if emp_r else 0
-    att_data = safe_data(att_r)
-    working = sum(1 for a in att_data if a.get('check_in') and not a.get('check_out'))
-    checked_out = sum(1 for a in att_data if a.get('check_out'))
-    late_count = sum(1 for a in att_data if a.get('status')=='late')
-    total_sales = sum(float(s.get('total_sales',0)) for s in safe_data(sales_r)) if show_sales_card else 0
+    # ----- Count queries -----
+    working_query = apply_team(
+        supabase.table('attendance').select('id', count='exact')
+        .eq('date', today)
+        .not_.is_('check_in', 'null')
+        .is_('check_out', 'null')
+    )
+    working = execute_query(working_query).count
 
-    my_leaves = safe_data(execute_query(
-        supabase.table('leaves').select('*').eq('full_name',un)
-        .in_('status',['approved_final','approved_by_manager'])
-        .gte('leave_end',today)
-        .order('leave_start')
-        .limit(1)
-    ))
-    leave_remaining = None
-    if my_leaves:
-        lv = my_leaves[0]
-        end_date = datetime.strptime(lv['leave_end'], '%Y-%m-%d').date()
-        remaining_days = (end_date - now_eat().date()).days
-        if remaining_days >= 0:
-            leave_remaining = {'end_date': lv['leave_end'], 'days': remaining_days}
+    checked_out_query = apply_team(
+        supabase.table('attendance').select('id', count='exact')
+        .eq('date', today)
+        .not_.is_('check_out', 'null')
+    )
+    checked_out = execute_query(checked_out_query).count
+
+    late_query = apply_team(
+        supabase.table('attendance').select('id', count='exact')
+        .eq('date', today)
+        .eq('status', 'late')
+    )
+    late_count = execute_query(late_query).count
+
+    on_leave_count = count_employees_on_leave(team_names=team_names) if team_names else count_employees_on_leave()
+
+    if show_sales_card:
+        sales_query = apply_team(
+            supabase.table('sales').select('total_sales').eq('date', today)
+        )
+        sales_data = safe_data(execute_query(sales_query))
+        total_sales = sum(float(s.get('total_sales',0)) for s in sales_data)
+    else:
+        total_sales = 0
+
+    # ----- Recent attendance records -----
+    recent_query = apply_team(
+        supabase.table('attendance').select('*').eq('date', today).order('check_in', desc=True).limit(10)
+    )
+    att_data = safe_data(execute_query(recent_query))
+
+    if att_data:
+        names = [rec['full_name'] for rec in att_data]
+        emp_details = safe_data(execute_query(
+            supabase.table('employees').select('full_name, role, department').in_('full_name', names)
+        ))
+        emp_map = {e['full_name']: e for e in emp_details}
+    else:
+        emp_map = {}
 
     records = []
-    for rec in att_data[:10]:
+    for rec in att_data:
         st = rec.get('status','present')
         if rec.get('check_out'): label = 'Checked Out'
         elif st == 'late': label = 'Arrived Late'
         else: label = 'Working'
-        try:
-            emp_detail = safe_data(execute_query(supabase.table('employees').select('role,department').eq('full_name',rec['full_name'])))
-        except: emp_detail = []
-        role_disp = emp_detail[0].get('role','') if emp_detail else ''
-        dept_disp = emp_detail[0].get('department','') if emp_detail else rec.get('department','')
+        emp = emp_map.get(rec['full_name'], {})
         records.append({
-            'full_name':rec['full_name'],'department':dept_disp,'role':role_disp,
-            'check_in':rec.get('check_in','—'),'check_out':rec.get('check_out','—'),
-            'status':st,'label':label
+            'full_name': rec['full_name'],
+            'department': emp.get('department', rec.get('department','')),
+            'role': emp.get('role',''),
+            'check_in': rec.get('check_in','—'),
+            'check_out': rec.get('check_out','—'),
+            'status': st,
+            'label': label
         })
 
+    # ----- User's own status -----
     uci=uco=False; user_status=''
     if role not in NO_CHECKIN_ROLES:
-        my = safe_data(execute_query(supabase.table('attendance').select('*').eq('full_name',un).eq('date',today)))
+        my = safe_data(execute_query(
+            supabase.table('attendance').select('*').eq('full_name', un).eq('date', today)
+        ))
         if my:
             uci = bool(my[0].get('check_in'))
             uco = bool(my[0].get('check_out'))
@@ -477,17 +511,27 @@ def home():
             elif uci: user_status = 'Working'
             else: user_status = 'Not Checked In'
 
-    pending = len(safe_data(execute_query(supabase.table('employees').select('id').eq('status','pending')))) if role in FULL_ACCESS_ROLES else 0
+    pending = 0
+    if role in FULL_ACCESS_ROLES:
+        pending = execute_query(
+            supabase.table('employees').select('id', count='exact').eq('status','pending')
+        ).count
 
+    # ----- Target progress -----
     target_progress = None
     target_achieved = False
     if role in SALES_SUBMIT_ROLES:
         month_str = now_eat().date().replace(day=1).strftime('%Y-%m')
-        target = safe_data(execute_query(supabase.table('sales_targets').select('target_amount').eq('full_name',un).eq('month',month_str).limit(1)))
+        target = safe_data(execute_query(
+            supabase.table('sales_targets').select('target_amount').eq('full_name', un).eq('month', month_str).limit(1)
+        ))
         if target:
             target_amt = float(target[0]['target_amount'])
             month_start = datetime.strptime(month_str + '-01', '%Y-%m-%d').date()
-            my_sales = safe_data(execute_query(supabase.table('sales').select('total_sales').eq('full_name',un).gte('date',str(month_start)).lte('date',today)))
+            my_sales = safe_data(execute_query(
+                supabase.table('sales').select('total_sales').eq('full_name', un)
+                .gte('date', str(month_start)).lte('date', today)
+            ))
             month_total = sum(float(s['total_sales']) for s in my_sales)
             remaining = max(0, target_amt - month_total)
             target_progress = {
@@ -507,7 +551,7 @@ def home():
         user_checked_in=uci, user_checked_out=uco, user_status=user_status,
         pending_count=pending, show_sales_card=show_sales_card,
         target_achieved=target_achieved, target_progress=target_progress,
-        leave_remaining=leave_remaining,
+        leave_remaining=leave_remaining if 'leave_remaining' in locals() else None,
         company=COMPANY_NAME)
 
 # ---------- ADMIN PANEL ----------
@@ -763,19 +807,31 @@ def check_in_page():
     un = session.get('user')
     ub = session.get('branch','')
 
+    # Marketer status
     marketer_pending = False; marketer_approved = False
     if role == MARKETER_ROLE:
-        mc = safe_data(execute_query(supabase.table('marketer_checkins').select('*').eq('full_name',un).eq('date',today).order('created_at',desc=True).limit(1)))
+        mc = safe_data(execute_query(
+            supabase.table('marketer_checkins').select('*')
+            .eq('full_name', un).eq('date', today)
+            .order('created_at', desc=True).limit(1)
+        ))
         if mc:
             if mc[0]['status'] == 'approved': marketer_approved = True
             elif mc[0]['status'] == 'pending': marketer_pending = True
 
-    emp = safe_data(execute_query(supabase.table('employees').select('shift_start,shift_end,role,department,branch').eq('full_name',un)))
+    # Employee shift info
+    emp = safe_data(execute_query(
+        supabase.table('employees').select('shift_start,shift_end,role,department,branch')
+        .eq('full_name', un)
+    ))
     emp_info = emp[0] if emp else {}
     shift_start = emp_info.get('shift_start','08:00') if role not in RIDER_DRIVER_ROLES + [MARKETER_ROLE] else None
     shift_end = emp_info.get('shift_end','17:00') if role not in RIDER_DRIVER_ROLES + [MARKETER_ROLE] else None
 
-    my_att = safe_data(execute_query(supabase.table('attendance').select('*').eq('full_name',un).eq('date',today)))
+    # User's own attendance
+    my_att = safe_data(execute_query(
+        supabase.table('attendance').select('*').eq('full_name', un).eq('date', today)
+    ))
     current_status = 'none'; check_in_time = None
     if my_att:
         rec = my_att[0]
@@ -789,26 +845,52 @@ def check_in_page():
         elif marketer_pending: current_status = 'pending'
         else: current_status = 'none'
 
+    # Journeys for riders/drivers
     journeys = []
     if role in RIDER_DRIVER_ROLES:
-        journeys = safe_data(execute_query(supabase.table('journeys').select('*').eq('full_name',un).eq('date',today).order('journey_number')))
+        journeys = safe_data(execute_query(
+            supabase.table('journeys').select('*').eq('full_name', un).eq('date', today)
+            .order('journey_number')
+        ))
 
+    # Determine which attendance records to show
+    team_names = None
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant']:
-        r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50)))
+        pass
     elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
-        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)))]
-        r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names)))
+        team_names = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved')
+            .in_('role', OPERATIONS_MANAGER_TEAM)
+        ))]
     elif role == 'Sales Manager':
-        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',[MARKETER_ROLE,'Telesales'])))]
+        team_names = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved')
+            .in_('role', [MARKETER_ROLE, 'Telesales'])
+        ))]
         team_names.append(un)
-        r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names)))
     elif role == 'Branch Manager':
-        team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').eq('branch',ub)))]
-        r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).in_('full_name',team_names)))
+        team_names = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved')
+            .eq('branch', ub)
+        ))]
     elif role in ['Stock Controller','Assistant Stock Controller']:
-        r = safe_data(execute_query(supabase.table('attendance').select('*').eq('date',today).limit(50)))
+        pass
     else:
-        r = my_att
+        team_names = [un]
+
+    query = supabase.table('attendance').select('*').eq('date', today)
+    if team_names is not None:
+        query = query.in_('full_name', team_names)
+    r = safe_data(execute_query(query.order('check_in', desc=True).limit(50)))
+
+    if r:
+        names = [rec['full_name'] for rec in r]
+        emp_details = safe_data(execute_query(
+            supabase.table('employees').select('full_name, role, department').in_('full_name', names)
+        ))
+        emp_map = {e['full_name']: e for e in emp_details}
+    else:
+        emp_map = {}
 
     records = []
     for rec in r:
@@ -816,15 +898,15 @@ def check_in_page():
         if rec.get('check_out'): label = 'Checked Out'
         elif st == 'late': label = 'Arrived Late'
         else: label = 'Working'
-        try:
-            emp_det = safe_data(execute_query(supabase.table('employees').select('role,department').eq('full_name',rec['full_name'])))
-        except: emp_det = []
-        role_disp = emp_det[0].get('role','') if emp_det else ''
-        dept_disp = emp_det[0].get('department','') if emp_det else rec.get('department','')
+        emp = emp_map.get(rec['full_name'], {})
         records.append({
-            'full_name':rec['full_name'],'department':dept_disp,'role':role_disp,
-            'check_in':rec.get('check_in','—'),'check_out':rec.get('check_out','—'),
-            'status':st,'label':label
+            'full_name': rec['full_name'],
+            'department': emp.get('department', rec.get('department','')),
+            'role': emp.get('role',''),
+            'check_in': rec.get('check_in','—'),
+            'check_out': rec.get('check_out','—'),
+            'status': st,
+            'label': label
         })
 
     return render_template('check_in.html',
