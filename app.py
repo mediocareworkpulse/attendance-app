@@ -398,41 +398,53 @@ def home():
         session.get('department','') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant']
     )
 
-    # ----- Determine team scope -----
+    # Determine team scope based on role
     team_names = None
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant'] or can_view_all():
-        pass
+        # See everything
+        team_names = None
     elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
-        team_names = [e['full_name'] for e in safe_data(execute_query(
-            supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)
+        team = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').in_('role', OPERATIONS_MANAGER_TEAM)
         ))]
+        if un not in team:
+            team.append(un)
+        team_names = team
     elif role == 'Sales Manager':
-        team_names = [e['full_name'] for e in safe_data(execute_query(
-            supabase.table('employees').select('full_name').eq('status','approved').in_('role',[MARKETER_ROLE,'Telesales'])
+        team = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').in_('role', [MARKETER_ROLE, 'Telesales'])
         ))]
-        team_names.append(un)
+        if un not in team:
+            team.append(un)
+        team_names = team
     elif role == 'Branch Manager':
-        team_names = [e['full_name'] for e in safe_data(execute_query(
-            supabase.table('employees').select('full_name').eq('status','approved').eq('branch',ub)
+        team = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').eq('branch', ub)
         ))]
+        if un not in team:
+            team.append(un)
+        team_names = team
+    else:
+        # All other roles (Staff, Dispatch Personnel, Riders, Drivers, etc.) see only themselves
+        team_names = [un]
 
-    # ----- Build base queries with team filter if applicable -----
+    # Helper to apply team filter
     def apply_team(query):
         if team_names is not None:
             return query.in_('full_name', team_names)
         return query
 
-    # Total employees
+    # Total employees (only for roles that need to see total)
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant'] or can_view_all():
         emp_query = supabase.table('employees').select('id', count='exact').eq('status','approved').eq('blocked',False)
         total_emp = execute_query(emp_query).count
-    elif team_names is not None:
+    elif role in ['Store Manager','Operations Manager','Assistant Operations Manager','Sales Manager','Branch Manager']:
         emp_query = supabase.table('employees').select('id', count='exact').eq('status','approved').in_('full_name', team_names)
         total_emp = execute_query(emp_query).count
     else:
         total_emp = 0
 
-    # ----- Count queries -----
+    # Counts
     working_query = apply_team(
         supabase.table('attendance').select('id', count='exact')
         .eq('date', today)
@@ -455,7 +467,7 @@ def home():
     )
     late_count = execute_query(late_query).count
 
-    on_leave_count = count_employees_on_leave(team_names=team_names) if team_names else count_employees_on_leave()
+    on_leave_count = count_employees_on_leave(team_names=team_names)
 
     if show_sales_card:
         sales_query = apply_team(
@@ -466,7 +478,7 @@ def home():
     else:
         total_sales = 0
 
-    # ----- Recent attendance records -----
+    # Recent attendance records
     recent_query = apply_team(
         supabase.table('attendance').select('*').eq('date', today).order('check_in', desc=True).limit(10)
     )
@@ -498,7 +510,7 @@ def home():
             'label': label
         })
 
-    # ----- User's own status -----
+    # User's own status
     uci=uco=False; user_status=''
     if role not in NO_CHECKIN_ROLES:
         my = safe_data(execute_query(
@@ -517,7 +529,7 @@ def home():
             supabase.table('employees').select('id', count='exact').eq('status','pending')
         ).count
 
-    # ----- Target progress -----
+    # Target progress (only for staff/branch manager)
     target_progress = None
     target_achieved = False
     if role in SALES_SUBMIT_ROLES:
@@ -862,17 +874,19 @@ def check_in_page():
             supabase.table('employees').select('full_name').eq('status','approved')
             .in_('role', OPERATIONS_MANAGER_TEAM)
         ))]
+        team_names.append(un) if un not in team_names else None
     elif role == 'Sales Manager':
         team_names = [e['full_name'] for e in safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved')
             .in_('role', [MARKETER_ROLE, 'Telesales'])
         ))]
-        team_names.append(un)
+        team_names.append(un) if un not in team_names else None
     elif role == 'Branch Manager':
         team_names = [e['full_name'] for e in safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved')
             .eq('branch', ub)
         ))]
+        team_names.append(un) if un not in team_names else None
     elif role in ['Stock Controller','Assistant Stock Controller']:
         pass
     else:
