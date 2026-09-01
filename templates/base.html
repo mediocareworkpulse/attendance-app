@@ -41,7 +41,7 @@
             <a href="/admin/reset-attendance" class="{% if request.path == '/admin/reset-attendance' %}active{% endif %}">🔄 Reset Attendance</a>
         {% endif %}
         {% set role_lower = session.role|lower %}
-        {% if role_lower in ['admin','ceo','hr','hr assistant','stock controller','assistant stock controller','operations manager','sales manager','procurement officer'] %}
+        {% if role_lower in ['admin','ceo','hr','hr assistant','stock controller','assistant stock controller','operations manager','sales manager','procurement officer','manager'] %}
             <a href="/contacts" class="{% if request.path == '/contacts' %}active{% endif %}">📇 Directorate</a>
         {% endif %}
         {% if role_lower in ['staff','branch manager','admin','ceo','stock controller','assistant stock controller','accountant','accountant assistant'] %}
@@ -55,7 +55,7 @@
             <a href="/sales-report" class="{% if request.path == '/sales-report' %}active{% endif %}">📊 Sales Report</a>
         {% endif %}
         <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}">🌴 Leaves</a>
-        {% if role_lower in ['store manager','operations manager','assistant operations manager','sales manager','admin','ceo','hr','hr assistant','procurement officer','stock controller','assistant stock controller','branch manager','accountant','accountant assistant'] %}
+        {% if role_lower in ['store manager','operations manager','assistant operations manager','sales manager','admin','ceo','hr','hr assistant','procurement officer','stock controller','assistant stock controller','branch manager','accountant','accountant assistant','manager'] %}
             <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}">✍️ Approve Leaves</a>
         {% endif %}
         {% if session.role in ['HR','HR Assistant'] %}
@@ -63,16 +63,16 @@
             <a href="/hr/attendance-report" class="{% if request.path == '/hr/attendance-report' %}active{% endif %}">📊 Attendance Report</a>
             <a href="/hr/annual-leave" class="{% if request.path == '/hr/annual-leave' %}active{% endif %}">📅 Annual Leave</a>
         {% endif %}
-        {% if role_lower in ['admin','ceo','hr','hr assistant','store manager','operations manager','assistant operations manager','sales manager','branch manager','procurement officer'] %}
+        {% if role_lower in ['admin','ceo','hr','hr assistant','store manager','operations manager','assistant operations manager','sales manager','branch manager','procurement officer','manager'] %}
             <a href="/live-status" class="{% if request.path == '/live-status' %}active{% endif %}">🟢 Live Status</a>
         {% endif %}
-        {% if session.role in ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager','Store Manager','Branch Manager','Procurement Officer'] %}
+        {% if session.role in ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager','Store Manager','Branch Manager','Procurement Officer','Manager'] %}
             <a href="/absent-today" class="{% if request.path == '/absent-today' %}active{% endif %}">🚫 Absent Today</a>
         {% endif %}
         {% if session.role == 'Sales Manager' %}
             <a href="/sales-manager" class="{% if request.path == '/sales-manager' %}active{% endif %}">📋 Manager Dashboard</a>
         {% endif %}
-        {% if session.role in ['admin','ceo','Sales Manager'] %}
+        {% if session.role in ['admin','ceo','Sales Manager','Manager'] %}
             <a href="/marketer-reports" class="{% if request.path == '/marketer-reports' %}active{% endif %}">📋 Marketer Reports</a>
         {% endif %}
         {% if session.role == 'Marketers' %}
