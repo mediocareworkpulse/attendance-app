@@ -45,7 +45,7 @@ MARKETER_ROLE = 'Marketers'
 SALES_MANAGER_ROLE = 'Sales Manager'
 TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller','Sales Manager','admin','ceo']
 
-# Manager‑specific constants
+# Manager-specific constants
 MANAGER_LIVE_BRANCHES = ['Kisumu HQ', 'Kisumu Retail']
 MANAGER_ATTENDANCE_ROLES = [
     'Branch Manager','Operations Manager','Assistant Operations Manager','Store Manager',
@@ -1432,32 +1432,33 @@ def attendance_summary():
     emp_query = supabase.table('employees').select('full_name, branch, department, role').eq('status','approved')
     if branch_filter: emp_query = emp_query.eq('branch', branch_filter)
     if employee_filter: emp_query = emp_query.eq('full_name', employee_filter)
-    employees = safe_data(execute_query(emp_query.order('full_name').limit(500)))
-    emp_names = [e['full_name'] for e in employees]
+    employees = safe_data(execute_query(emp_query.order('full_name').limit(5000)))
 
-    # Fetch all attendance records for these employees in the date range
-    # Use distinct date to avoid duplicates
+    emp_names = [e['full_name'] for e in employees]
+    emp_set = set(emp_names)
+
     att_data = safe_data(execute_query(
         supabase.table('attendance')
                .select('full_name, date')
                .gte('date', from_date).lte('date', to_date)
-               .in_('full_name', emp_names)
                .not_.is_('check_in', 'null')
-               .limit(10000)
+               .limit(50000)
     ))
+
     emp_days = defaultdict(set)
     for a in att_data:
-        emp_days[a['full_name']].add(a['date'])
+        if a['full_name'] in emp_set:
+            emp_days[a['full_name']].add(a['date'])
 
-    # Fetch approved leave days for each employee in range to count as present? Actually leave is not present, so we don't count.
-    # The summary should show days present (checked in). That's correct.
     summary = []
     for e in employees:
         days_present = len(emp_days.get(e['full_name'], set()))
         summary.append({**e, 'days_present': days_present})
 
     branches = get_branch_names()
-    all_employees = safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').order('full_name')))
+    all_employees = safe_data(execute_query(
+        supabase.table('employees').select('full_name').eq('status','approved').order('full_name').limit(5000)
+    ))
     return render_template('attendance_summary.html', summary=summary, from_date=from_date, to_date=to_date,
                            branch_filter=branch_filter, employee_filter=employee_filter,
                            branches=branches, all_employees=all_employees, company=COMPANY_NAME)
@@ -1465,33 +1466,47 @@ def attendance_summary():
 @app.route('/export-attendance-summary')
 @login_required
 def export_attendance_summary():
-    if session.get('role') not in FULL_ACCESS_ROLES + ['HR','HR Assistant']: return redirect('/')
+    if session.get('role') not in FULL_ACCESS_ROLES + ['HR','HR Assistant']:
+        return redirect('/')
     from_date = request.args.get('from_date', str(now_eat().date().replace(day=1)))
     to_date = request.args.get('to_date', str(now_eat().date()))
     branch_filter = request.args.get('branch', '')
     employee_filter = request.args.get('employee', '')
+
     emp_query = supabase.table('employees').select('full_name, branch, department, role').eq('status','approved')
     if branch_filter: emp_query = emp_query.eq('branch', branch_filter)
     if employee_filter: emp_query = emp_query.eq('full_name', employee_filter)
-    employees = safe_data(execute_query(emp_query.order('full_name').limit(500)))
+    employees = safe_data(execute_query(emp_query.order('full_name').limit(5000)))
+
     emp_names = [e['full_name'] for e in employees]
+    emp_set = set(emp_names)
+
     att_data = safe_data(execute_query(
-        supabase.table('attendance').select('full_name, date')
-               .gte('date', from_date).lte('date', to_date).in_('full_name', emp_names)
-               .not_.is_('check_in', 'null').limit(10000)
+        supabase.table('attendance')
+               .select('full_name, date')
+               .gte('date', from_date).lte('date', to_date)
+               .not_.is_('check_in', 'null')
+               .limit(50000)
     ))
+
     emp_days = defaultdict(set)
-    for a in att_data: emp_days[a['full_name']].add(a['date'])
+    for a in att_data:
+        if a['full_name'] in emp_set:
+            emp_days[a['full_name']].add(a['date'])
+
     summary = []
     for e in employees:
         days_present = len(emp_days.get(e['full_name'], set()))
         summary.append({**e, 'days_present': days_present})
+
     si = io.StringIO()
     cw = csv.writer(si)
     cw.writerow(['Employee','Department','Branch','Role','Days Present'])
-    for s in summary: cw.writerow([s['full_name'], s['department'], s['branch'], s['role'], s['days_present']])
+    for s in summary:
+        cw.writerow([s['full_name'], s['department'], s['branch'], s['role'], s['days_present']])
     output = si.getvalue(); si.close()
-    return Response(output, mimetype='text/csv', headers={"Content-Disposition": "attachment;filename=attendance_summary.csv"})
+    return Response(output, mimetype='text/csv',
+                    headers={"Content-Disposition": "attachment;filename=attendance_summary.csv"})
 
 # ---------- SHIFT CHANGE ----------
 @app.route('/shift-change', methods=['GET','POST'])
