@@ -1429,14 +1429,16 @@ def attendance_summary():
     branch_filter = request.args.get('branch', '')
     employee_filter = request.args.get('employee', '')
 
+    # Fetch all approved employees (no limit issue)
     emp_query = supabase.table('employees').select('full_name, branch, department, role').eq('status','approved')
     if branch_filter: emp_query = emp_query.eq('branch', branch_filter)
     if employee_filter: emp_query = emp_query.eq('full_name', employee_filter)
-    employees = safe_data(execute_query(emp_query.order('full_name').limit(5000)))
+    employees = safe_data(execute_query(emp_query.order('full_name').limit(10000)))
 
     emp_names = [e['full_name'] for e in employees]
     emp_set = set(emp_names)
 
+    # Fetch ALL attendance records for date range (no in_ filter, high limit)
     att_data = safe_data(execute_query(
         supabase.table('attendance')
                .select('full_name, date')
@@ -1445,6 +1447,7 @@ def attendance_summary():
                .limit(50000)
     ))
 
+    # Count distinct dates per employee
     emp_days = defaultdict(set)
     for a in att_data:
         if a['full_name'] in emp_set:
@@ -1457,7 +1460,7 @@ def attendance_summary():
 
     branches = get_branch_names()
     all_employees = safe_data(execute_query(
-        supabase.table('employees').select('full_name').eq('status','approved').order('full_name').limit(5000)
+        supabase.table('employees').select('full_name').eq('status','approved').order('full_name').limit(10000)
     ))
     return render_template('attendance_summary.html', summary=summary, from_date=from_date, to_date=to_date,
                            branch_filter=branch_filter, employee_filter=employee_filter,
@@ -1476,7 +1479,7 @@ def export_attendance_summary():
     emp_query = supabase.table('employees').select('full_name, branch, department, role').eq('status','approved')
     if branch_filter: emp_query = emp_query.eq('branch', branch_filter)
     if employee_filter: emp_query = emp_query.eq('full_name', employee_filter)
-    employees = safe_data(execute_query(emp_query.order('full_name').limit(5000)))
+    employees = safe_data(execute_query(emp_query.order('full_name').limit(10000)))
 
     emp_names = [e['full_name'] for e in employees]
     emp_set = set(emp_names)
