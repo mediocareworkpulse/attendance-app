@@ -39,11 +39,11 @@
             <input type="hidden" name="action" id="att-action" value="">
             {% if user_status == 'none' %}
                 <button type="button" class="checkin-btn btn-check-in" onclick="confirmCheckIn()" style="width:auto; min-width:160px;">
-                    <span style="font-size:20px;">⏰</span> Clock In
+                    ⏰ Clock In
                 </button>
             {% elif user_status in ['checked_in','working'] %}
                 <button type="button" class="checkin-btn btn-check-out" style="width:auto; min-width:160px;" onclick="confirmCheckOut()">
-                    <span style="font-size:20px;">🔚</span> Clock Out
+                    🔚 Clock Out
                 </button>
             {% endif %}
         </form>
@@ -54,25 +54,48 @@
 <!-- Marketer section (unchanged) -->
 
 <!-- Riders/Drivers Journey Section -->
-{% if role in ['Riders','Drivers'] %}
+{% if role in ['Riders','Drivers','Manager'] %}
 <div class="form-card" style="margin-top:20px;">
     <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">🚚 Journeys</h2>
-    {% if user_status in ['checked_in','working'] %}
+    {% if role == 'Manager' %}
+    <form method="POST" action="/journey/start" style="margin-bottom:12px;">
+        <input type="hidden" name="lat" id="j-start-lat">
+        <input type="hidden" name="lng" id="j-start-lng">
+        <input type="hidden" name="location" id="j-start-loc">
+        <div class="form-grid" style="grid-template-columns:1fr 1fr; gap:8px;">
+            <div>
+                <label>Select Driver</label>
+                <select name="driver_name" required>
+                    <option value="">-- Choose Driver --</option>
+                    {% for d in drivers %}
+                    <option value="{{ d.full_name }}">{{ d.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <button type="submit" class="btn" onclick="getJourneyStartLocation()">Start Journey</button>
+            </div>
+        </div>
+    </form>
+    {% else %}
+        {% if user_status in ['checked_in','working'] %}
         <form method="POST" action="/journey/start" style="margin-bottom:12px;">
             <input type="hidden" name="lat" id="j-start-lat">
             <input type="hidden" name="lng" id="j-start-lng">
             <input type="hidden" name="location" id="j-start-loc">
             <button type="submit" class="btn" onclick="getJourneyStartLocation()">Start New Journey</button>
         </form>
+        {% endif %}
     {% endif %}
     {% if journeys %}
     <div class="table-container">
         <table>
-            <thead><tr><th>#</th><th>Start</th><th>End</th><th>Status</th><th>Action</th></tr></thead>
+            <thead><tr><th>#</th><th>Driver</th><th>Start</th><th>End</th><th>Status</th><th>Action</th></tr></thead>
             <tbody>
             {% for j in journeys %}
             <tr>
                 <td class="td-name">{{ j.journey_number }}</td>
+                <td>{{ j.full_name }}</td>
                 <td>{{ j.start_time }}</td>
                 <td>{{ j.end_time or '—' }}</td>
                 <td>{{ j.status }}</td>
@@ -127,7 +150,7 @@
 
 {% block scripts %}
 <script>
-    // ========== CHECK IN ==========
+    // Check-in confirmation
     function confirmCheckIn() {
         if (confirm('Are you sure you want to check in now?')) {
             document.getElementById('att-action').value = 'check_in';
@@ -135,11 +158,10 @@
         }
     }
 
-    // ========== CHECK OUT ==========
+    // Check-out confirmation with remaining time
     function confirmCheckOut() {
         const shiftEnd = "{{ shift_end }}";
         let message = 'Are you sure you want to check out?';
-
         if (shiftEnd) {
             const now = new Date();
             const [sh, sm] = shiftEnd.split(':').map(Number);
@@ -152,22 +174,18 @@
                 message += '\n\nYou are checking out early. Remaining time: ' + hours + 'h ' + mins + 'm.';
             }
         }
-
         if (confirm(message)) {
             document.getElementById('att-action').value = 'check_out';
             captureLocationAndSubmit();
         }
     }
 
-    // ========== CAPTURE LOCATION (shared) ==========
+    // Capture location and submit
     function captureLocationAndSubmit() {
         if (navigator.geolocation) {
-            // Set a timeout to submit even if location takes too long
             const locationTimeout = setTimeout(function() {
-                // Submit without location
                 document.getElementById('attendanceForm').submit();
-            }, 4000);  // 4 seconds max
-
+            }, 4000);
             navigator.geolocation.getCurrentPosition(
                 function(pos) {
                     clearTimeout(locationTimeout);
@@ -178,18 +196,16 @@
                 },
                 function(error) {
                     clearTimeout(locationTimeout);
-                    // Location failed – submit anyway
                     document.getElementById('attendanceForm').submit();
                 },
-                { timeout: 3000 }  // wait up to 3 seconds for location
+                { timeout: 3000 }
             );
         } else {
-            // Geolocation not supported – submit immediately
             document.getElementById('attendanceForm').submit();
         }
     }
 
-    // Journey helpers (unchanged)
+    // Journey location helpers
     function getJourneyStartLocation() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(function(pos) {
