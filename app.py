@@ -28,7 +28,7 @@ ALL_ROLES = [
     'HR','HR Assistant','Sales Manager','Marketers','Telesales','Dispatch Personnel',
     'Operations Manager','Assistant Operations Manager','Store Manager','Storekeeper',
     'Store Personnel','Dispatch Supervisor','Dispatch Assistant','Cleaner',
-    'Riders','Drivers','Security','admin','ceo'
+    'Riders','Drivers','Security','Manager','admin','ceo'
 ]
 NO_CHECKIN_ROLES = ['admin','ceo']
 FULL_ACCESS_ROLES = ['admin','ceo']
@@ -44,6 +44,14 @@ RIDER_DRIVER_ROLES = ['Riders','Drivers']
 MARKETER_ROLE = 'Marketers'
 SALES_MANAGER_ROLE = 'Sales Manager'
 TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller','Sales Manager','admin','ceo']
+
+# Manager specific roles
+MANAGER_LIVE_BRANCHES = ['Kisumu HQ', 'Kisumu Retail']
+MANAGER_ATTENDANCE_ROLES = [
+    'Branch Manager','Operations Manager','Assistant Operations Manager','Store Manager',
+    'Sales Manager','Procurement Officer','Stock Controller','Assistant Stock Controller',
+    'Accountant','Accountant Assistant','HR','HR Assistant','Cashier','Manager'
+]
 
 DIRECTORATE_ROLES = ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager','Assistant Operations Manager']
 
@@ -120,6 +128,22 @@ def get_branch_employees(branch):
         supabase.table('employees').select('full_name').eq('status','approved').eq('branch', branch).order('full_name')
     ))
 
+def get_manager_live_team_names():
+    # Fetch employees in Kisumu HQ, Kisumu Retail, and Telesales in Kisumu
+    employees = safe_data(execute_query(
+        supabase.table('employees').select('full_name').eq('status','approved')
+        .or_('branch.in.("Kisumu HQ","Kisumu Retail"),department.eq.Telesales')
+    ))
+    return [e['full_name'] for e in employees]
+
+def get_manager_attendance_team_names():
+    # Fetch employees with management roles (excluding admin and ceo)
+    employees = safe_data(execute_query(
+        supabase.table('employees').select('full_name').eq('status','approved')
+        .in_('role', MANAGER_ATTENDANCE_ROLES)
+    ))
+    return [e['full_name'] for e in employees]
+
 # ---------- LEAVE WEEKDAY COUNT ----------
 def count_weekdays(start_str, end_str):
     if not start_str or not end_str:
@@ -161,14 +185,14 @@ def get_approval_chain(employee_role):
     if role_lower in ['drivers','riders','dispatch personnel','security','cleaner']:
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
-             'allowed_roles': ['Operations Manager','Assistant Operations Manager']},
+             'allowed_roles': ['Operations Manager','Assistant Operations Manager','Manager']},
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['HR','HR Assistant']}
         ]
     elif role_lower == 'store manager':
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
-             'allowed_roles': ['Operations Manager','Assistant Operations Manager']},
+             'allowed_roles': ['Operations Manager','Assistant Operations Manager','Manager']},
             {'from_status': 'approved_by_manager', 'to_status': 'approved_by_procurement',
              'allowed_roles': ['Procurement Officer']},
             {'from_status': 'approved_by_procurement', 'to_status': 'approved_final',
@@ -184,7 +208,7 @@ def get_approval_chain(employee_role):
     elif role_lower == 'assistant operations manager':
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
-             'allowed_roles': ['Operations Manager']},
+             'allowed_roles': ['Operations Manager','Manager']},
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['CEO','HR','HR Assistant']}
         ]
@@ -205,7 +229,7 @@ def get_approval_chain(employee_role):
     elif role_lower == 'branch order processor':
         chain = [
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
-             'allowed_roles': ['Operations Manager','Assistant Operations Manager']},
+             'allowed_roles': ['Operations Manager','Assistant Operations Manager','Manager']},
             {'from_status': 'approved_by_manager', 'to_status': 'approved_final',
              'allowed_roles': ['HR','HR Assistant']}
         ]
@@ -214,7 +238,7 @@ def get_approval_chain(employee_role):
             {'from_status': 'pending', 'to_status': 'approved_by_manager',
              'allowed_roles': ['Store Manager']},
             {'from_status': 'approved_by_manager', 'to_status': 'approved_by_ops',
-             'allowed_roles': ['Operations Manager','Assistant Operations Manager']},
+             'allowed_roles': ['Operations Manager','Assistant Operations Manager','Manager']},
             {'from_status': 'approved_by_ops', 'to_status': 'approved_final',
              'allowed_roles': ['HR','HR Assistant']}
         ]
@@ -401,44 +425,40 @@ def home():
     # Determine team scope based on role
     team_names = None
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant'] or can_view_all():
-        # See everything
         team_names = None
+    elif role == 'Manager':
+        team_names = get_manager_attendance_team_names()
     elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
-        team = [e['full_name'] for e in safe_data(execute_query(
+        team_names = [e['full_name'] for e in safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved').in_('role', OPERATIONS_MANAGER_TEAM)
         ))]
-        if un not in team:
-            team.append(un)
-        team_names = team
+        if un not in team_names:
+            team_names.append(un)
     elif role == 'Sales Manager':
-        team = [e['full_name'] for e in safe_data(execute_query(
+        team_names = [e['full_name'] for e in safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved').in_('role', [MARKETER_ROLE, 'Telesales'])
         ))]
-        if un not in team:
-            team.append(un)
-        team_names = team
+        if un not in team_names:
+            team_names.append(un)
     elif role == 'Branch Manager':
-        team = [e['full_name'] for e in safe_data(execute_query(
+        team_names = [e['full_name'] for e in safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved').eq('branch', ub)
         ))]
-        if un not in team:
-            team.append(un)
-        team_names = team
+        if un not in team_names:
+            team_names.append(un)
     else:
-        # All other roles (Staff, Dispatch Personnel, Riders, Drivers, etc.) see only themselves
         team_names = [un]
 
-    # Helper to apply team filter
     def apply_team(query):
         if team_names is not None:
             return query.in_('full_name', team_names)
         return query
 
-    # Total employees (only for roles that need to see total)
+    # Total employees
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant'] or can_view_all():
         emp_query = supabase.table('employees').select('id', count='exact').eq('status','approved').eq('blocked',False)
         total_emp = execute_query(emp_query).count
-    elif role in ['Store Manager','Operations Manager','Assistant Operations Manager','Sales Manager','Branch Manager']:
+    elif role in ['Store Manager','Operations Manager','Assistant Operations Manager','Sales Manager','Branch Manager','Manager']:
         emp_query = supabase.table('employees').select('id', count='exact').eq('status','approved').in_('full_name', team_names)
         total_emp = execute_query(emp_query).count
     else:
@@ -478,7 +498,6 @@ def home():
     else:
         total_sales = 0
 
-    # Recent attendance records
     recent_query = apply_team(
         supabase.table('attendance').select('*').eq('date', today).order('check_in', desc=True).limit(10)
     )
@@ -510,7 +529,6 @@ def home():
             'label': label
         })
 
-    # User's own status
     uci=uco=False; user_status=''
     if role not in NO_CHECKIN_ROLES:
         my = safe_data(execute_query(
@@ -529,7 +547,6 @@ def home():
             supabase.table('employees').select('id', count='exact').eq('status','pending')
         ).count
 
-    # Target progress (only for staff/branch manager)
     target_progress = None
     target_achieved = False
     if role in SALES_SUBMIT_ROLES:
@@ -819,7 +836,6 @@ def check_in_page():
     un = session.get('user')
     ub = session.get('branch','')
 
-    # Marketer status
     marketer_pending = False; marketer_approved = False
     if role == MARKETER_ROLE:
         mc = safe_data(execute_query(
@@ -831,7 +847,6 @@ def check_in_page():
             if mc[0]['status'] == 'approved': marketer_approved = True
             elif mc[0]['status'] == 'pending': marketer_pending = True
 
-    # Employee shift info
     emp = safe_data(execute_query(
         supabase.table('employees').select('shift_start,shift_end,role,department,branch')
         .eq('full_name', un)
@@ -840,7 +855,6 @@ def check_in_page():
     shift_start = emp_info.get('shift_start','08:00') if role not in RIDER_DRIVER_ROLES + [MARKETER_ROLE] else None
     shift_end = emp_info.get('shift_end','17:00') if role not in RIDER_DRIVER_ROLES + [MARKETER_ROLE] else None
 
-    # User's own attendance
     my_att = safe_data(execute_query(
         supabase.table('attendance').select('*').eq('full_name', un).eq('date', today)
     ))
@@ -857,36 +871,45 @@ def check_in_page():
         elif marketer_pending: current_status = 'pending'
         else: current_status = 'none'
 
-    # Journeys for riders/drivers
     journeys = []
-    if role in RIDER_DRIVER_ROLES:
-        journeys = safe_data(execute_query(
-            supabase.table('journeys').select('*').eq('full_name', un).eq('date', today)
-            .order('journey_number')
-        ))
+    if role in RIDER_DRIVER_ROLES or role == 'Manager':
+        if role == 'Manager':
+            # Manager can start journey for drivers
+            drivers = safe_data(execute_query(
+                supabase.table('employees').select('full_name').eq('status','approved').in_('role', ['Drivers','Riders'])
+            ))
+            journeys = safe_data(execute_query(
+                supabase.table('journeys').select('*').eq('date', today).order('journey_number')
+            ))
+        else:
+            drivers = []
+            journeys = safe_data(execute_query(
+                supabase.table('journeys').select('*').eq('full_name', un).eq('date', today).order('journey_number')
+            ))
 
-    # Determine which attendance records to show
     team_names = None
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant']:
         pass
+    elif role == 'Manager':
+        team_names = get_manager_live_team_names()
     elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
         team_names = [e['full_name'] for e in safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved')
             .in_('role', OPERATIONS_MANAGER_TEAM)
         ))]
-        team_names.append(un) if un not in team_names else None
+        if un not in team_names: team_names.append(un)
     elif role == 'Sales Manager':
         team_names = [e['full_name'] for e in safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved')
             .in_('role', [MARKETER_ROLE, 'Telesales'])
         ))]
-        team_names.append(un) if un not in team_names else None
+        if un not in team_names: team_names.append(un)
     elif role == 'Branch Manager':
         team_names = [e['full_name'] for e in safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved')
             .eq('branch', ub)
         ))]
-        team_names.append(un) if un not in team_names else None
+        if un not in team_names: team_names.append(un)
     elif role in ['Stock Controller','Assistant Stock Controller']:
         pass
     else:
@@ -926,7 +949,7 @@ def check_in_page():
     return render_template('check_in.html',
         records=records, user_status=current_status, today=today, company=COMPANY_NAME,
         check_in_time=check_in_time, shift_start=shift_start, shift_end=shift_end,
-        journeys=journeys, role=role)
+        journeys=journeys, role=role, drivers=drivers if 'drivers' in locals() else [])
 
 @app.route('/check-in', methods=['POST'])
 @login_required
@@ -975,8 +998,18 @@ def process_attendance():
 @app.route('/journey/start', methods=['POST'])
 @login_required
 def start_journey():
-    if session.get('role') not in RIDER_DRIVER_ROLES: return redirect('/check-in')
-    un = session.get('user'); today = str(now_eat().date()); now = now_eat().strftime('%H:%M:%S')
+    role = session.get('role')
+    if role not in RIDER_DRIVER_ROLES and role != 'Manager':
+        return redirect('/check-in')
+    if role == 'Manager':
+        driver_name = request.form.get('driver_name','').strip()
+        if not driver_name:
+            return redirect('/check-in')
+        un = driver_name
+    else:
+        un = session.get('user')
+    today = str(now_eat().date())
+    now = now_eat().strftime('%H:%M:%S')
     lat = request.form.get('lat',''); lng = request.form.get('lng',''); loc = request.form.get('location','')
     existing = safe_data(execute_query(supabase.table('journeys').select('journey_number').eq('full_name',un).eq('date',today).order('journey_number', desc=True).limit(1)))
     next_num = (existing[0]['journey_number'] + 1) if existing else 1
@@ -989,7 +1022,8 @@ def start_journey():
 @app.route('/journey/end/<int:jid>', methods=['POST'])
 @login_required
 def end_journey(jid):
-    if session.get('role') not in RIDER_DRIVER_ROLES: return redirect('/check-in')
+    if session.get('role') not in RIDER_DRIVER_ROLES and session.get('role') != 'Manager':
+        return redirect('/check-in')
     now = now_eat().strftime('%H:%M:%S')
     lat = request.form.get('lat',''); lng = request.form.get('lng',''); loc = request.form.get('location','')
     supabase.table('journeys').update({
@@ -1017,6 +1051,9 @@ def attendance_history():
 
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant']:
         r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).order('date',desc=True).limit(200)))
+    elif role == 'Manager':
+        team_names = get_manager_attendance_team_names()
+        r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).in_('full_name',team_names).order('date',desc=True).limit(200)))
     elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)))]
         r = safe_data(execute_query(supabase.table('attendance').select('*').gte('date',sd).lte('date',ed).in_('full_name',team_names).order('date',desc=True).limit(200)))
@@ -1051,6 +1088,8 @@ def attendance_history():
 @login_required
 def sales_page():
     role = session.get('role', '').strip()
+    if role == 'Manager':
+        return redirect('/')
     if role.lower() == 'staff': role = session['role'] = 'Staff'
     elif role.lower() == 'branch manager': role = session['role'] = 'Branch Manager'
 
@@ -1670,7 +1709,7 @@ def approve_leaves():
     approver_roles = [
         'Operations Manager','Assistant Operations Manager','Procurement Officer',
         'HR','HR Assistant','CEO','Branch Manager','Stock Controller','Assistant Stock Controller',
-        'Sales Manager','Store Manager','Accountant','Accountant Assistant','admin','ceo'
+        'Sales Manager','Store Manager','Accountant','Accountant Assistant','Manager','admin','ceo'
     ]
     if not any(r.lower() in [ar.lower() for ar in approver_roles + FULL_ACCESS_ROLES] for r in effective_roles):
         return redirect('/')
@@ -1930,6 +1969,8 @@ def live_status():
     today = str(now_eat().date())
     team_names = None
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant']: pass
+    elif role == 'Manager':
+        team_names = get_manager_live_team_names()
     elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
         team_names = [e['full_name'] for e in safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)
@@ -2176,7 +2217,8 @@ def hr_attendance_report():
 @app.route('/marketer-reports')
 @login_required
 def marketer_reports():
-    if session.get('role') not in ['admin','ceo','Sales Manager']: return redirect('/')
+    if session.get('role') not in ['admin','ceo','Sales Manager','Manager']:
+        return redirect('/')
     today = str(now_eat().date())
     filter_from = request.args.get('from_date', today)
     filter_to   = request.args.get('to_date', today)
@@ -2195,7 +2237,7 @@ def marketer_reports():
 @login_required
 def absent_today():
     allowed_roles = ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller',
-                     'Operations Manager','Sales Manager','Store Manager','Branch Manager','Procurement Officer']
+                     'Operations Manager','Sales Manager','Store Manager','Branch Manager','Procurement Officer','Manager']
     if session.get('role') not in allowed_roles:
         return redirect('/')
     today = str(now_eat().date())
