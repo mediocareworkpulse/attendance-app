@@ -186,7 +186,6 @@ def normalize_role(role):
             return r
     return role
 
-# Force role normalization on every request
 @app.before_request
 def normalize_session_role():
     if 'role' in session:
@@ -263,7 +262,6 @@ def geofence_status(lat, lng, branch):
         return 'unknown'
     return 'in_branch' if distance <= 150 else 'out_of_branch'
 
-# Field roles exempt from geofencing
 FIELD_ROLES = ['Marketers', 'Drivers']
 
 # ==================== LEAVE HELPERS ====================
@@ -1254,7 +1252,6 @@ def process_attendance():
     if len(shift_start) > 5: shift_start = shift_start[:5]
     if not shift_start or ':' not in shift_start: shift_start = '08:00'
 
-    # Determine geofence: only Marketers and Drivers are exempt
     if role in FIELD_ROLES:
         geofence = 'field'
     else:
@@ -2460,7 +2457,6 @@ def live_status():
 
     team_names = None
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant','Stock Controller','Assistant Stock Controller']:
-        # See all employees
         pass
     elif role == 'General Manager':
         team_names = get_manager_live_team_names()
@@ -3001,25 +2997,54 @@ def export_marketer_reports():
 @app.route('/absent-today')
 @login_required
 def absent_today():
-    allowed_roles = ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller',
-                     'Operations Manager','Sales Manager','Store Manager','Person in Charge','Procurement Officer','General Manager']
-    if session.get('role') not in allowed_roles:
-        return redirect('/')
+    role = session.get('role')
+    ub = session.get('branch','')
+    un = session.get('user')
     today = str(now_eat().date())
-    all_employees = safe_data(execute_query(
-        supabase.table('employees').select('full_name, branch, department, role')
-        .eq('status','approved').order('full_name')
-    ))
-    checked_in = safe_data(execute_query(
-        supabase.table('attendance').select('full_name').eq('date', today)
-    ))
+
+    # Determine team scope (same as live_status)
+    team_names = None
+    if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant','Stock Controller','Assistant Stock Controller']:
+        pass
+    elif role == 'General Manager':
+        team_names = get_manager_live_team_names()
+    elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
+        team_names = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').in_('role', OPERATIONS_MANAGER_TEAM)
+        ))]
+    elif role == 'Sales Manager':
+        team_names = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').in_('role',[MARKETER_ROLE,'Telesales'])
+        ))]
+    elif role == 'Person in Charge':
+        team_names = [e['full_name'] for e in safe_data(execute_query(
+            supabase.table('employees').select('full_name').eq('status','approved').eq('branch', ub)
+        ))]
+    elif role == 'Procurement Officer':
+        pass
+    else:
+        return redirect('/')
+
+    # Build employees query
+    emp_query = supabase.table('employees').select('full_name, branch, department, role').eq('status','approved')
+    if team_names:
+        emp_query = emp_query.in_('full_name', team_names)
+    all_employees = safe_data(execute_query(emp_query.order('full_name')))
+
+    # Checked-in names
+    att_query = supabase.table('attendance').select('full_name').eq('date', today)
+    if team_names:
+        att_query = att_query.in_('full_name', team_names)
+    checked_in = safe_data(execute_query(att_query))
     checked_in_names = set(a['full_name'] for a in checked_in)
-    leaves = safe_data(execute_query(
-        supabase.table('leaves').select('full_name')
-        .in_('status', ['approved_final','approved_by_manager','approved_by_procurement','approved_by_ops'])
-        .lte('leave_start', today).gte('leave_end', today)
-    ))
+
+    # On-leave names
+    leave_query = supabase.table('leaves').select('full_name').in_('status', ['approved_final','approved_by_manager','approved_by_procurement','approved_by_ops']).lte('leave_start', today).gte('leave_end', today)
+    if team_names:
+        leave_query = leave_query.in_('full_name', team_names)
+    leaves = safe_data(execute_query(leave_query))
     on_leave_names = set(l['full_name'] for l in leaves)
+
     absent = []
     for emp in all_employees:
         if emp['full_name'] not in checked_in_names and emp['full_name'] not in on_leave_names:
