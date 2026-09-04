@@ -11,7 +11,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Mediocare">
     <link rel="apple-touch-icon" href="/static/logo.png">
-    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -45,11 +44,11 @@
 
         {% set role_lower = session.role|lower %}
 
-        {% if role_lower in ['admin','ceo','hr','hr assistant','stock controller','assistant stock controller','operations manager','sales manager','procurement officer','manager'] %}
+        {% if role_lower in ['admin','ceo','hr','hr assistant','stock controller','assistant stock controller','operations manager','sales manager','procurement officer','general manager'] %}
             <a href="/contacts" class="{% if request.path == '/contacts' %}active{% endif %}"><i class="fas fa-address-book"></i> Directorate</a>
         {% endif %}
 
-        {% if role_lower in ['staff','branch manager','admin','ceo','stock controller','assistant stock controller','accountant','accountant assistant'] %}
+        {% if role_lower in ['staff','person in charge','admin','ceo','stock controller','assistant stock controller','accountant','accountant assistant'] %}
             <a href="/sales" class="{% if request.path == '/sales' %}active{% endif %}"><i class="fas fa-chart-line"></i> Sales</a>
         {% endif %}
 
@@ -65,7 +64,7 @@
 
         <a href="/leaves" class="{% if request.path == '/leaves' %}active{% endif %}"><i class="fas fa-calendar-alt"></i> Leaves</a>
 
-        {% if role_lower in ['store manager','operations manager','assistant operations manager','sales manager','admin','ceo','hr','hr assistant','procurement officer','stock controller','assistant stock controller','branch manager','accountant','accountant assistant','manager'] %}
+        {% if role_lower in ['store manager','operations manager','assistant operations manager','sales manager','admin','ceo','hr','hr assistant','procurement officer','stock controller','assistant stock controller','person in charge','accountant','accountant assistant','general manager'] %}
             <a href="/approve-leaves" class="{% if request.path == '/approve-leaves' %}active{% endif %}"><i class="fas fa-check-double"></i> Approve Leaves</a>
         {% endif %}
 
@@ -75,27 +74,28 @@
             <a href="/hr/annual-leave" class="{% if request.path == '/hr/annual-leave' %}active{% endif %}"><i class="fas fa-calendar-check"></i> Annual Leave</a>
         {% endif %}
 
-        <!-- Removed Live Status link entirely -->
+        <!-- Live Status (visible to management and HR) -->
+        {% if session.role in ['admin','ceo','HR','HR Assistant','General Manager','Operations Manager','Assistant Operations Manager','Store Manager','Sales Manager','Person in Charge','Procurement Officer'] %}
+            <a href="/live-status" class="{% if request.path == '/live-status' %}active{% endif %}"><i class="fas fa-circle"></i> Live Status</a>
+        {% endif %}
 
-        {% if session.role in ['Sales Manager','Manager','admin','ceo'] %}
+        {% if session.role in ['Sales Manager','General Manager','admin','ceo'] %}
             <a href="/live-map" class="{% if request.path == '/live-map' %}active{% endif %}"><i class="fas fa-map-marked-alt"></i> Live Map</a>
         {% endif %}
 
-        {% if session.role in ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager','Store Manager','Branch Manager','Procurement Officer','Manager'] %}
+        {% if session.role in ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager','Store Manager','Person in Charge','Procurement Officer','General Manager'] %}
             <a href="/absent-today" class="{% if request.path == '/absent-today' %}active{% endif %}"><i class="fas fa-user-slash"></i> Absent Today</a>
         {% endif %}
 
-        <!-- Sales Manager Dashboard (only for Sales Manager) -->
         {% if session.role == 'Sales Manager' %}
             <a href="/sales-manager" class="{% if request.path == '/sales-manager' %}active{% endif %}"><i class="fas fa-tasks"></i> Sales Manager Dashboard</a>
         {% endif %}
 
-        <!-- Generic Manager Dashboard (only for Manager) -->
-        {% if session.role == 'Manager' %}
+        {% if session.role == 'General Manager' %}
             <a href="/manager-dashboard" class="{% if request.path == '/manager-dashboard' %}active{% endif %}"><i class="fas fa-chart-bar"></i> Manager Dashboard</a>
         {% endif %}
 
-        {% if session.role in ['admin','ceo','Sales Manager','Manager'] %}
+        {% if session.role in ['admin','ceo','Sales Manager','General Manager'] %}
             <a href="/marketer-reports" class="{% if request.path == '/marketer-reports' %}active{% endif %}"><i class="fas fa-file-signature"></i> Marketer Reports</a>
         {% endif %}
 
@@ -115,7 +115,7 @@
             <a href="/procurement/delegation" class="{% if request.path == '/procurement/delegation' %}active{% endif %}"><i class="fas fa-exchange-alt"></i> Delegation</a>
         {% endif %}
 
-        {% if session.role in ['Branch Manager','admin','ceo'] %}
+        {% if session.role in ['Person in Charge','admin','ceo'] %}
             <a href="/shift-change" class="{% if request.path == '/shift-change' %}active{% endif %}"><i class="fas fa-clock"></i> Shift Change</a>
         {% endif %}
 
