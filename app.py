@@ -5,6 +5,65 @@ from functools import wraps
 from collections import defaultdict
 from werkzeug.security import generate_password_hash, check_password_hash
 import pytz, time, csv, io
+import re
+
+def strip_emojis(text):
+    emoji_pattern = re.compile(
+        "["
+        "\U0001F600-\U0001F64F"  # emoticons
+        "\U0001F300-\U0001F5FF"  # symbols & pictographs
+        "\U0001F680-\U0001F6FF"  # transport & map symbols
+        "\U0001F1E0-\U0001F1FF"  # flags
+        "\U00002702-\U000027B0"
+        "\U000024C2-\U0001F251"
+        "\U0001f900-\U0001f9ff"
+        "\U0001fa70-\U0001fa73"
+        "\U0001fa78-\U0001fa7a"
+        "\U0001fa80-\U0001fa82"
+        "\U0001fa90-\U0001fa95"
+        "\U0001fa00-\U0001fa53"
+        "\U0001fae0-\U0001fae8"
+        "\U0001faf0-\U0001faf6"
+        "\U00002600-\U000027BF"
+        "\U0001F000-\U0001F02F"
+        "\U0001F0A0-\U0001F0FF"
+        "\U0001F300-\U0001F5FF"
+        "\U0001F600-\U0001F64F"
+        "\U0001F680-\U0001F6FF"
+        "\U0001F700-\U0001F77F"
+        "\U0001F780-\U0001F7FF"
+        "\U0001F800-\U0001F8FF"
+        "\U0001F900-\U0001F9FF"
+        "\U0001FA00-\U0001FA6F"
+        "\U0001FA70-\U0001FAFF"
+        "\U0000231A-\U0000231B"
+        "\U000023E9-\U000023EC"
+        "\U000023F0"
+        "\U000023F3"
+        "\U000025AA-\U000025FE"
+        "\U00002B50"
+        "\U00002B55"
+        "\U00002764"
+        "\U00002705"
+        "\U00002753"
+        "\U00002754"
+        "\U00002795"
+        "\U00002796"
+        "\U00002797"
+        "\U000027A1"
+        "\U000027B0"
+        "\U000027BF"
+        "\U0001F1E6-\U0001F1FF"
+        "]+",
+        flags=re.UNICODE,
+    )
+    return emoji_pattern.sub("", text)
+
+@app.after_request
+def remove_emoji_from_response(response):
+    if response.content_type and 'text/html' in response.content_type:
+        response.set_data(strip_emojis(response.get_data(as_text=True)))
+    return response
 
 app = Flask(__name__)
 app.secret_key = 'mediocare-attendance-secret-2024'
