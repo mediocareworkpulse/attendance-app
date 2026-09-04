@@ -4,8 +4,6 @@
 <h1 class="page-title">Check In / Out</h1>
 <p class="page-subtitle">{{ company }} — {{ today }}</p>
 
-<!-- Marketer Check-in section (unchanged) -->
-
 <!-- Status card -->
 <div class="checkin-container shift-timer-card" style="background: linear-gradient(135deg, #ffffff, #f8fafc); border-radius: 16px; padding: 20px 24px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; border-left: 6px solid var(--primary);">
     <div style="display: flex; align-items: center; gap: 14px;">
@@ -30,6 +28,8 @@
                 <br><span class="badge badge-success">Checked in at branch</span>
             {% elif geofence == 'out_of_branch' %}
                 <br><span class="badge badge-danger">Checked in outside branch</span>
+            {% elif geofence == 'field' %}
+                <br><span class="badge badge-info">Field Work</span>
             {% elif geofence == 'unknown' %}
                 <br><span class="badge badge-secondary">Location not verified</span>
             {% endif %}
@@ -48,11 +48,11 @@
             <input type="hidden" name="action" id="att-action" value="">
             {% if user_status == 'none' %}
                 <button type="button" class="checkin-btn btn-check-in" onclick="confirmCheckIn()" style="width:auto; min-width:160px;">
-                    Clock In
+                    <i class="fas fa-clock"></i> Clock In
                 </button>
             {% elif user_status in ['checked_in','working'] %}
                 <button type="button" class="checkin-btn btn-check-out" style="width:auto; min-width:160px;" onclick="confirmCheckOut()">
-                    Clock Out
+                    <i class="fas fa-sign-out-alt"></i> Clock Out
                 </button>
             {% endif %}
         </form>
@@ -60,13 +60,81 @@
     {% endif %}
 </div>
 
-<!-- Rest of the page remains the same as your original check_in.html -->
+<!-- Journey section and attendance records unchanged -->
 
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Existing functions (confirmCheckIn, confirmCheckOut, captureLocationAndSubmit, journey helpers) remain unchanged.
-    // They are already in your original file.
+    function confirmCheckIn() {
+        if (confirm('Are you sure you want to check in now?')) {
+            document.getElementById('att-action').value = 'check_in';
+            captureLocationAndSubmit();
+        }
+    }
+
+    function confirmCheckOut() {
+        const shiftEnd = "{{ shift_end }}";
+        let message = 'Are you sure you want to check out?';
+        if (shiftEnd) {
+            const now = new Date();
+            const [sh, sm] = shiftEnd.split(':').map(Number);
+            const shiftEndDate = new Date();
+            shiftEndDate.setHours(sh, sm, 0, 0);
+            let remainingMinutes = Math.floor((shiftEndDate - now) / 60000);
+            if (remainingMinutes > 0) {
+                const hours = Math.floor(remainingMinutes / 60);
+                const mins = remainingMinutes % 60;
+                message += '\n\nYou are checking out early. Remaining time: ' + hours + 'h ' + mins + 'm.';
+            }
+        }
+        if (confirm(message)) {
+            document.getElementById('att-action').value = 'check_out';
+            captureLocationAndSubmit();
+        }
+    }
+
+    function captureLocationAndSubmit() {
+        if (navigator.geolocation) {
+            const locationTimeout = setTimeout(function() {
+                document.getElementById('attendanceForm').submit();
+            }, 4000);
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    clearTimeout(locationTimeout);
+                    document.getElementById('att-lat').value = pos.coords.latitude;
+                    document.getElementById('att-lng').value = pos.coords.longitude;
+                    document.getElementById('att-location').value = pos.coords.latitude + ', ' + pos.coords.longitude;
+                    document.getElementById('attendanceForm').submit();
+                },
+                function(error) {
+                    clearTimeout(locationTimeout);
+                    document.getElementById('attendanceForm').submit();
+                },
+                { timeout: 3000 }
+            );
+        } else {
+            document.getElementById('attendanceForm').submit();
+        }
+    }
+
+    function getJourneyStartLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(pos) {
+                document.getElementById('j-start-lat').value = pos.coords.latitude;
+                document.getElementById('j-start-lng').value = pos.coords.longitude;
+                document.getElementById('j-start-loc').value = pos.coords.latitude+', '+pos.coords.longitude;
+            });
+        }
+    }
+    function getEndLocation(jid) {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(pos) {
+                document.getElementById('j-end-lat-'+jid).value = pos.coords.latitude;
+                document.getElementById('j-end-lng-'+jid).value = pos.coords.longitude;
+                document.getElementById('j-end-loc-'+jid).value = 'Lat:'+pos.coords.latitude+', Lng:'+pos.coords.longitude;
+            });
+        }
+    }
 </script>
 {% endblock %}
