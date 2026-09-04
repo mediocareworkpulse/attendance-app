@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="page-title">📋 Field Reports – Drill‑Down</h1>
+<h1 class="page-title">Field Reports – Drill‑Down</h1>
 <p class="page-subtitle">{{ company }} • {{ date_from or 'All dates' }} to {{ date_to or 'All dates' }}</p>
 
 <!-- Filter -->
@@ -27,5 +27,16 @@
         {% endfor %}
         </tbody>
     </table>
+</div>
+
+<!-- Pagination -->
+<div style="margin-top:12px; display:flex; gap:8px;">
+    {% if page > 1 %}
+    <a href="?page={{ page-1 }}&from_date={{ date_from }}&to_date={{ date_to }}" class="btn btn-sm">Previous</a>
+    {% endif %}
+    <span style="padding:6px 12px;">Page {{ page }}</span>
+    {% if has_next %}
+    <a href="?page={{ page+1 }}&from_date={{ date_from }}&to_date={{ date_to }}" class="btn btn-sm">Next</a>
+    {% endif %}
 </div>
 {% endblock %}
