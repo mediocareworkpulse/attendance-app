@@ -177,7 +177,6 @@ def now_eat():
 
 def normalize_role(role):
     role_lower = role.strip().lower()
-    # Map old names to new names
     if role_lower == 'branch manager':
         return 'Person in Charge'
     if role_lower == 'manager':
@@ -186,6 +185,12 @@ def normalize_role(role):
         if r.lower() == role_lower:
             return r
     return role
+
+# Force role normalization on every request
+@app.before_request
+def normalize_session_role():
+    if 'role' in session:
+        session['role'] = normalize_role(session['role'])
 
 def get_active_delegation(user_id):
     data = safe_data(execute_query(
@@ -258,8 +263,7 @@ def geofence_status(lat, lng, branch):
         return 'unknown'
     return 'in_branch' if distance <= 150 else 'out_of_branch'
 
-# Field roles (no geofence enforcement)
-FIELD_ROLES = ['Marketers','Riders','Drivers','Telesales','Dispatch Personnel']
+FIELD_ROLES = ['Marketers']
 
 # ==================== LEAVE HELPERS ====================
 def count_weekdays(start_str, end_str):
@@ -1238,7 +1242,7 @@ def process_attendance():
     now = now_eat().strftime('%H:%M:%S')
     lat = request.form.get('lat', '') or '0'
     lng = request.form.get('lng', '') or '0'
-    loc = request.form.get('location', '') or 'Not provided'
+    loc = request.form.get('location', '') or 'Location unavailable'
     emp = safe_data(execute_query(supabase.table('employees').select('department,branch,shift_start,role').eq('full_name', un)))
     if not emp: return redirect('/check-in')
     dept = emp[0].get('department', '') or ''
@@ -1249,7 +1253,7 @@ def process_attendance():
     if len(shift_start) > 5: shift_start = shift_start[:5]
     if not shift_start or ':' not in shift_start: shift_start = '08:00'
 
-    # Determine geofence: field roles are exempt and always 'field'
+    # Determine geofence: only Marketers are exempt
     if role in FIELD_ROLES:
         geofence = 'field'
     else:
