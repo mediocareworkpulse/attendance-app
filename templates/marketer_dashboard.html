@@ -189,7 +189,7 @@
 {% block scripts %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script>
-// ---------- Toast Notification (uses global function from base.html) ----------
+// ---------- Toast Notification ----------
 function showToast(message, type = 'success') {
     if (typeof window.showToast === 'function') {
         window.showToast(message, type);
@@ -284,22 +284,45 @@ function startLocationTracking() {
         }
     }
 
-    // Initial
     navigator.geolocation.getCurrentPosition(handlePosition, () => {}, {enableHighAccuracy: true, timeout: 10000});
-
-    // Watch for changes
     navigator.geolocation.watchPosition(handlePosition, () => {}, {
         enableHighAccuracy: true,
         maximumAge: 30000,
         timeout: 10000
     });
-
-    // Fallback every 20 minutes
     setInterval(() => {
         navigator.geolocation.getCurrentPosition(handlePosition, () => {}, {enableHighAccuracy: true, timeout: 10000});
     }, 20 * 60 * 1000);
 }
 
 document.addEventListener('DOMContentLoaded', startLocationTracking);
+
+// ---------- Push-like Notifications (Polling) ----------
+let lastStatus = '{{ checkin_status }}';
+let lastOverdue = {{ overdue|length if overdue is defined else 0 }};
+
+function checkStatusUpdates() {
+    fetch('/api/marketer/status')
+        .then(res => res.json())
+        .then(data => {
+            if (data.checkin_status !== lastStatus) {
+                lastStatus = data.checkin_status;
+                if (data.checkin_status === 'approved') {
+                    showToast('Your check-in has been approved!', 'success');
+                } else if (data.checkin_status === 'rejected') {
+                    showToast('Your check-in was rejected.', 'error');
+                } else if (data.checkin_status === 'pending') {
+                    showToast('Check-in is pending approval.', 'warning');
+                }
+            }
+            if (data.overdue_followups > lastOverdue) {
+                showToast('You have overdue follow-ups!', 'warning');
+            }
+            lastOverdue = data.overdue_followups;
+        })
+        .catch(() => {});
+}
+
+setInterval(checkStatusUpdates, 60000);
 </script>
 {% endblock %}
