@@ -1,3 +1,4 @@
+app.py
 from flask import Flask, render_template, request, redirect, url_for, session, Response
 from datetime import date, datetime, timedelta, timezone
 from supabase import create_client
@@ -2028,6 +2029,149 @@ def assign_place():
         }).execute()
     return redirect('/sales-manager')
 
+# ---------- FIELD MARKETING: MARKETER DETAIL (NEW) ----------
+@app.route('/sales-manager/marketer/<path:full_name>')
+@login_required
+def marketer_detail(full_name):
+    if session.get('role') != SALES_MANAGER_ROLE and session.get('role') not in FULL_ACCESS_ROLES:
+        return redirect('/')
+    emp = safe_data(execute_query(
+        supabase.table('employees').select('*').eq('full_name', full_name).limit(1)
+    ))
+    if not emp:
+        return render_template('error.html', error='Marketer not found')
+    marketer = emp[0]
+    today = str(now_eat().date())
+    checkins = safe_data(execute_query(
+        supabase.table('marketer_checkins').select('*').eq('full_name', full_name)
+        .order('created_at', desc=True).limit(20)
+    ))
+    reports = safe_data(execute_query(
+        supabase.table('customer_reports').select('*').eq('full_name', full_name)
+        .order('created_at', desc=True).limit(50)
+    ))
+    places = safe_data(execute_query(
+        supabase.table('assigned_places').select('*').eq('marketer_name', full_name)
+        .order('date_assigned', desc=True).limit(50)
+    ))
+    latest_location = safe_data(execute_query(
+        supabase.table('marketer_locations').select('*').eq('full_name', full_name)
+        .order('time', desc=True).limit(1)
+    ))
+    latest_loc = latest_location[0] if latest_location else None
+    month_str = now_eat().date().replace(day=1).strftime('%Y-%m')
+    target = safe_data(execute_query(
+        supabase.table('sales_targets').select('target_amount')
+        .eq('full_name', full_name).eq('month', month_str).limit(1)
+    ))
+    target_amount = float(target[0]['target_amount']) if target else None
+    return render_template('marketer_detail.html',
+                           marketer=marketer,
+                           checkins=checkins,
+                           reports=reports,
+                           places=places,
+                           latest_location=latest_loc,
+                           target_amount=target_amount,
+                           today=today,
+                           company=COMPANY_NAME)
+
+# ---------- FIELD MARKETING: EXECUTIVE SUMMARY (NEW) ----------
+@app.route('/field-executive')
+@login_required
+def field_executive():
+    if session.get('role') not in FULL_ACCESS_ROLES:
+        return redirect('/')
+    today = str(now_eat().date())
+    month_start = now_eat().date().replace(day=1).strftime('%Y-%m-%d')
+    marketers = safe_data(execute_query(
+        supabase.table('employees').select('full_name').eq('status','approved').eq('role', MARKETER_ROLE)
+    ))
+    total_marketers = len(marketers)
+    approved_today = safe_data(execute_query(
+        supabase.table('marketer_checkins').select('id').eq('date', today).eq('status','approved')
+    ))
+    checked_in = len(approved_today)
+    pending_today = safe_data(execute_query(
+        supabase.table('marketer_checkins').select('id').eq('date', today).eq('status','pending')
+    ))
+    pending_count = len(pending_today)
+    reports_today = safe_data(execute_query(
+        supabase.table('customer_reports').select('id').eq('date', today)
+    ))
+    reports_today_count = len(reports_today)
+    reports_month = safe_data(execute_query(
+        supabase.table('customer_reports').select('id')
+        .gte('date', month_start).lte('date', today)
+    ))
+    reports_month_count = len(reports_month)
+    total_assignments = safe_data(execute_query(
+        supabase.table('assigned_places').select('id')
+    ))
+    total_assignments_count = len(total_assignments)
+    expected_orders = safe_data(execute_query(
+        supabase.table('customer_reports').select('id')
+        .not_.is_('expected_order_date', 'null')
+        .gte('expected_order_date', today)
+    ))
+    expected_orders_count = len(expected_orders)
+    recent_reports = safe_data(execute_query(
+        supabase.table('customer_reports').select('*')
+        .order('created_at', desc=True).limit(10)
+    ))
+    return render_template('field_executive.html',
+                           total_marketers=total_marketers,
+                           checked_in=checked_in,
+                           pending_count=pending_count,
+                           reports_today_count=reports_today_count,
+                           reports_month_count=reports_month_count,
+                           total_assignments_count=total_assignments_count,
+                           expected_orders_count=expected_orders_count,
+                           recent_reports=recent_reports,
+                           today=today,
+                           company=COMPANY_NAME)
+
+# ---------- FIELD MARKETING: DRILL‑DOWN REPORTS (NEW) ----------
+@app.route('/field-reports')
+@login_required
+def field_reports():
+    if session.get('role') not in FULL_ACCESS_ROLES and session.get('role') != SALES_MANAGER_ROLE:
+        return redirect('/')
+    marketer_filter = request.args.get('marketer', '')
+    date_from = request.args.get('from_date', '')
+    date_to = request.args.get('to_date', '')
+    query = supabase.table('customer_reports').select('*')
+    if date_from:
+        query = query.gte('date', date_from)
+    if date_to:
+        query = query.lte('date', date_to)
+    if marketer_filter:
+        query = query.eq('full_name', marketer_filter)
+    reports = safe_data(execute_query(query.order('date', desc=True).order('full_name').limit(1000)))
+    if not marketer_filter:
+        grouped = defaultdict(list)
+        for r in reports:
+            grouped[r['full_name']].append(r)
+        marketer_summaries = []
+        for name, reps in grouped.items():
+            marketer_summaries.append({
+                'full_name': name,
+                'total_reports': len(reps),
+                'latest_report': reps[0]['date'] if reps else '—'
+            })
+        return render_template('field_reports_drilldown.html',
+                               marketer_summaries=marketer_summaries,
+                               date_from=date_from,
+                               date_to=date_to,
+                               company=COMPANY_NAME)
+    else:
+        return render_template('field_reports_detail.html',
+                               reports=reports,
+                               marketer=marketer_filter,
+                               date_from=date_from,
+                               date_to=date_to,
+                               company=COMPANY_NAME)
+
+# ---------- MY PLACES ----------
 @app.route('/my-places')
 @login_required
 def my_places():
