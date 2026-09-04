@@ -2,12 +2,12 @@
 {% block content %}
 <div class="marketer-dashboard">
     <!-- Header -->
-    <div class="page-title">Field Dashboard</div>
-    <div class="page-subtitle">{{ today }} · {{ company }}</div>
+    <h1 class="page-title">Field Dashboard</h1>
+    <p class="page-subtitle">{{ today }} · {{ company }}</p>
 
     <!-- Attendance Status Card -->
-    <div class="card status-card">
-        <h3>Attendance</h3>
+    <div class="card status-card" style="margin-bottom: 20px;">
+        <h3>⏰ Attendance</h3>
         {% if checkin_status == 'approved' %}
             <span class="badge badge-success">Approved</span>
             <p>Checked in at {{ checkin_time }}</p>
@@ -25,7 +25,7 @@
     </div>
 
     <!-- Quick Actions -->
-    <div class="quick-actions">
+    <div class="quick-actions" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px;">
         <a href="/check-in" class="quick-action-card">
             <span>⏰</span>
             <div>CHECK IN</div>
@@ -42,37 +42,84 @@
             <span>🛰️</span>
             <div>SEND LOCATION</div>
         </a>
+        <a href="#followups" class="quick-action-card">
+            <span>🔔</span>
+            <div>FOLLOW‑UPS</div>
+        </a>
     </div>
 
     <!-- Today's Field Activity -->
-    <div class="card">
-        <h3>Today's Activity</h3>
-        <p>Assigned Places: {{ places|length }}</p>
-        <p>Reports Submitted: {{ reports_today|length }}</p>
+    <div class="card" style="margin-bottom: 20px;">
+        <h3>📊 Today's Activity</h3>
+        <div class="activity-summary" style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+            <div><strong>{{ places|length }}</strong> Assigned Places</div>
+            <div><strong>{{ reports_today|length }}</strong> Reports Submitted</div>
+        </div>
     </div>
 
     <!-- Target (if exists) -->
     {% if target_amount %}
-    <div class="card">
-        <h3>My Monthly Target</h3>
-        <div class="target-value">Ksh {{ "%.2f"|format(target_amount) }}</div>
+    <div class="card" style="margin-bottom: 20px; border-left: 4px solid var(--accent);">
+        <h3>🎯 My Monthly Target</h3>
+        <div class="target-value" style="font-size: 24px; font-weight: 700;">Ksh {{ "%.2f"|format(target_amount) }}</div>
     </div>
     {% endif %}
 
-    <!-- Follow‑ups -->
-    <div class="card">
-        <h3>Follow‑ups</h3>
+    <!-- Follow‑ups Section -->
+    <div class="card" id="followups" style="margin-bottom: 20px;">
+        <h3>🔔 Follow‑ups</h3>
         {% if followups %}
-            <ul class="followup-list">
-                {% for f in followups %}
-                <li>
-                    <strong>{{ f.customer_name }}</strong> – Expected: {{ f.expected_order_date }}
-                    <span class="badge {% if f.expected_order_date < today %}badge-danger{% elif f.expected_order_date == today %}badge-warning{% else %}badge-info{% endif %}">
-                        {% if f.expected_order_date < today %}Overdue{% elif f.expected_order_date == today %}Due Today{% else %}Upcoming{% endif %}
-                    </span>
-                </li>
-                {% endfor %}
-            </ul>
+            {% set overdue = followups | selectattr('expected_order_date', 'lt', today) | list %}
+            {% set due_today = followups | selectattr('expected_order_date', 'equalto', today) | list %}
+            {% set upcoming = followups | selectattr('expected_order_date', 'gt', today) | list %}
+
+            <div class="followup-group">
+                <h4 style="color:#dc2626;">⚠️ Overdue ({{ overdue|length }})</h4>
+                {% if overdue %}
+                <ul class="followup-list">
+                    {% for f in overdue %}
+                    <li>
+                        <strong>{{ f.customer_name }}</strong> – Expected: {{ f.expected_order_date }}
+                        <span class="badge badge-danger">Overdue</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p>No overdue follow‑ups.</p>
+                {% endif %}
+            </div>
+
+            <div class="followup-group">
+                <h4 style="color:#d97706;">📅 Due Today ({{ due_today|length }})</h4>
+                {% if due_today %}
+                <ul class="followup-list">
+                    {% for f in due_today %}
+                    <li>
+                        <strong>{{ f.customer_name }}</strong> – Expected: {{ f.expected_order_date }}
+                        <span class="badge badge-warning">Due Today</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p>No follow‑ups due today.</p>
+                {% endif %}
+            </div>
+
+            <div class="followup-group">
+                <h4 style="color:#2563eb;">📈 Upcoming ({{ upcoming|length }})</h4>
+                {% if upcoming %}
+                <ul class="followup-list">
+                    {% for f in upcoming %}
+                    <li>
+                        <strong>{{ f.customer_name }}</strong> – Expected: {{ f.expected_order_date }}
+                        <span class="badge badge-info">Upcoming</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p>No upcoming follow‑ups.</p>
+                {% endif %}
+            </div>
         {% else %}
             <p>No follow‑ups scheduled.</p>
         {% endif %}
