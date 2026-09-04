@@ -45,7 +45,7 @@ MARKETER_ROLE = 'Marketers'
 SALES_MANAGER_ROLE = 'Sales Manager'
 TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller','Sales Manager','admin','ceo']
 
-# Manager-specific constants
+# Manager‑specific constants
 MANAGER_LIVE_BRANCHES = ['Kisumu HQ', 'Kisumu Retail']
 MANAGER_ATTENDANCE_ROLES = [
     'Branch Manager','Operations Manager','Assistant Operations Manager','Store Manager',
@@ -414,6 +414,10 @@ def home():
     role = session.get('role','Staff')
     ub = session.get('branch','')
     un = session.get('user','')
+
+    # Redirect marketers to their dedicated dashboard
+    if role == MARKETER_ROLE:
+        return redirect('/marketer')
 
     show_sales_card = (
         role in ['Staff','Branch Manager','admin','ceo'] or
@@ -828,7 +832,7 @@ def check_in_page():
     un = session.get('user')
     ub = session.get('branch','')
 
-    marketer_pending = False; marketer_approved = False
+    marketer_pending = False; marketer_approved = False; marketer_rejected = False
     if role == MARKETER_ROLE:
         mc = safe_data(execute_query(
             supabase.table('marketer_checkins').select('*')
@@ -838,6 +842,7 @@ def check_in_page():
         if mc:
             if mc[0]['status'] == 'approved': marketer_approved = True
             elif mc[0]['status'] == 'pending': marketer_pending = True
+            elif mc[0]['status'] == 'rejected': marketer_rejected = True
 
     emp = safe_data(execute_query(
         supabase.table('employees').select('shift_start,shift_end,role,department,branch')
@@ -861,6 +866,7 @@ def check_in_page():
     if role == MARKETER_ROLE:
         if marketer_approved: current_status = 'approved'
         elif marketer_pending: current_status = 'pending'
+        elif marketer_rejected: current_status = 'rejected'
         else: current_status = 'none'
 
     journeys = []
@@ -1418,7 +1424,7 @@ def export_sales():
     output = si.getvalue(); si.close()
     return Response(output, mimetype='text/csv', headers={"Content-Disposition": "attachment;filename=sales_report.csv"})
 
-# ---------- ATTENDANCE SUMMARY (FIXED) ----------
+# ---------- ATTENDANCE SUMMARY ----------
 @app.route('/attendance-summary')
 @login_required
 def attendance_summary():
@@ -1430,7 +1436,6 @@ def attendance_summary():
     employee_filter = request.args.get('employee', '')
 
     if branch_filter:
-        # Single branch: use original efficient method
         emp_query = supabase.table('employees').select('full_name, branch, department, role').eq('status','approved').eq('branch', branch_filter)
         if employee_filter: emp_query = emp_query.eq('full_name', employee_filter)
         employees = safe_data(execute_query(emp_query.order('full_name').limit(10000)))
@@ -1453,7 +1458,6 @@ def attendance_summary():
             days_present = len(emp_days.get(e['full_name'], set()))
             summary.append({**e, 'days_present': days_present})
     else:
-        # No branch filter: loop over all branches to avoid limit
         all_employees = []
         emp_days = defaultdict(set)
         for branch in get_branch_names():
@@ -1474,7 +1478,6 @@ def attendance_summary():
             ))
             for a in att_data:
                 emp_days[a['full_name']].add(a['date'])
-        # Build summary from all_employees
         summary = []
         for e in all_employees:
             days_present = len(emp_days.get(e['full_name'], set()))
@@ -1845,33 +1848,36 @@ def marketer_checkin():
     }).execute()
     return redirect('/check-in?pending=1')
 
-@app.route('/marketer/report', methods=['POST'])
+@app.route('/marketer/report', methods=['GET', 'POST'])
 @login_required
 def marketer_report():
     if session.get('role') != MARKETER_ROLE: return redirect('/check-in')
-    un = session.get('user'); today = str(now_eat().date())
-    customer_name = request.form.get('customer_name','').strip()
-    customer_phone = request.form.get('customer_phone','').strip()
-    details = request.form.get('details','').strip()
-    expenses = request.form.get('expenses','0')
-    expected_order_date = request.form.get('expected_order_date','').strip()
-    lat = request.form.get('lat',''); lng = request.form.get('lng','')
-    location = request.form.get('location','').strip()
-    try: exp = float(expenses) if expenses else 0.0
-    except: exp = 0.0
-    if not customer_name: return redirect('/check-in?report=error')
-    existing = safe_data(execute_query(
-        supabase.table('customer_reports').select('id')
-               .eq('full_name', un).eq('date', today).eq('customer_name', customer_name).limit(1)
-    ))
-    if existing: return redirect('/check-in?report=duplicate')
-    supabase.table('customer_reports').insert({
-        'full_name': un, 'date': today, 'customer_name': customer_name,
-        'customer_phone': customer_phone, 'details': details, 'expenses': exp,
-        'expected_order_date': expected_order_date if expected_order_date else None,
-        'lat': lat if lat else None, 'lng': lng if lng else None, 'location': location if location else None
-    }).execute()
-    return redirect('/check-in?report=1')
+    if request.method == 'POST':
+        un = session.get('user'); today = str(now_eat().date())
+        customer_name = request.form.get('customer_name','').strip()
+        customer_phone = request.form.get('customer_phone','').strip()
+        details = request.form.get('details','').strip()
+        expenses = request.form.get('expenses','0')
+        expected_order_date = request.form.get('expected_order_date','').strip()
+        lat = request.form.get('lat',''); lng = request.form.get('lng','')
+        location = request.form.get('location','').strip()
+        try: exp = float(expenses) if expenses else 0.0
+        except: exp = 0.0
+        if not customer_name: return redirect('/check-in?report=error')
+        existing = safe_data(execute_query(
+            supabase.table('customer_reports').select('id')
+                   .eq('full_name', un).eq('date', today).eq('customer_name', customer_name).limit(1)
+        ))
+        if existing: return redirect('/check-in?report=duplicate')
+        supabase.table('customer_reports').insert({
+            'full_name': un, 'date': today, 'customer_name': customer_name,
+            'customer_phone': customer_phone, 'details': details, 'expenses': exp,
+            'expected_order_date': expected_order_date if expected_order_date else None,
+            'lat': lat if lat else None, 'lng': lng if lng else None, 'location': location if location else None
+        }).execute()
+        return redirect('/marketer')
+    # GET request show form
+    return render_template('marketer_report.html', today=str(now_eat().date()), company=COMPANY_NAME)
 
 @app.route('/marketer/submit-location', methods=['POST'])
 @login_required
@@ -1883,6 +1889,79 @@ def submit_marketer_location():
         'full_name': un, 'date': today, 'time': now, 'lat': lat, 'lng': lng, 'location': loc
     }).execute()
     return redirect('/check-in?location=ok')
+
+# ---------- MARKETER DASHBOARD (new) ----------
+@app.route('/marketer')
+@login_required
+def marketer_dashboard():
+    if session.get('role') != MARKETER_ROLE:
+        return redirect('/')
+    un = session.get('user')
+    today = str(now_eat().date())
+
+    # Today's check-in status
+    checkin = safe_data(execute_query(
+        supabase.table('marketer_checkins')
+        .select('*')
+        .eq('full_name', un)
+        .eq('date', today)
+        .order('created_at', desc=True)
+        .limit(1)
+    ))
+    checkin_status = None
+    checkin_time = None
+    if checkin:
+        checkin_status = checkin[0].get('status')
+        checkin_time = checkin[0].get('check_in_time')
+
+    # Assigned places
+    places = safe_data(execute_query(
+        supabase.table('assigned_places')
+        .select('*')
+        .eq('marketer_name', un)
+        .order('date_assigned', desc=True)
+        .limit(50)
+    ))
+
+    # Today's customer reports
+    reports_today = safe_data(execute_query(
+        supabase.table('customer_reports')
+        .select('*')
+        .eq('full_name', un)
+        .eq('date', today)
+        .order('created_at', desc=True)
+    ))
+
+    # Follow-ups: all customer reports where expected_order_date is not null
+    all_reports = safe_data(execute_query(
+        supabase.table('customer_reports')
+        .select('*')
+        .eq('full_name', un)
+        .not_.is_('expected_order_date', 'null')
+        .order('expected_order_date', desc=True)
+        .limit(100)
+    ))
+
+    # Target for current month
+    month_str = now_eat().date().replace(day=1).strftime('%Y-%m')
+    target = safe_data(execute_query(
+        supabase.table('sales_targets')
+        .select('target_amount')
+        .eq('full_name', un)
+        .eq('month', month_str)
+        .limit(1)
+    ))
+    target_amount = float(target[0]['target_amount']) if target else None
+
+    return render_template('marketer_dashboard.html',
+                           checkin_status=checkin_status,
+                           checkin_time=checkin_time,
+                           places=places,
+                           reports_today=reports_today,
+                           followups=all_reports,
+                           target_amount=target_amount,
+                           today=today,
+                           company=COMPANY_NAME)
 
 # ---------- SALES MANAGER DASHBOARD ----------
 @app.route('/sales-manager')
