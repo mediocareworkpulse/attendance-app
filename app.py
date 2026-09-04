@@ -105,7 +105,6 @@ MARKETER_ROLE = 'Marketers'
 SALES_MANAGER_ROLE = 'Sales Manager'
 TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller','Sales Manager','admin','ceo']
 
-# Manager‑specific constants
 MANAGER_LIVE_BRANCHES = ['Kisumu HQ', 'Kisumu Retail']
 MANAGER_ATTENDANCE_ROLES = [
     'Branch Manager','Operations Manager','Assistant Operations Manager','Store Manager',
@@ -476,11 +475,9 @@ def home():
     ub = session.get('branch','')
     un = session.get('user','')
 
-    # Redirect marketers to their dedicated dashboard
     if role == MARKETER_ROLE:
         return redirect('/marketer')
 
-    # Redirect generic Manager to dedicated manager dashboard
     if role == 'Manager':
         return redirect('/manager-dashboard')
 
@@ -2108,10 +2105,45 @@ def sales_manager_dashboard():
     marketers = safe_data(execute_query(
         supabase.table('employees').select('full_name').eq('status','approved').eq('role','Marketers').order('full_name')
     ))
+
+    # Build marketer performance summary
+    marketer_performance = []
+    for m in marketers:
+        name = m['full_name']
+        status = 'none'
+        if any(p['full_name'] == name for p in pending_checkins):
+            status = 'pending'
+        elif any(a['full_name'] == name for a in approved_checkins):
+            status = 'approved'
+        reports_today = len([r for r in reports if r['full_name'] == name])
+        places_count = len([p for p in assigned if p['marketer_name'] == name])
+        follow_ups = safe_data(execute_query(
+            supabase.table('customer_reports')
+            .select('id')
+            .eq('full_name', name)
+            .not_.is_('expected_order_date', 'null')
+            .lte('expected_order_date', today)
+        ))
+        follow_ups_due = len(follow_ups)
+        latest_loc = None
+        for loc in location_pings:
+            if loc['full_name'] == name:
+                latest_loc = loc.get('location', '')
+                break
+        marketer_performance.append({
+            'full_name': name,
+            'status': status,
+            'reports_today': reports_today,
+            'assigned_places': places_count,
+            'follow_ups_due': follow_ups_due,
+            'latest_location': latest_loc or '—'
+        })
+
     return render_template('sales_manager.html',
         pending_checkins=pending_checkins, approved_checkins=approved_checkins,
         reports=reports, assigned=assigned, location_pings=location_pings,
-        marketers=marketers, today=today, company=COMPANY_NAME)
+        marketers=marketers, today=today, company=COMPANY_NAME,
+        marketer_performance=marketer_performance)
 
 @app.route('/sales-manager/approve/<int:cid>', methods=['POST'])
 @login_required
@@ -2158,7 +2190,6 @@ def api_live_locations():
         return {'error': 'Unauthorized'}, 403
 
     today = str(now_eat().date())
-    # Fetch today's location pings
     pings = safe_data(execute_query(
         supabase.table('marketer_locations')
         .select('full_name, lat, lng, time, location')
@@ -2167,7 +2198,6 @@ def api_live_locations():
         .limit(1000)
     ))
 
-    # Group by marketer, keep the latest ping
     latest = {}
     for p in pings:
         name = p['full_name']
@@ -2664,72 +2694,4 @@ def export_marketer_reports():
         ])
     output = si.getvalue()
     si.close()
-    return Response(output, mimetype='text/csv',
-                    headers={"Content-Disposition": "attachment;filename=marketer_reports.csv"})
-
-# ---------- ABSENT TODAY ----------
-@app.route('/absent-today')
-@login_required
-def absent_today():
-    allowed_roles = ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller',
-                     'Operations Manager','Sales Manager','Store Manager','Branch Manager','Procurement Officer','Manager']
-    if session.get('role') not in allowed_roles:
-        return redirect('/')
-    today = str(now_eat().date())
-    all_employees = safe_data(execute_query(
-        supabase.table('employees').select('full_name, branch, department, role')
-        .eq('status','approved').order('full_name')
-    ))
-    checked_in = safe_data(execute_query(
-        supabase.table('attendance').select('full_name').eq('date', today)
-    ))
-    checked_in_names = set(a['full_name'] for a in checked_in)
-    leaves = safe_data(execute_query(
-        supabase.table('leaves').select('full_name')
-        .in_('status', ['approved_final','approved_by_manager','approved_by_procurement','approved_by_ops'])
-        .lte('leave_start', today).gte('leave_end', today)
-    ))
-    on_leave_names = set(l['full_name'] for l in leaves)
-    absent = []
-    for emp in all_employees:
-        if emp['full_name'] not in checked_in_names and emp['full_name'] not in on_leave_names:
-            absent.append(emp)
-    return render_template('absent_today.html', absent=absent, today=today, company=COMPANY_NAME)
-
-# ---------- DELETE LEAVE (Admin/HR) ----------
-@app.route('/delete-leave/<int:lid>', methods=['POST'])
-@login_required
-def delete_leave_admin(lid):
-    allowed_roles = ['admin','ceo','HR','HR Assistant']
-    if session.get('role') not in allowed_roles:
-        return redirect('/')
-    supabase.table('leaves').delete().eq('id', lid).execute()
-    return redirect(request.referrer or '/hr/leaves')
-
-# ---------- ADMIN RESET ATTENDANCE ----------
-@app.route('/admin/reset-attendance', methods=['GET','POST'])
-@login_required
-@admin_required
-def reset_attendance():
-    if request.method == 'POST':
-        emp_name = request.form.get('employee_name','').strip()
-        att_date = request.form.get('attendance_date','').strip()
-        if emp_name and att_date:
-            supabase.table('attendance').delete().eq('full_name', emp_name).eq('date', att_date).execute()
-            return redirect('/admin/reset-attendance?success=1')
-        return redirect('/admin/reset-attendance?error=1')
-    employees = safe_data(execute_query(
-        supabase.table('employees').select('full_name').eq('status','approved').order('full_name')
-    ))
-    return render_template('admin_reset_attendance.html', employees=employees,
-                           success=request.args.get('success',''), error=request.args.get('error',''),
-                           company=COMPANY_NAME)
-
-# ---------- ERROR HANDLER ----------
-@app.errorhandler(Exception)
-def handle_exception(e):
-    print(f"Unhandled error: {e}")
-    return render_template('error.html', error=str(e)), 500
-
-if __name__=='__main__':
-    app.run(host='0.0.0.0',port=5000)
+    return
