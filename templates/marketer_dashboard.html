@@ -1,133 +1,335 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="marketer-dashboard">
-    <!-- Header -->
-    <h1 class="page-title">Field Dashboard</h1>
-    <p class="page-subtitle">{{ today }} · {{ company }}</p>
+<style>
+    /* Marketer Dashboard specific styles */
+    .md-hero {
+        background: linear-gradient(135deg, #0b2b4a 0%, #134b6e 100%);
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 20px;
+        color: #fff;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        border: none;
+    }
+    .md-hero-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .md-hero-title {
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+    .md-hero-date {
+        font-size: 14px;
+        opacity: 0.8;
+    }
+    .md-status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255,255,255,0.2);
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        backdrop-filter: blur(4px);
+    }
+    .md-status-badge.success { background: rgba(46,204,113,0.3); }
+    .md-status-badge.warning { background: rgba(243,156,18,0.3); }
+    .md-status-badge.danger { background: rgba(231,76,60,0.3); }
+    .md-status-badge.neutral { background: rgba(255,255,255,0.15); }
 
-    <!-- Attendance Status Card -->
-    <div class="card status-card" style="margin-bottom: 20px;">
-        <h3>⏰ Attendance</h3>
-        {% if checkin_status == 'approved' %}
-            <span class="badge badge-success">Approved</span>
-            <p>Checked in at {{ checkin_time }}</p>
-        {% elif checkin_status == 'pending' %}
-            <span class="badge badge-warning">Pending Approval</span>
-            <p>Request submitted – awaiting Sales Manager.</p>
-        {% elif checkin_status == 'rejected' %}
-            <span class="badge badge-danger">Rejected</span>
-            <p>Your check‑in was rejected.</p>
-        {% else %}
-            <span class="badge badge-secondary">Not Checked In</span>
-            <p>You have not submitted a check‑in today.</p>
+    .md-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 14px;
+        margin-bottom: 20px;
+    }
+    .md-action-card {
+        background: #fff;
+        border-radius: 14px;
+        padding: 18px 12px;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        transition: all 0.2s ease;
+        border: 1px solid #f0f0f0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        color: var(--text);
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+    }
+    .md-action-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        border-color: var(--accent);
+    }
+    .md-action-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: var(--primary);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        margin-bottom: 4px;
+    }
+    .md-action-card:nth-child(2) .md-action-icon { background: #8e44ad; }
+    .md-action-card:nth-child(3) .md-action-icon { background: #e67e22; }
+    .md-action-card:nth-child(4) .md-action-icon { background: #27ae60; }
+    .md-action-card:nth-child(5) .md-action-icon { background: #c0392b; }
+
+    .md-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 14px;
+        margin-bottom: 20px;
+    }
+    .md-stat {
+        background: #fff;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        text-align: center;
+        border: 1px solid #f0f0f0;
+    }
+    .md-stat-value {
+        font-size: 26px;
+        font-weight: 700;
+        color: var(--primary);
+    }
+    .md-stat-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+    }
+
+    .md-card {
+        background: #fff;
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        border: 1px solid #f0f0f0;
+    }
+    .md-card h3 {
+        font-size: 16px;
+        font-weight: 700;
+        margin-bottom: 12px;
+        color: var(--text);
+    }
+    .md-follow-group {
+        margin-bottom: 14px;
+    }
+    .md-follow-group:last-child {
+        margin-bottom: 0;
+    }
+    .md-follow-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+    .md-follow-count {
+        background: #f0f0f0;
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 12px;
+    }
+    .md-follow-list {
+        list-style: none;
+        padding-left: 0;
+    }
+    .md-follow-list li {
+        padding: 8px 0;
+        border-bottom: 1px solid #f5f5f5;
+        font-size: 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .md-follow-list li:last-child {
+        border-bottom: none;
+    }
+    .md-empty {
+        color: var(--text-secondary);
+        font-style: italic;
+        font-size: 13px;
+    }
+
+    @media (max-width: 600px) {
+        .md-hero {
+            padding: 18px;
+        }
+        .md-hero-title {
+            font-size: 20px;
+        }
+        .md-actions {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        .md-stats {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+
+<div class="marketer-dashboard">
+    <!-- Hero Status -->
+    <div class="md-hero">
+        <div class="md-hero-top">
+            <div>
+                <div class="md-hero-title">Field Dashboard</div>
+                <div class="md-hero-date">{{ today }} · {{ company }}</div>
+            </div>
+            {% if checkin_status == 'approved' %}
+                <span class="md-status-badge success">Approved</span>
+            {% elif checkin_status == 'pending' %}
+                <span class="md-status-badge warning">Pending Approval</span>
+            {% elif checkin_status == 'rejected' %}
+                <span class="md-status-badge danger">Rejected</span>
+            {% else %}
+                <span class="md-status-badge neutral">Not Checked In</span>
+            {% endif %}
+        </div>
+        {% if checkin_time %}
+        <div style="font-size: 14px; opacity: 0.9;">
+            Check‑in time: <strong>{{ checkin_time }}</strong>
+        </div>
         {% endif %}
-        <a href="/check-in" class="btn btn-primary btn-block mt-2">Go to Check‑In</a>
+        <a href="/check-in" style="color: #fff; text-decoration: underline; font-size: 14px; font-weight: 600;">Go to Check‑In</a>
     </div>
 
     <!-- Quick Actions -->
-    <div class="quick-actions" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px;">
-        <a href="/check-in" class="quick-action-card">
-            <span>⏰</span>
-            <div>CHECK IN</div>
+    <div class="md-actions">
+        <a href="/check-in" class="md-action-card">
+            <div class="md-action-icon"><i class="fas fa-clock"></i></div>
+            <span>Check In</span>
         </a>
-        <a href="/my-places" class="quick-action-card">
-            <span>📍</span>
-            <div>MY PLACES</div>
+        <a href="/my-places" class="md-action-card">
+            <div class="md-action-icon"><i class="fas fa-map-marker-alt"></i></div>
+            <span>My Places</span>
         </a>
-        <a href="/marketer/report" class="quick-action-card">
-            <span>📝</span>
-            <div>CUSTOMER REPORT</div>
+        <a href="/marketer/report" class="md-action-card">
+            <div class="md-action-icon"><i class="fas fa-file-alt"></i></div>
+            <span>Customer Report</span>
         </a>
-        <a href="#" onclick="sendLocation()" class="quick-action-card">
-            <span>🛰️</span>
-            <div>SEND LOCATION</div>
+        <a href="#" onclick="sendLocation()" class="md-action-card">
+            <div class="md-action-icon"><i class="fas fa-location-arrow"></i></div>
+            <span>Send Location</span>
         </a>
-        <a href="#followups" class="quick-action-card">
-            <span>🔔</span>
-            <div>FOLLOW‑UPS</div>
+        <a href="#followups" class="md-action-card">
+            <div class="md-action-icon"><i class="fas fa-bell"></i></div>
+            <span>Follow‑ups</span>
         </a>
     </div>
 
-    <!-- Today's Field Activity -->
-    <div class="card" style="margin-bottom: 20px;">
-        <h3>📊 Today's Activity</h3>
-        <div class="activity-summary" style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-            <div><strong>{{ places|length }}</strong> Assigned Places</div>
-            <div><strong>{{ reports_today|length }}</strong> Reports Submitted</div>
+    <!-- Stats -->
+    <div class="md-stats">
+        <div class="md-stat">
+            <div class="md-stat-value">{{ places|length }}</div>
+            <div class="md-stat-label">Assigned Places</div>
         </div>
+        <div class="md-stat">
+            <div class="md-stat-value">{{ reports_today|length }}</div>
+            <div class="md-stat-label">Reports Today</div>
+        </div>
+        {% if target_amount %}
+        <div class="md-stat">
+            <div class="md-stat-value">{{ "%.0f"|format(target_amount) }}</div>
+            <div class="md-stat-label">Monthly Target (Ksh)</div>
+        </div>
+        {% endif %}
     </div>
 
-    <!-- Target (if exists) -->
-    {% if target_amount %}
-    <div class="card" style="margin-bottom: 20px; border-left: 4px solid var(--accent);">
-        <h3>🎯 My Monthly Target</h3>
-        <div class="target-value" style="font-size: 24px; font-weight: 700;">Ksh {{ "%.2f"|format(target_amount) }}</div>
-    </div>
-    {% endif %}
-
-    <!-- Follow‑ups Section -->
-    <div class="card" id="followups" style="margin-bottom: 20px;">
-        <h3>🔔 Follow‑ups</h3>
+    <!-- Follow-ups -->
+    <div class="md-card" id="followups">
+        <h3>Follow‑ups</h3>
         {% if followups %}
             {% set overdue = followups | selectattr('expected_order_date', 'lt', today) | list %}
             {% set due_today = followups | selectattr('expected_order_date', 'equalto', today) | list %}
             {% set upcoming = followups | selectattr('expected_order_date', 'gt', today) | list %}
 
-            <div class="followup-group">
-                <h4 style="color:#dc2626;">⚠️ Overdue ({{ overdue|length }})</h4>
+            <div class="md-follow-group">
+                <div class="md-follow-header" style="color:#dc2626;">
+                    Overdue <span class="md-follow-count">{{ overdue|length }}</span>
+                </div>
                 {% if overdue %}
-                <ul class="followup-list">
+                <ul class="md-follow-list">
                     {% for f in overdue %}
                     <li>
-                        <strong>{{ f.customer_name }}</strong> – Expected: {{ f.expected_order_date }}
-                        <span class="badge badge-danger">Overdue</span>
+                        <span>{{ f.customer_name }}</span>
+                        <span style="color:#dc2626; font-weight:600;">Expected: {{ f.expected_order_date }}</span>
                     </li>
                     {% endfor %}
                 </ul>
                 {% else %}
-                <p>No overdue follow‑ups.</p>
+                <div class="md-empty">No overdue follow‑ups.</div>
                 {% endif %}
             </div>
 
-            <div class="followup-group">
-                <h4 style="color:#d97706;">📅 Due Today ({{ due_today|length }})</h4>
+            <div class="md-follow-group">
+                <div class="md-follow-header" style="color:#d97706;">
+                    Due Today <span class="md-follow-count">{{ due_today|length }}</span>
+                </div>
                 {% if due_today %}
-                <ul class="followup-list">
+                <ul class="md-follow-list">
                     {% for f in due_today %}
                     <li>
-                        <strong>{{ f.customer_name }}</strong> – Expected: {{ f.expected_order_date }}
-                        <span class="badge badge-warning">Due Today</span>
+                        <span>{{ f.customer_name }}</span>
+                        <span style="color:#d97706; font-weight:600;">Expected: {{ f.expected_order_date }}</span>
                     </li>
                     {% endfor %}
                 </ul>
                 {% else %}
-                <p>No follow‑ups due today.</p>
+                <div class="md-empty">No follow‑ups due today.</div>
                 {% endif %}
             </div>
 
-            <div class="followup-group">
-                <h4 style="color:#2563eb;">📈 Upcoming ({{ upcoming|length }})</h4>
+            <div class="md-follow-group">
+                <div class="md-follow-header" style="color:#2563eb;">
+                    Upcoming <span class="md-follow-count">{{ upcoming|length }}</span>
+                </div>
                 {% if upcoming %}
-                <ul class="followup-list">
+                <ul class="md-follow-list">
                     {% for f in upcoming %}
                     <li>
-                        <strong>{{ f.customer_name }}</strong> – Expected: {{ f.expected_order_date }}
-                        <span class="badge badge-info">Upcoming</span>
+                        <span>{{ f.customer_name }}</span>
+                        <span style="color:#2563eb; font-weight:600;">Expected: {{ f.expected_order_date }}</span>
                     </li>
                     {% endfor %}
                 </ul>
                 {% else %}
-                <p>No upcoming follow‑ups.</p>
+                <div class="md-empty">No upcoming follow‑ups.</div>
                 {% endif %}
             </div>
         {% else %}
-            <p>No follow‑ups scheduled.</p>
+            <div class="md-empty">No follow‑ups scheduled.</div>
         {% endif %}
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script>
 function sendLocation() {
     if (!navigator.geolocation) {
@@ -158,7 +360,7 @@ function startLocationTracking() {
         return;
     }
 
-    function sendLocation(position) {
+    function sendLocationAuto(position) {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
         const loc = `${lat}, ${lng}`;
@@ -169,26 +371,21 @@ function startLocationTracking() {
         }).catch(err => console.error('Location send failed:', err));
     }
 
-    // Send initial location
-    navigator.geolocation.getCurrentPosition(sendLocation, console.error, {enableHighAccuracy: true});
+    navigator.geolocation.getCurrentPosition(sendLocationAuto, console.error, {enableHighAccuracy: true});
 
-    // Watch for changes
     const watchId = navigator.geolocation.watchPosition(
-        sendLocation,
+        sendLocationAuto,
         console.error,
         {enableHighAccuracy: true, maximumAge: 60000, timeout: 10000}
     );
 
-    // Also send periodically as a fallback (every 60s)
     setInterval(() => {
-        navigator.geolocation.getCurrentPosition(sendLocation, console.error, {enableHighAccuracy: true});
+        navigator.geolocation.getCurrentPosition(sendLocationAuto, console.error, {enableHighAccuracy: true});
     }, 60000);
 
-    // Keep reference if needed later
     window._locationWatchId = watchId;
 }
 
-// Start tracking when page loads
 document.addEventListener('DOMContentLoaded', startLocationTracking);
 </script>
 {% endblock %}
