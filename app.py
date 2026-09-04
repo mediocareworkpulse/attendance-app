@@ -2719,10 +2719,23 @@ def targets_progress():
     for t in targets:
         emp_name = t['full_name']
         target_amt = float(t['target_amount'])
+
+        # Calculate month start and end correctly
+        month_start = month + '-01'
+        if month == now_eat().date().strftime('%Y-%m'):
+            month_end = str(now_eat().date())
+        else:
+            year, mon = map(int, month.split('-'))
+            if mon == 12:
+                next_month = f"{year+1}-01-01"
+            else:
+                next_month = f"{year}-{mon+1:02d}-01"
+            month_end = (datetime.strptime(next_month, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+
         sales = safe_data(execute_query(
             supabase.table('sales').select('total_sales')
             .eq('full_name', emp_name)
-            .gte('date', month + '-01').lte('date', month + '-31')
+            .gte('date', month_start).lte('date', month_end)
         ))
         total_sales = sum(float(s['total_sales']) for s in sales)
         percent = round((total_sales / target_amt * 100), 1) if target_amt > 0 else 0
@@ -3002,7 +3015,6 @@ def absent_today():
     un = session.get('user')
     today = str(now_eat().date())
 
-    # Determine team scope (same as live_status)
     team_names = None
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant','Stock Controller','Assistant Stock Controller']:
         pass
@@ -3025,20 +3037,17 @@ def absent_today():
     else:
         return redirect('/')
 
-    # Build employees query
     emp_query = supabase.table('employees').select('full_name, branch, department, role').eq('status','approved')
     if team_names:
         emp_query = emp_query.in_('full_name', team_names)
     all_employees = safe_data(execute_query(emp_query.order('full_name')))
 
-    # Checked-in names
     att_query = supabase.table('attendance').select('full_name').eq('date', today)
     if team_names:
         att_query = att_query.in_('full_name', team_names)
     checked_in = safe_data(execute_query(att_query))
     checked_in_names = set(a['full_name'] for a in checked_in)
 
-    # On-leave names
     leave_query = supabase.table('leaves').select('full_name').in_('status', ['approved_final','approved_by_manager','approved_by_procurement','approved_by_ops']).lte('leave_start', today).gte('leave_end', today)
     if team_names:
         leave_query = leave_query.in_('full_name', team_names)
