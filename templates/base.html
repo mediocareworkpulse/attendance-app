@@ -6,7 +6,6 @@
     <title>{{ company }}</title>
     <link rel="stylesheet" href="/static/style.css">
     <link rel="manifest" href="/static/manifest.json">
-    <!-- PWA meta tags (fixed deprecation) -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -65,6 +64,9 @@
         {% endif %}
         {% if role_lower in ['admin','ceo','hr','hr assistant','store manager','operations manager','assistant operations manager','sales manager','branch manager','procurement officer','manager'] %}
             <a href="/live-status" class="{% if request.path == '/live-status' %}active{% endif %}">🟢 Live Status</a>
+        {% endif %}
+        {% if session.role in ['Sales Manager','Manager','admin','ceo'] %}
+            <a href="/live-map" class="{% if request.path == '/live-map' %}active{% endif %}">📍 Live Map</a>
         {% endif %}
         {% if session.role in ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager','Store Manager','Branch Manager','Procurement Officer','Manager'] %}
             <a href="/absent-today" class="{% if request.path == '/absent-today' %}active{% endif %}">🚫 Absent Today</a>
