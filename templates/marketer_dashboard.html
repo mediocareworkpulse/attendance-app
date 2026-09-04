@@ -150,5 +150,45 @@ function sendLocation() {
         }
     );
 }
+
+// Automatically send location every 60 seconds
+function startLocationTracking() {
+    if (!navigator.geolocation) {
+        console.log('Geolocation not supported');
+        return;
+    }
+
+    function sendLocation(position) {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const loc = `${lat}, ${lng}`;
+        fetch('/marketer/submit-location', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `lat=${lat}&lng=${lng}&location=${encodeURIComponent(loc)}`
+        }).catch(err => console.error('Location send failed:', err));
+    }
+
+    // Send initial location
+    navigator.geolocation.getCurrentPosition(sendLocation, console.error, {enableHighAccuracy: true});
+
+    // Watch for changes
+    const watchId = navigator.geolocation.watchPosition(
+        sendLocation,
+        console.error,
+        {enableHighAccuracy: true, maximumAge: 60000, timeout: 10000}
+    );
+
+    // Also send periodically as a fallback (every 60s)
+    setInterval(() => {
+        navigator.geolocation.getCurrentPosition(sendLocation, console.error, {enableHighAccuracy: true});
+    }, 60000);
+
+    // Keep reference if needed later
+    window._locationWatchId = watchId;
+}
+
+// Start tracking when page loads
+document.addEventListener('DOMContentLoaded', startLocationTracking);
 </script>
 {% endblock %}
