@@ -2694,4 +2694,72 @@ def export_marketer_reports():
         ])
     output = si.getvalue()
     si.close()
-    return
+    return Response(output, mimetype='text/csv',
+                    headers={"Content-Disposition": "attachment;filename=marketer_reports.csv"})
+
+# ---------- ABSENT TODAY ----------
+@app.route('/absent-today')
+@login_required
+def absent_today():
+    allowed_roles = ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller',
+                     'Operations Manager','Sales Manager','Store Manager','Branch Manager','Procurement Officer','Manager']
+    if session.get('role') not in allowed_roles:
+        return redirect('/')
+    today = str(now_eat().date())
+    all_employees = safe_data(execute_query(
+        supabase.table('employees').select('full_name, branch, department, role')
+        .eq('status','approved').order('full_name')
+    ))
+    checked_in = safe_data(execute_query(
+        supabase.table('attendance').select('full_name').eq('date', today)
+    ))
+    checked_in_names = set(a['full_name'] for a in checked_in)
+    leaves = safe_data(execute_query(
+        supabase.table('leaves').select('full_name')
+        .in_('status', ['approved_final','approved_by_manager','approved_by_procurement','approved_by_ops'])
+        .lte('leave_start', today).gte('leave_end', today)
+    ))
+    on_leave_names = set(l['full_name'] for l in leaves)
+    absent = []
+    for emp in all_employees:
+        if emp['full_name'] not in checked_in_names and emp['full_name'] not in on_leave_names:
+            absent.append(emp)
+    return render_template('absent_today.html', absent=absent, today=today, company=COMPANY_NAME)
+
+# ---------- DELETE LEAVE (Admin/HR) ----------
+@app.route('/delete-leave/<int:lid>', methods=['POST'])
+@login_required
+def delete_leave_admin(lid):
+    allowed_roles = ['admin','ceo','HR','HR Assistant']
+    if session.get('role') not in allowed_roles:
+        return redirect('/')
+    supabase.table('leaves').delete().eq('id', lid).execute()
+    return redirect(request.referrer or '/hr/leaves')
+
+# ---------- ADMIN RESET ATTENDANCE ----------
+@app.route('/admin/reset-attendance', methods=['GET','POST'])
+@login_required
+@admin_required
+def reset_attendance():
+    if request.method == 'POST':
+        emp_name = request.form.get('employee_name','').strip()
+        att_date = request.form.get('attendance_date','').strip()
+        if emp_name and att_date:
+            supabase.table('attendance').delete().eq('full_name', emp_name).eq('date', att_date).execute()
+            return redirect('/admin/reset-attendance?success=1')
+        return redirect('/admin/reset-attendance?error=1')
+    employees = safe_data(execute_query(
+        supabase.table('employees').select('full_name').eq('status','approved').order('full_name')
+    ))
+    return render_template('admin_reset_attendance.html', employees=employees,
+                           success=request.args.get('success',''), error=request.args.get('error',''),
+                           company=COMPANY_NAME)
+
+# ---------- ERROR HANDLER ----------
+@app.errorhandler(Exception)
+def handle_exception(e):
+    print(f"Unhandled error: {e}")
+    return render_template('error.html', error=str(e)), 500
+
+if __name__=='__main__':
+    app.run(host='0.0.0.0',port=5000)
