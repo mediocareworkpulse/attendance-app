@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">📊 Field Marketing Executive Summary</h1>
+<p class="page-subtitle">{{ company }} • {{ today }}</p>
+
+<div class="stats" style="margin-top: 20px;">
+    <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-label">Total Marketers</div><div class="stat-value">{{ total_marketers }}</div></div>
+    <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-label">Checked In Today</div><div class="stat-value">{{ checked_in }}</div></div>
+    <div class="stat-card"><div class="stat-icon">⏳</div><div class="stat-label">Pending Check‑ins</div><div class="stat-value">{{ pending_count }}</div></div>
+    <div class="stat-card"><div class="stat-icon">📝</div><div class="stat-label">Reports Today</div><div class="stat-value">{{ reports_today_count }}</div></div>
+    <div class="stat-card"><div class="stat-icon">🗓️</div><div class="stat-label">Reports This Month</div><div class="stat-value">{{ reports_month_count }}</div></div>
+    <div class="stat-card"><div class="stat-icon">📍</div><div class="stat-label">Total Assignments</div><div class="stat-value">{{ total_assignments_count }}</div></div>
+    <div class="stat-card"><div class="stat-icon">🎯</div><div class="stat-label">Expected Orders</div><div class="stat-value">{{ expected_orders_count }}</div></div>
+</div>
+
+<!-- Recent Field Activity -->
+<div class="form-card" style="margin-top: 20px;">
+    <h2 style="font-size:16px; font-weight:700;">🕒 Recent Field Activity</h2>
+    {% if recent_reports %}
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Marketer</th><th>Customer</th><th>Date</th><th>Notes</th><th>Expected Order</th></tr></thead>
+            <tbody>
+            {% for r in recent_reports %}
+            <tr>
+                <td class="td-name">{{ r.full_name }}</td>
+                <td>{{ r.customer_name }}</td>
+                <td>{{ r.date }}</td>
+                <td>{{ r.details or '—' }}</td>
+                <td>{{ r.expected_order_date or '—' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>No recent field activity.</p>
+    {% endif %}
+</div>
+
+<!-- Link to Drill‑Down Reports -->
+<div style="margin-top: 20px;">
+    <a href="/field-reports" class="btn">📈 View Detailed Reports</a>
+</div>
+{% endblock %}
