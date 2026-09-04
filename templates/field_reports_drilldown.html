@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">📋 Field Reports – Drill‑Down</h1>
+<p class="page-subtitle">{{ company }} • {{ date_from or 'All dates' }} to {{ date_to or 'All dates' }}</p>
+
+<!-- Filter -->
+<form method="GET" class="form-grid" style="margin-bottom: 16px;">
+    <div><label>From</label><input type="date" name="from_date" value="{{ date_from }}"></div>
+    <div><label>To</label><input type="date" name="to_date" value="{{ date_to }}"></div>
+    <div style="display:flex; align-items:end;"><button type="submit" class="btn">Apply</button></div>
+</form>
+
+<!-- Marketer Summary Table -->
+<div class="table-container">
+    <table>
+        <thead><tr><th>Marketer</th><th>Total Reports</th><th>Latest Report Date</th><th>Action</th></tr></thead>
+        <tbody>
+        {% for m in marketer_summaries %}
+        <tr>
+            <td class="td-name">{{ m.full_name }}</td>
+            <td>{{ m.total_reports }}</td>
+            <td>{{ m.latest_report }}</td>
+            <td>
+                <a href="/field-reports?marketer={{ m.full_name|urlencode }}&from_date={{ date_from }}&to_date={{ date_to }}" class="btn btn-sm">View Details</a>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
