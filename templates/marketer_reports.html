@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="page-title">📋 Marketer Reports</h1>
+<h1 class="page-title">Marketer Reports</h1>
 <p class="page-subtitle">{{ company }} — Customer Reports</p>
 
 <!-- Filter -->
 <div class="form-card">
-    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">🔍 Filter</h2>
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">Filter</h2>
     <form method="GET" class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:12px;">
         <div>
             <label>From</label>
@@ -26,14 +26,14 @@
         </div>
         <div style="display:flex; align-items:end; gap:8px;">
             <button type="submit" class="btn" style="flex:1;">Apply</button>
-            <a href="/export-marketer-reports?from_date={{ filter_from }}&to_date={{ filter_to }}&marketer={{ filter_marketer }}" class="btn" style="background:var(--accent); color:#fff; white-space:nowrap;">📥 Export CSV</a>
+            <a href="/export-marketer-reports?from_date={{ filter_from }}&to_date={{ filter_to }}&marketer={{ filter_marketer }}" class="btn" style="background:var(--accent); color:#fff; white-space:nowrap;">Export CSV</a>
         </div>
     </form>
 </div>
 
 <!-- Reports Table -->
 <div class="form-card" style="margin-top:20px;">
-    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">📝 Submitted Reports ({{ reports|length }})</h2>
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">Submitted Reports ({{ reports|length }})</h2>
     <div class="table-container">
         <table>
             <thead>
@@ -64,5 +64,16 @@
             </tbody>
         </table>
     </div>
+</div>
+
+<!-- Pagination -->
+<div style="margin-top:12px; display:flex; gap:8px;">
+    {% if page > 1 %}
+    <a href="?page={{ page-1 }}&from_date={{ filter_from }}&to_date={{ filter_to }}&marketer={{ filter_marketer }}" class="btn btn-sm">Previous</a>
+    {% endif %}
+    <span style="padding:6px 12px;">Page {{ page }}</span>
+    {% if has_next %}
+    <a href="?page={{ page+1 }}&from_date={{ filter_from }}&to_date={{ filter_to }}&marketer={{ filter_marketer }}" class="btn btn-sm">Next</a>
+    {% endif %}
 </div>
 {% endblock %}
