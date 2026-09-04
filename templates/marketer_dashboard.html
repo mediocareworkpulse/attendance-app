@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="marketer-dashboard">
+    <!-- Header -->
+    <div class="page-title">Field Dashboard</div>
+    <div class="page-subtitle">{{ today }} · {{ company }}</div>
+
+    <!-- Attendance Status Card -->
+    <div class="card status-card">
+        <h3>Attendance</h3>
+        {% if checkin_status == 'approved' %}
+            <span class="badge badge-success">Approved</span>
+            <p>Checked in at {{ checkin_time }}</p>
+        {% elif checkin_status == 'pending' %}
+            <span class="badge badge-warning">Pending Approval</span>
+            <p>Request submitted – awaiting Sales Manager.</p>
+        {% elif checkin_status == 'rejected' %}
+            <span class="badge badge-danger">Rejected</span>
+            <p>Your check‑in was rejected.</p>
+        {% else %}
+            <span class="badge badge-secondary">Not Checked In</span>
+            <p>You have not submitted a check‑in today.</p>
+        {% endif %}
+        <a href="/check-in" class="btn btn-primary btn-block mt-2">Go to Check‑In</a>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <a href="/check-in" class="quick-action-card">
+            <span>⏰</span>
+            <div>CHECK IN</div>
+        </a>
+        <a href="/my-places" class="quick-action-card">
+            <span>📍</span>
+            <div>MY PLACES</div>
+        </a>
+        <a href="/marketer/report" class="quick-action-card">
+            <span>📝</span>
+            <div>CUSTOMER REPORT</div>
+        </a>
+        <a href="#" onclick="sendLocation()" class="quick-action-card">
+            <span>🛰️</span>
+            <div>SEND LOCATION</div>
+        </a>
+    </div>
+
+    <!-- Today's Field Activity -->
+    <div class="card">
+        <h3>Today's Activity</h3>
+        <p>Assigned Places: {{ places|length }}</p>
+        <p>Reports Submitted: {{ reports_today|length }}</p>
+    </div>
+
+    <!-- Target (if exists) -->
+    {% if target_amount %}
+    <div class="card">
+        <h3>My Monthly Target</h3>
+        <div class="target-value">Ksh {{ "%.2f"|format(target_amount) }}</div>
+    </div>
+    {% endif %}
+
+    <!-- Follow‑ups -->
+    <div class="card">
+        <h3>Follow‑ups</h3>
+        {% if followups %}
+            <ul class="followup-list">
+                {% for f in followups %}
+                <li>
+                    <strong>{{ f.customer_name }}</strong> – Expected: {{ f.expected_order_date }}
+                    <span class="badge {% if f.expected_order_date < today %}badge-danger{% elif f.expected_order_date == today %}badge-warning{% else %}badge-info{% endif %}">
+                        {% if f.expected_order_date < today %}Overdue{% elif f.expected_order_date == today %}Due Today{% else %}Upcoming{% endif %}
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No follow‑ups scheduled.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function sendLocation() {
+    if (!navigator.geolocation) {
+        alert('Geolocation is not supported by your device.');
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(
+        function(pos) {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const loc = `${lat}, ${lng}`;
+            fetch('/marketer/submit-location', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `lat=${lat}&lng=${lng}&location=${encodeURIComponent(loc)}`
+            }).then(() => alert('Location sent successfully.'));
+        },
+        function(err) {
+            alert('Unable to get location: ' + err.message);
+        }
+    );
+}
+</script>
+{% endblock %}
