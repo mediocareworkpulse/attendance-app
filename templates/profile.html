@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="page-title">👤 My Profile</h1>
+<h1 class="page-title">My Profile</h1>
 <p class="page-subtitle">{{ company }}</p>
 
 <div class="profile-card">
@@ -17,20 +17,35 @@
         <div class="detail-item"><span class="detail-label">Phone</span><span class="detail-value">{{ employee.phone or '—' }}</span></div>
         <div class="detail-item"><span class="detail-label">Email</span><span class="detail-value">{{ employee.email or '—' }}</span></div>
         <div class="detail-item"><span class="detail-label">Shift</span><span class="detail-value">{{ employee.shift_start or '08:00' }} — {{ employee.shift_end or '17:00' }}</span></div>
+        <div class="detail-item">
+            <span class="detail-label">Last Check‑In Location</span>
+            <span class="detail-value">{{ last_check_in_location or '—' }}</span>
+        </div>
+        {% if last_check_in_geofence == 'in_branch' %}
+            <div class="detail-item">
+                <span class="detail-label">Geofence</span>
+                <span class="badge badge-success">In Branch</span>
+            </div>
+        {% elif last_check_in_geofence == 'out_of_branch' %}
+            <div class="detail-item">
+                <span class="detail-label">Geofence</span>
+                <span class="badge badge-danger">Outside Branch</span>
+            </div>
+        {% endif %}
     </div>
 </div>
 
 <div class="stats">
-    <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-label">Days Present (This Month)</div><div class="stat-value">{{ days_present }}</div></div>
+    <div class="stat-card"><div class="stat-icon"><i class="fas fa-calendar-day"></i></div><div class="stat-label">Days Present (This Month)</div><div class="stat-value">{{ days_present }}</div></div>
     {% if session.get('role') not in ['Marketers', 'Sales Manager'] %}
-    <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-label">My Sales (This Month)</div><div class="stat-value">Ksh {{ "%.2f"|format(total_my_sales) }}</div></div>
+    <div class="stat-card"><div class="stat-icon"><i class="fas fa-dollar-sign"></i></div><div class="stat-label">My Sales (This Month)</div><div class="stat-value">Ksh {{ "%.2f"|format(total_my_sales) }}</div></div>
     {% endif %}
 </div>
 
 {% if success_msg %}<div class="alert alert-success">{{ success_msg }}</div>{% endif %}
 
 <div class="form-card" style="max-width:500px;">
-    <h2 style="font-size:16px; margin-bottom:12px;">🔒 Change Password</h2>
+    <h2 style="font-size:16px; margin-bottom:12px;">Change Password</h2>
     <form method="POST">
         <div class="form-group" style="position:relative;">
             <label>Current Password</label>
