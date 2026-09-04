@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">👤 Marketer Profile</h1>
+<p class="page-subtitle">{{ marketer.full_name }} • {{ company }}</p>
+
+<!-- Basic Info -->
+<div class="profile-card">
+    <div class="profile-header">
+        <div class="profile-avatar">{{ marketer.full_name[:1]|upper }}</div>
+        <div class="profile-info">
+            <h2>{{ marketer.full_name }}</h2>
+            <span class="badge badge-info">{{ marketer.role }}</span>
+            {% if marketer.branch %}<span class="badge badge-purple">{{ marketer.branch }}</span>{% endif %}
+        </div>
+    </div>
+    <div class="profile-details">
+        <div class="detail-item"><span class="detail-label">Department</span><span class="detail-value">{{ marketer.department or '—' }}</span></div>
+        <div class="detail-item"><span class="detail-label">Phone</span><span class="detail-value">{{ marketer.phone or '—' }}</span></div>
+        <div class="detail-item"><span class="detail-label">Email</span><span class="detail-value">{{ marketer.email or '—' }}</span></div>
+        <div class="detail-item"><span class="detail-label">Target (Current Month)</span><span class="detail-value">Ksh {{ "%.2f"|format(target_amount) if target_amount else '—' }}</span></div>
+    </div>
+</div>
+
+<!-- Latest Location -->
+{% if latest_location %}
+<div class="alert alert-info">
+    📍 Last known location: {{ latest_location.location or latest_location.lat ~ ', ' ~ latest_location.lng }} at {{ latest_location.time }}
+</div>
+{% endif %}
+
+<!-- Assigned Places -->
+<div class="form-card">
+    <h2 style="font-size:16px; font-weight:700;">📍 Assigned Places</h2>
+    {% if places %}
+    <ul>
+        {% for p in places %}
+        <li>{{ p.place_name }} (assigned {{ p.date_assigned }})</li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>No places assigned.</p>
+    {% endif %}
+</div>
+
+<!-- Recent Check‑ins -->
+<div class="form-card">
+    <h2 style="font-size:16px; font-weight:700;">⏰ Recent Check‑ins</h2>
+    {% if checkins %}
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Date</th><th>Time</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for c in checkins %}
+            <tr>
+                <td>{{ c.date }}</td>
+                <td>{{ c.check_in_time }}</td>
+                <td>
+                    {% if c.status == 'approved' %}<span class="badge badge-success">Approved</span>
+                    {% elif c.status == 'pending' %}<span class="badge badge-warning">Pending</span>
+                    {% elif c.status == 'rejected' %}<span class="badge badge-danger">Rejected</span>
+                    {% else %}<span class="badge badge-info">{{ c.status }}</span>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>No check‑ins yet.</p>
+    {% endif %}
+</div>
+
+<!-- Recent Customer Reports -->
+<div class="form-card">
+    <h2 style="font-size:16px; font-weight:700;">📝 Recent Customer Reports</h2>
+    {% if reports %}
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Date</th><th>Customer</th><th>Phone</th><th>Notes</th><th>Expenses</th><th>Expected Order</th></tr></thead>
+            <tbody>
+            {% for r in reports %}
+            <tr>
+                <td>{{ r.date }}</td>
+                <td>{{ r.customer_name }}</td>
+                <td>{{ r.customer_phone or '—' }}</td>
+                <td>{{ r.details or '—' }}</td>
+                <td>{{ r.expenses }}</td>
+                <td>{{ r.expected_order_date or '—' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>No customer reports yet.</p>
+    {% endif %}
+</div>
+{% endblock %}
