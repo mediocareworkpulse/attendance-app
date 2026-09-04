@@ -3,3 +3,4 @@ gunicorn
 supabase
 pytz
 Flask-Limiter
+APScheduler
