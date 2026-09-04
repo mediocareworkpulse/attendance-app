@@ -1,19 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="page-title">My Assigned Places</h1>
-<p class="page-subtitle">{{ company }}</p>
+<div class="marketer-places">
+    <h1 class="page-title">My Assigned Places</h1>
+    <p class="page-subtitle">{{ company }}</p>
 
-<div class="table-container">
-    <table>
-        <thead><tr><th>Place</th><th>Date Assigned</th></tr></thead>
-        <tbody>
+    {% if places %}
+    <div class="place-cards">
         {% for p in places %}
-        <tr>
-            <td class="td-name">{{ p.place_name }}</td>
-            <td>{{ p.date_assigned }}</td>
-        </tr>
+        <div class="place-card">
+            <h3>{{ p.place_name }}</h3>
+            <p>Assigned: {{ p.date_assigned }}</p>
+            <!-- You can add more fields if present in the database, e.g., location, phone -->
+            <a href="/marketer/report?place={{ p.place_name }}" class="btn btn-sm">Start Visit</a>
+        </div>
         {% endfor %}
-        </tbody>
-    </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">No assigned places yet.</div>
+    {% endif %}
 </div>
 {% endblock %}
