@@ -177,8 +177,14 @@ def now_eat():
 
 def normalize_role(role):
     role_lower = role.strip().lower()
+    # Map old names to new names
+    if role_lower == 'branch manager':
+        return 'Person in Charge'
+    if role_lower == 'manager':
+        return 'General Manager'
     for r in ALL_ROLES:
-        if r.lower() == role_lower: return r
+        if r.lower() == role_lower:
+            return r
     return role
 
 def get_active_delegation(user_id):
@@ -251,6 +257,9 @@ def geofence_status(lat, lng, branch):
     except:
         return 'unknown'
     return 'in_branch' if distance <= 150 else 'out_of_branch'
+
+# Field roles (no geofence enforcement)
+FIELD_ROLES = ['Marketers','Riders','Drivers','Telesales','Dispatch Personnel']
 
 # ==================== LEAVE HELPERS ====================
 def count_weekdays(start_str, end_str):
@@ -1240,10 +1249,13 @@ def process_attendance():
     if len(shift_start) > 5: shift_start = shift_start[:5]
     if not shift_start or ':' not in shift_start: shift_start = '08:00'
 
-    # Fetch branch geofence
-    branch_rec = safe_data(execute_query(supabase.table('branches').select('latitude, longitude').eq('name', branch).limit(1)))
-    branch_info = branch_rec[0] if branch_rec else {}
-    geofence = geofence_status(lat, lng, branch_info)
+    # Determine geofence: field roles are exempt and always 'field'
+    if role in FIELD_ROLES:
+        geofence = 'field'
+    else:
+        branch_rec = safe_data(execute_query(supabase.table('branches').select('latitude, longitude').eq('name', branch).limit(1)))
+        branch_info = branch_rec[0] if branch_rec else {}
+        geofence = geofence_status(lat, lng, branch_info)
 
     existing = safe_data(execute_query(supabase.table('attendance').select('*').eq('full_name', un).eq('date', today)))
     exd = existing[0] if existing else None
