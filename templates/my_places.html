@@ -1,17 +1,27 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="marketer-places">
-    <h1 class="page-title">My Assigned Places</h1>
+    <h1 class="page-title">📍 My Assigned Places</h1>
     <p class="page-subtitle">{{ company }}</p>
 
     {% if places %}
-    <div class="place-cards">
+    <div class="place-cards" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
         {% for p in places %}
-        <div class="place-card">
-            <h3>{{ p.place_name }}</h3>
-            <p>Assigned: {{ p.date_assigned }}</p>
-            <!-- You can add more fields if present in the database, e.g., location, phone -->
-            <a href="/marketer/report?place={{ p.place_name }}" class="btn btn-sm">Start Visit</a>
+        <div class="place-card" style="background: var(--surface); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-sm); transition: all var(--transition);">
+            <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">{{ p.place_name }}</h3>
+            {% if p.location %}
+            <p style="color: var(--text-secondary); font-size: 13px;"><i class="fas fa-map-marker-alt"></i> {{ p.location }}</p>
+            {% endif %}
+            {% if p.phone %}
+            <p style="color: var(--text-secondary); font-size: 13px;"><i class="fas fa-phone"></i> {{ p.phone }}</p>
+            {% endif %}
+            <p style="color: var(--text-secondary); font-size: 12px;">Assigned: {{ p.date_assigned }}</p>
+            <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+                <a href="/marketer/report?place={{ p.place_name|urlencode }}" class="btn btn-sm" style="flex:1; justify-content:center;">📝 Start Visit</a>
+                {% if p.location %}
+                <a href="https://www.google.com/maps/search/?api=1&query={{ p.location|urlencode }}" target="_blank" class="btn btn-sm" style="background: var(--accent); color:#fff; flex:1; justify-content:center;">🧭 Navigate</a>
+                {% endif %}
+            </div>
         </div>
         {% endfor %}
     </div>
