@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">📍 Live Marketer Locations</h1>
+<p class="page-subtitle">{{ company }} — updated automatically</p>
+
+<div id="map" style="height: 70vh; width: 100%; border-radius: 12px; box-shadow: var(--shadow-md);"></div>
+<div style="margin-top: 12px; text-align: right;">
+    <button onclick="refreshMarkers()" class="btn" style="background: var(--accent); color:#fff;">🔄 Refresh Now</button>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let map;
+let markers = {};
+
+function initMap() {
+    map = L.map('map').setView([-0.0917, 34.7680], 12); // Center near Kisumu
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    refreshMarkers();
+    // Auto-refresh every 30 seconds
+    setInterval(refreshMarkers, 30000);
+}
+
+function refreshMarkers() {
+    fetch('/api/live-locations')
+        .then(res => res.json())
+        .then(data => {
+            const marketers = data.marketers || [];
+            // Remove markers that no longer exist
+            const currentNames = new Set(marketers.map(m => m.full_name));
+            Object.keys(markers).forEach(name => {
+                if (!currentNames.has(name)) {
+                    map.removeLayer(markers[name]);
+                    delete markers[name];
+                }
+            });
+
+            marketers.forEach(m => {
+                if (m.lat && m.lng) {
+                    const latLng = [parseFloat(m.lat), parseFloat(m.lng)];
+                    if (markers[m.full_name]) {
+                        markers[m.full_name].setLatLng(latLng);
+                        markers[m.full_name].setPopupContent(
+                            `<b>${m.full_name}</b><br>Updated: ${m.time || '—'}<br>${m.location || latLng.join(', ')}`
+                        );
+                    } else {
+                        markers[m.full_name] = L.marker(latLng).addTo(map)
+                            .bindPopup(`<b>${m.full_name}</b><br>Updated: ${m.time || '—'}<br>${m.location || latLng.join(', ')}`);
+                    }
+                }
+            });
+        })
+        .catch(err => console.error('Failed to fetch locations:', err));
+}
+
+document.addEventListener('DOMContentLoaded', initMap);
+</script>
+{% endblock %}
