@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="page-title">🟢 Live Working Status</h1>
+<h1 class="page-title">Live Working Status</h1>
 <p class="page-subtitle">{{ company }} – {{ today }}</p>
 
 <div class="form-card">
-    <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">Currently Working ({{ working|length }})</h2>
+    <h2>Currently Working ({{ working|length }})</h2>
     <div class="table-container">
         <table>
             <thead>
@@ -13,6 +13,8 @@
                     <th>Department</th>
                     <th>Branch</th>
                     <th>Check‑In</th>
+                    <th>Location</th>
+                    <th>Geofence</th>
                     <th>Status</th>
                 </tr>
             </thead>
@@ -23,11 +25,21 @@
                 <td>{{ w.department or '—' }}</td>
                 <td>{{ w.branch or '—' }}</td>
                 <td>{{ w.check_in }}</td>
+                <td>{{ w.check_in_location or '—' }}</td>
+                <td>
+                    {% if w.check_in_geofence == 'in_branch' %}
+                        <span class="badge badge-success">In Branch</span>
+                    {% elif w.check_in_geofence == 'out_of_branch' %}
+                        <span class="badge badge-danger">Outside Branch</span>
+                    {% else %}
+                        <span class="badge badge-secondary">Unknown</span>
+                    {% endif %}
+                </td>
                 <td>
                     {% if w.status == 'late' %}
-                    <span class="badge badge-danger">Late</span>
+                        <span class="badge badge-danger">Late</span>
                     {% else %}
-                    <span class="badge badge-success">Present</span>
+                        <span class="badge badge-info">Present</span>
                     {% endif %}
                 </td>
             </tr>
@@ -37,30 +49,8 @@
     </div>
 </div>
 
-<!-- Late Arrivals Today -->
-<div class="form-card" style="margin-top:20px;">
-    <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">⏰ Late Arrivals Today ({{ working | selectattr('status','equalto','late') | list | length }})</h2>
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr><th>Name</th><th>Department</th><th>Branch</th><th>Check‑In</th></tr>
-            </thead>
-            <tbody>
-            {% for w in working if w.status == 'late' %}
-            <tr>
-                <td class="td-name">{{ w.full_name }}</td>
-                <td>{{ w.department or '—' }}</td>
-                <td>{{ w.branch or '—' }}</td>
-                <td>{{ w.check_in }}</td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<div class="form-card" style="margin-top:20px;">
-    <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">Checked Out Today ({{ checked_out|length }})</h2>
+<div class="form-card">
+    <h2>Checked Out Today ({{ checked_out|length }})</h2>
     <div class="table-container">
         <table>
             <thead>
@@ -69,6 +59,8 @@
                     <th>Department</th>
                     <th>Branch</th>
                     <th>Check‑Out</th>
+                    <th>Location</th>
+                    <th>Geofence</th>
                 </tr>
             </thead>
             <tbody>
@@ -78,6 +70,16 @@
                 <td>{{ c.department or '—' }}</td>
                 <td>{{ c.branch or '—' }}</td>
                 <td>{{ c.check_out }}</td>
+                <td>{{ c.check_out_location or '—' }}</td>
+                <td>
+                    {% if c.check_out_geofence == 'in_branch' %}
+                        <span class="badge badge-success">In Branch</span>
+                    {% elif c.check_out_geofence == 'out_of_branch' %}
+                        <span class="badge badge-danger">Outside Branch</span>
+                    {% else %}
+                        <span class="badge badge-secondary">Unknown</span>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
             </tbody>
@@ -85,16 +87,11 @@
     </div>
 </div>
 
-<div class="form-card" style="margin-top:20px;">
-    <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">🌴 On Leave Today ({{ on_leave|length }})</h2>
+<div class="form-card">
+    <h2>On Leave Today ({{ on_leave|length }})</h2>
     <div class="table-container">
         <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Leave Type</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Name</th><th>Leave Type</th></tr></thead>
             <tbody>
             {% for l in on_leave %}
             <tr>
