@@ -47,11 +47,11 @@
             <input type="hidden" name="location" id="att-location" value="">
             <input type="hidden" name="action" id="att-action" value="">
             {% if user_status == 'none' %}
-                <button type="button" class="checkin-btn btn-check-in" onclick="confirmCheckIn()" style="width:auto; min-width:160px;">
+                <button type="button" class="checkin-btn btn-check-in" id="checkinBtn" onclick="confirmCheckIn()" style="width:auto; min-width:160px;">
                     <i class="fas fa-clock"></i> Clock In
                 </button>
             {% elif user_status in ['checked_in','working'] %}
-                <button type="button" class="checkin-btn btn-check-out" style="width:auto; min-width:160px;" onclick="confirmCheckOut()">
+                <button type="button" class="checkin-btn btn-check-out" id="checkoutBtn" style="width:auto; min-width:160px;" onclick="confirmCheckOut()">
                     <i class="fas fa-sign-out-alt"></i> Clock Out
                 </button>
             {% endif %}
@@ -60,12 +60,116 @@
     {% endif %}
 </div>
 
-<!-- Journey section and attendance records unchanged -->
-
 {% endblock %}
 
 {% block scripts %}
 <script>
+    // ---------- Helper: fetch with timeout ----------
+    async function fetchWithTimeout(url, options = {}, timeoutMs = 3000) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            const response = await fetch(url, { ...options, signal: controller.signal });
+            clearTimeout(timeoutId);
+            return response;
+        } catch (error) {
+            clearTimeout(timeoutId);
+            throw error;
+        }
+    }
+
+    // ---------- Reverse geocoding with timeout ----------
+    async function getAddressFromCoords(lat, lng) {
+        try {
+            const response = await fetchWithTimeout(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+                { headers: { 'Accept': 'application/json' } },
+                3000
+            );
+            const data = await response.json();
+            if (data && data.display_name) {
+                const parts = [];
+                if (data.address.road) parts.push(data.address.road);
+                if (data.address.suburb) parts.push(data.address.suburb);
+                if (data.address.city || data.address.town || data.address.village) parts.push(data.address.city || data.address.town || data.address.village);
+                if (parts.length === 0 && data.display_name) parts.push(data.display_name);
+                return parts.join(', ');
+            }
+        } catch (e) {
+            // ignore and fallback to coordinates
+        }
+        return `${lat}, ${lng}`;
+    }
+
+    // ---------- Geolocation with timeout ----------
+    function getCurrentPosition(timeoutMs = 10000) {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                reject(new Error('Geolocation not supported'));
+                return;
+            }
+            const timeoutId = setTimeout(() => reject(new Error('Geolocation timeout')), timeoutMs);
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    clearTimeout(timeoutId);
+                    resolve(pos);
+                },
+                (err) => {
+                    clearTimeout(timeoutId);
+                    reject(err);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: timeoutMs,
+                    maximumAge: 0
+                }
+            );
+        });
+    }
+
+    // ---------- Capture location and submit ----------
+    async function captureLocationAndSubmit() {
+        const latInput = document.getElementById('att-lat');
+        const lngInput = document.getElementById('att-lng');
+        const locInput = document.getElementById('att-location');
+        const form = document.getElementById('attendanceForm');
+
+        // Disable the button to prevent double clicks
+        const btn = document.getElementById('checkinBtn') || document.getElementById('checkoutBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Locating...';
+        }
+
+        try {
+            const position = await getCurrentPosition(10000);
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            latInput.value = lat;
+            lngInput.value = lng;
+
+            // Try reverse geocoding, but don't block submission if it fails
+            let address = `${lat}, ${lng}`;
+            try {
+                address = await getAddressFromCoords(lat, lng);
+            } catch (e) {
+                // keep raw coordinates
+            }
+            locInput.value = address;
+        } catch (error) {
+            // If geolocation fails, set fallback values
+            latInput.value = '0';
+            lngInput.value = '0';
+            locInput.value = 'Location unavailable';
+        }
+
+        // Re-enable button and submit
+        if (btn) {
+            btn.disabled = false;
+        }
+        form.submit();
+    }
+
     function confirmCheckIn() {
         if (confirm('Are you sure you want to check in now?')) {
             document.getElementById('att-action').value = 'check_in';
@@ -94,30 +198,7 @@
         }
     }
 
-    function captureLocationAndSubmit() {
-        if (navigator.geolocation) {
-            const locationTimeout = setTimeout(function() {
-                document.getElementById('attendanceForm').submit();
-            }, 4000);
-            navigator.geolocation.getCurrentPosition(
-                function(pos) {
-                    clearTimeout(locationTimeout);
-                    document.getElementById('att-lat').value = pos.coords.latitude;
-                    document.getElementById('att-lng').value = pos.coords.longitude;
-                    document.getElementById('att-location').value = pos.coords.latitude + ', ' + pos.coords.longitude;
-                    document.getElementById('attendanceForm').submit();
-                },
-                function(error) {
-                    clearTimeout(locationTimeout);
-                    document.getElementById('attendanceForm').submit();
-                },
-                { timeout: 3000 }
-            );
-        } else {
-            document.getElementById('attendanceForm').submit();
-        }
-    }
-
+    // Journey location helpers (unchanged)
     function getJourneyStartLocation() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(function(pos) {
