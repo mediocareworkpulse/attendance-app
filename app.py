@@ -1254,7 +1254,7 @@ def process_attendance():
     if len(shift_start) > 5: shift_start = shift_start[:5]
     if not shift_start or ':' not in shift_start: shift_start = '08:00'
 
-    # Determine geofence: Marketers and Drivers are exempt
+    # Determine geofence: only Marketers and Drivers are exempt
     if role in FIELD_ROLES:
         geofence = 'field'
     else:
@@ -2459,7 +2459,8 @@ def live_status():
     today = str(now_eat().date())
 
     team_names = None
-    if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant']:
+    if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant','Stock Controller','Assistant Stock Controller']:
+        # See all employees
         pass
     elif role == 'General Manager':
         team_names = get_manager_live_team_names()
@@ -2476,8 +2477,10 @@ def live_status():
         team_names = [e['full_name'] for e in safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved').eq('branch', ub)
         ))]
-    elif role == 'Procurement Officer': pass
-    else: return redirect('/')
+    elif role == 'Procurement Officer':
+        pass
+    else:
+        return redirect('/')
 
     working_query = supabase.table('attendance').select('full_name, check_in, check_in_location, check_in_geofence, department, branch, status').eq('date', today).not_.is_('check_in', 'null').is_('check_out', 'null')
     checked_out_query = supabase.table('attendance').select('full_name, check_out, check_out_location, check_out_geofence, department, branch').eq('date', today).not_.is_('check_out', 'null')
