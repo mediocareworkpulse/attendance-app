@@ -480,6 +480,10 @@ def home():
     if role == MARKETER_ROLE:
         return redirect('/marketer')
 
+    # Redirect generic Manager to dedicated manager dashboard
+    if role == 'Manager':
+        return redirect('/manager-dashboard')
+
     show_sales_card = (
         role in ['Staff','Branch Manager','admin','ceo'] or
         session.get('department','') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant']
@@ -639,6 +643,62 @@ def home():
         target_achieved=target_achieved, target_progress=target_progress,
         leave_remaining=leave_remaining if 'leave_remaining' in locals() else None,
         company=COMPANY_NAME)
+
+# ---------- MANAGER DASHBOARD ----------
+@app.route('/manager-dashboard')
+@login_required
+def manager_dashboard():
+    if session.get('role') != 'Manager':
+        return redirect('/')
+    today = str(now_eat().date())
+    un = session.get('user')
+    team_names = get_manager_attendance_team_names()
+
+    total_emp = len(team_names)
+    working = execute_query(
+        supabase.table('attendance').select('id', count='exact')
+        .eq('date', today).in_('full_name', team_names)
+        .not_.is_('check_in', 'null').is_('check_out', 'null')
+    ).count
+    checked_out = execute_query(
+        supabase.table('attendance').select('id', count='exact')
+        .eq('date', today).in_('full_name', team_names)
+        .not_.is_('check_out', 'null')
+    ).count
+    late_count = execute_query(
+        supabase.table('attendance').select('id', count='exact')
+        .eq('date', today).in_('full_name', team_names)
+        .eq('status', 'late')
+    ).count
+    on_leave_count = count_employees_on_leave(team_names=team_names)
+
+    recent_query = supabase.table('attendance').select('*').eq('date', today).in_('full_name', team_names).order('check_in', desc=True).limit(10)
+    att_data = safe_data(execute_query(recent_query))
+    emp_details = safe_data(execute_query(
+        supabase.table('employees').select('full_name, role, department').in_('full_name', team_names)
+    ))
+    emp_map = {e['full_name']: e for e in emp_details}
+    records = []
+    for rec in att_data:
+        st = rec.get('status','present')
+        if rec.get('check_out'): label = 'Checked Out'
+        elif st == 'late': label = 'Arrived Late'
+        else: label = 'Working'
+        emp = emp_map.get(rec['full_name'], {})
+        records.append({
+            'full_name': rec['full_name'],
+            'department': emp.get('department', rec.get('department','')),
+            'role': emp.get('role',''),
+            'check_in': rec.get('check_in','—'),
+            'check_out': rec.get('check_out','—'),
+            'status': st,
+            'label': label
+        })
+
+    return render_template('manager_dashboard.html',
+        total_employees=total_emp, working=working, checked_out=checked_out,
+        late_count=late_count, on_leave_count=on_leave_count,
+        recent_records=records, today=today, company=COMPANY_NAME)
 
 # ---------- ADMIN PANEL ----------
 @app.route('/admin')
@@ -2341,50 +2401,12 @@ def targets_progress():
         })
     return render_template('targets_progress.html', progress=progress, month=month, company=COMPANY_NAME)
 
-# ---------- LIVE STATUS ----------
-@app.route('/live-status')
-@login_required
-def live_status():
-    role = session.get('role')
-    ub = session.get('branch',''); un = session.get('user')
-    today = str(now_eat().date())
-    team_names = None
-    if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant']: pass
-    elif role == 'Manager':
-        team_names = get_manager_live_team_names()
-    elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
-        team_names = [e['full_name'] for e in safe_data(execute_query(
-            supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)
-        ))]
-    elif role == 'Sales Manager':
-        team_names = [e['full_name'] for e in safe_data(execute_query(
-            supabase.table('employees').select('full_name').eq('status','approved').in_('role',[MARKETER_ROLE,'Telesales'])
-        ))]
-        team_names.append(un)
-    elif role == 'Branch Manager':
-        team_names = [e['full_name'] for e in safe_data(execute_query(
-            supabase.table('employees').select('full_name').eq('status','approved').eq('branch', ub)
-        ))]
-    elif role == 'Procurement Officer': pass
-    else: return redirect('/')
-    working_query = supabase.table('attendance').select('full_name, check_in, department, branch, status').eq('date', today).not_.is_('check_in', 'null').is_('check_out', 'null')
-    checked_out_query = supabase.table('attendance').select('full_name, check_out, department, branch').eq('date', today).not_.is_('check_out', 'null')
-    on_leave_query = supabase.table('leaves').select('full_name, leave_type').in_('status', ['approved_final','approved_by_manager','approved_by_procurement','approved_by_ops']).lte('leave_start', today).gte('leave_end', today)
-    if team_names:
-        working_query = working_query.in_('full_name', team_names)
-        checked_out_query = checked_out_query.in_('full_name', team_names)
-        on_leave_query = on_leave_query.in_('full_name', team_names)
-    working = safe_data(execute_query(working_query.order('check_in').limit(200)))
-    checked_out = safe_data(execute_query(checked_out_query.order('check_out').limit(200)))
-    on_leave = safe_data(execute_query(on_leave_query.limit(200)))
-    return render_template('live_status.html', working=working, checked_out=checked_out, on_leave=on_leave, today=today, company=COMPANY_NAME)
-
 # ---------- PROCUREMENT OFFICER ROUTES ----------
 @app.route('/procurement/status')
 @login_required
 def procurement_status():
     if session.get('role') != 'Procurement Officer': return redirect('/')
-    return redirect('/live-status')
+    return redirect('/')
 
 @app.route('/procurement/delegation', methods=['GET','POST'])
 @login_required
