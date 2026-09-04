@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
-    /* Marketer Dashboard specific styles */
     .md-hero {
         background: linear-gradient(135deg, #0b2b4a 0%, #134b6e 100%);
         border-radius: 16px;
@@ -12,7 +11,6 @@
         display: flex;
         flex-direction: column;
         gap: 12px;
-        border: none;
     }
     .md-hero-top {
         display: flex;
@@ -21,178 +19,66 @@
         flex-wrap: wrap;
         gap: 10px;
     }
-    .md-hero-title {
-        font-size: 22px;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-    }
-    .md-hero-date {
-        font-size: 14px;
-        opacity: 0.8;
-    }
+    .md-hero-title { font-size: 22px; font-weight: 700; }
+    .md-hero-date { font-size: 14px; opacity: 0.8; }
     .md-status-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: rgba(255,255,255,0.2);
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: 600;
-        backdrop-filter: blur(4px);
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(255,255,255,0.2); padding: 6px 14px;
+        border-radius: 20px; font-size: 13px; font-weight: 600;
     }
     .md-status-badge.success { background: rgba(46,204,113,0.3); }
     .md-status-badge.warning { background: rgba(243,156,18,0.3); }
     .md-status-badge.danger { background: rgba(231,76,60,0.3); }
     .md-status-badge.neutral { background: rgba(255,255,255,0.15); }
-
     .md-actions {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-        gap: 14px;
-        margin-bottom: 20px;
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 14px; margin-bottom: 20px;
     }
     .md-action-card {
-        background: #fff;
-        border-radius: 14px;
-        padding: 18px 12px;
-        text-align: center;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        background: #fff; border-radius: 14px; padding: 18px 12px;
+        text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        border: 1px solid #f0f0f0; display: flex; flex-direction: column;
+        align-items: center; gap: 8px; text-decoration: none;
+        color: var(--text); font-weight: 600; font-size: 13px; cursor: pointer;
         transition: all 0.2s ease;
-        border: 1px solid #f0f0f0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-        text-decoration: none;
-        color: var(--text);
-        font-weight: 600;
-        font-size: 13px;
-        cursor: pointer;
     }
-    .md-action-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-        border-color: var(--accent);
-    }
+    .md-action-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); border-color: var(--accent); }
     .md-action-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        background: var(--primary);
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 22px;
-        margin-bottom: 4px;
+        width: 48px; height: 48px; border-radius: 12px;
+        background: var(--primary); color: #fff; display: flex;
+        align-items: center; justify-content: center; font-size: 22px; margin-bottom: 4px;
     }
     .md-action-card:nth-child(2) .md-action-icon { background: #8e44ad; }
     .md-action-card:nth-child(3) .md-action-icon { background: #e67e22; }
     .md-action-card:nth-child(4) .md-action-icon { background: #27ae60; }
     .md-action-card:nth-child(5) .md-action-icon { background: #c0392b; }
-
     .md-stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 14px;
-        margin-bottom: 20px;
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 14px; margin-bottom: 20px;
     }
     .md-stat {
-        background: #fff;
-        border-radius: 12px;
-        padding: 16px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        text-align: center;
+        background: #fff; border-radius: 12px; padding: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04); text-align: center;
         border: 1px solid #f0f0f0;
     }
-    .md-stat-value {
-        font-size: 26px;
-        font-weight: 700;
-        color: var(--primary);
-    }
-    .md-stat-label {
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: var(--text-secondary);
-        margin-top: 4px;
-    }
-
+    .md-stat-value { font-size: 26px; font-weight: 700; color: var(--primary); }
+    .md-stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-top: 4px; }
     .md-card {
-        background: #fff;
-        border-radius: 14px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        background: #fff; border-radius: 14px; padding: 20px;
+        margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         border: 1px solid #f0f0f0;
     }
-    .md-card h3 {
-        font-size: 16px;
-        font-weight: 700;
-        margin-bottom: 12px;
-        color: var(--text);
-    }
-    .md-follow-group {
-        margin-bottom: 14px;
-    }
-    .md-follow-group:last-child {
-        margin-bottom: 0;
-    }
-    .md-follow-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-weight: 600;
-        margin-bottom: 6px;
-    }
-    .md-follow-count {
-        background: #f0f0f0;
-        border-radius: 12px;
-        padding: 2px 8px;
-        font-size: 12px;
-    }
-    .md-follow-list {
-        list-style: none;
-        padding-left: 0;
-    }
-    .md-follow-list li {
-        padding: 8px 0;
-        border-bottom: 1px solid #f5f5f5;
-        font-size: 14px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 6px;
-    }
-    .md-follow-list li:last-child {
-        border-bottom: none;
-    }
-    .md-empty {
-        color: var(--text-secondary);
-        font-style: italic;
-        font-size: 13px;
-    }
-
+    .md-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+    .md-empty { color: var(--text-secondary); font-style: italic; font-size: 13px; }
     @media (max-width: 600px) {
-        .md-hero {
-            padding: 18px;
-        }
-        .md-hero-title {
-            font-size: 20px;
-        }
-        .md-actions {
-            grid-template-columns: repeat(2, 1fr);
-        }
-        .md-stats {
-            grid-template-columns: repeat(2, 1fr);
-        }
+        .md-hero { padding: 18px; }
+        .md-hero-title { font-size: 20px; }
+        .md-actions { grid-template-columns: repeat(2, 1fr); }
+        .md-stats { grid-template-columns: repeat(2, 1fr); }
     }
 </style>
 
 <div class="marketer-dashboard">
-    <!-- Hero Status -->
     <div class="md-hero">
         <div class="md-hero-top">
             <div>
@@ -210,14 +96,11 @@
             {% endif %}
         </div>
         {% if checkin_time %}
-        <div style="font-size: 14px; opacity: 0.9;">
-            Check‑in time: <strong>{{ checkin_time }}</strong>
-        </div>
+        <div style="font-size: 14px; opacity: 0.9;">Check‑in time: <strong>{{ checkin_time }}</strong></div>
         {% endif %}
         <a href="/check-in" style="color: #fff; text-decoration: underline; font-size: 14px; font-weight: 600;">Go to Check‑In</a>
     </div>
 
-    <!-- Quick Actions -->
     <div class="md-actions">
         <a href="/check-in" class="md-action-card">
             <div class="md-action-icon"><i class="fas fa-clock"></i></div>
@@ -241,7 +124,6 @@
         </a>
     </div>
 
-    <!-- Stats -->
     <div class="md-stats">
         <div class="md-stat">
             <div class="md-stat-value">{{ places|length }}</div>
@@ -259,78 +141,63 @@
         {% endif %}
     </div>
 
-    <!-- Follow-ups -->
     <div class="md-card" id="followups">
         <h3>Follow‑ups</h3>
         {% if followups %}
             {% set overdue = followups | selectattr('expected_order_date', 'lt', today) | list %}
             {% set due_today = followups | selectattr('expected_order_date', 'equalto', today) | list %}
             {% set upcoming = followups | selectattr('expected_order_date', 'gt', today) | list %}
-
-            <div class="md-follow-group">
-                <div class="md-follow-header" style="color:#dc2626;">
-                    Overdue <span class="md-follow-count">{{ overdue|length }}</span>
-                </div>
-                {% if overdue %}
-                <ul class="md-follow-list">
-                    {% for f in overdue %}
-                    <li>
-                        <span>{{ f.customer_name }}</span>
-                        <span style="color:#dc2626; font-weight:600;">Expected: {{ f.expected_order_date }}</span>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <div class="md-empty">No overdue follow‑ups.</div>
-                {% endif %}
+            <div style="margin-bottom:12px;">
+                <strong>Overdue:</strong> {{ overdue|length }} &nbsp;|&nbsp;
+                <strong>Due Today:</strong> {{ due_today|length }} &nbsp;|&nbsp;
+                <strong>Upcoming:</strong> {{ upcoming|length }}
             </div>
-
-            <div class="md-follow-group">
-                <div class="md-follow-header" style="color:#d97706;">
-                    Due Today <span class="md-follow-count">{{ due_today|length }}</span>
-                </div>
-                {% if due_today %}
-                <ul class="md-follow-list">
-                    {% for f in due_today %}
-                    <li>
-                        <span>{{ f.customer_name }}</span>
-                        <span style="color:#d97706; font-weight:600;">Expected: {{ f.expected_order_date }}</span>
-                    </li>
-                    {% endfor %}
+            {% if overdue %}
+            <div style="margin-bottom:8px;"><span style="color:#dc2626; font-weight:600;">Overdue</span>
+                <ul>
+                {% for f in overdue %}
+                    <li>{{ f.customer_name }} – Expected: {{ f.expected_order_date }}</li>
+                {% endfor %}
                 </ul>
-                {% else %}
-                <div class="md-empty">No follow‑ups due today.</div>
-                {% endif %}
             </div>
-
-            <div class="md-follow-group">
-                <div class="md-follow-header" style="color:#2563eb;">
-                    Upcoming <span class="md-follow-count">{{ upcoming|length }}</span>
-                </div>
-                {% if upcoming %}
-                <ul class="md-follow-list">
-                    {% for f in upcoming %}
-                    <li>
-                        <span>{{ f.customer_name }}</span>
-                        <span style="color:#2563eb; font-weight:600;">Expected: {{ f.expected_order_date }}</span>
-                    </li>
-                    {% endfor %}
+            {% endif %}
+            {% if due_today %}
+            <div style="margin-bottom:8px;"><span style="color:#d97706; font-weight:600;">Due Today</span>
+                <ul>
+                {% for f in due_today %}
+                    <li>{{ f.customer_name }} – Expected: {{ f.expected_order_date }}</li>
+                {% endfor %}
                 </ul>
-                {% else %}
-                <div class="md-empty">No upcoming follow‑ups.</div>
-                {% endif %}
             </div>
+            {% endif %}
+            {% if upcoming %}
+            <div><span style="color:#2563eb; font-weight:600;">Upcoming</span>
+                <ul>
+                {% for f in upcoming %}
+                    <li>{{ f.customer_name }} – Expected: {{ f.expected_order_date }}</li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
         {% else %}
-            <div class="md-empty">No follow‑ups scheduled.</div>
+            <p class="md-empty">No follow‑ups scheduled. Ask your Sales Manager to assign places and set expected orders.</p>
         {% endif %}
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<!-- Font Awesome for icons -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script>
+// ---------- Toast Notification (uses global function from base.html) ----------
+function showToast(message, type = 'success') {
+    if (typeof window.showToast === 'function') {
+        window.showToast(message, type);
+    } else {
+        alert(message);
+    }
+}
+
 // ---------- Reverse Geocoding ----------
 async function getAddressFromCoords(lat, lng) {
     try {
@@ -340,72 +207,97 @@ async function getAddressFromCoords(lat, lng) {
         );
         const data = await response.json();
         if (data && data.display_name) {
-            // Shorten the address for readability: use city, suburb, road
             const parts = [];
             if (data.address.road) parts.push(data.address.road);
             if (data.address.suburb) parts.push(data.address.suburb);
-            if (data.address.city || data.address.town || data.address.village) {
-                parts.push(data.address.city || data.address.town || data.address.village);
-            }
+            if (data.address.city || data.address.town || data.address.village) parts.push(data.address.city || data.address.town || data.address.village);
             if (parts.length === 0 && data.display_name) parts.push(data.display_name);
             return parts.join(', ');
         }
-    } catch (e) {
-        console.error('Reverse geocoding failed:', e);
-    }
-    return `${lat}, ${lng}`; // fallback to coordinates
+    } catch (e) {}
+    return `${lat}, ${lng}`;
 }
 
-// ---------- Send Location (with address) ----------
+// ---------- Send Location with Address ----------
 async function sendLocationToBackend(lat, lng) {
     const address = await getAddressFromCoords(lat, lng);
-    fetch('/marketer/submit-location', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: `lat=${lat}&lng=${lng}&location=${encodeURIComponent(address)}`
-    }).catch(err => console.error('Location send failed:', err));
+    try {
+        await fetch('/marketer/submit-location', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `lat=${lat}&lng=${lng}&location=${encodeURIComponent(address)}`
+        });
+        return true;
+    } catch (e) {
+        return false;
+    }
 }
 
-// Manual location send button
+// Manual location send
 async function sendLocation() {
     if (!navigator.geolocation) {
-        alert('Geolocation is not supported by your device.');
+        showToast('Geolocation not supported on this device.', 'error');
         return;
     }
     navigator.geolocation.getCurrentPosition(
         async function(pos) {
-            await sendLocationToBackend(pos.coords.latitude, pos.coords.longitude);
-            alert('Location sent successfully.');
+            const ok = await sendLocationToBackend(pos.coords.latitude, pos.coords.longitude);
+            if (ok) showToast('Location sent successfully.');
+            else showToast('Failed to send location.', 'error');
         },
         function(err) {
-            alert('Unable to get location: ' + err.message);
+            showToast('Unable to get location: ' + err.message, 'error');
         },
         { enableHighAccuracy: true, timeout: 10000 }
     );
 }
 
-// ---------- Automatic Tracking (every 20 minutes) ----------
+// ---------- Adaptive Location Tracking ----------
+let lastSentCoords = null;
+const DISTANCE_THRESHOLD_METERS = 100;
+
+function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function shouldSendLocation(lat, lng) {
+    if (!lastSentCoords) return true;
+    const dist = getDistanceFromLatLonInMeters(lastSentCoords.lat, lastSentCoords.lng, lat, lng);
+    return dist > DISTANCE_THRESHOLD_METERS;
+}
+
 function startLocationTracking() {
-    if (!navigator.geolocation) {
-        console.log('Geolocation not supported');
-        return;
+    if (!navigator.geolocation) return;
+
+    function handlePosition(pos) {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        if (shouldSendLocation(lat, lng)) {
+            lastSentCoords = { lat, lng };
+            sendLocationToBackend(lat, lng).catch(() => {});
+        }
     }
 
-    function trackOnce() {
-        navigator.geolocation.getCurrentPosition(
-            async function(pos) {
-                await sendLocationToBackend(pos.coords.latitude, pos.coords.longitude);
-            },
-            console.error,
-            { enableHighAccuracy: true, timeout: 10000 }
-        );
-    }
+    // Initial
+    navigator.geolocation.getCurrentPosition(handlePosition, () => {}, {enableHighAccuracy: true, timeout: 10000});
 
-    // Send initial location immediately
-    trackOnce();
+    // Watch for changes
+    navigator.geolocation.watchPosition(handlePosition, () => {}, {
+        enableHighAccuracy: true,
+        maximumAge: 30000,
+        timeout: 10000
+    });
 
-    // Then every 20 minutes
-    setInterval(trackOnce, 20 * 60 * 1000); // 20 minutes in milliseconds
+    // Fallback every 20 minutes
+    setInterval(() => {
+        navigator.geolocation.getCurrentPosition(handlePosition, () => {}, {enableHighAccuracy: true, timeout: 10000});
+    }, 20 * 60 * 1000);
 }
 
 document.addEventListener('DOMContentLoaded', startLocationTracking);
