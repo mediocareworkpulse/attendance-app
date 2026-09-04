@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="page-title">📋 All Leave Requests</h1>
+<h1 class="page-title">All Leave Requests</h1>
 <p class="page-subtitle">{{ company }} – HR View</p>
 
 <form method="GET" class="form-grid" style="margin-bottom:16px;">
@@ -61,10 +61,10 @@
                 {% endif %}
             </td>
             <td>
-                <a href="/leave-pdf/{{ l.id }}" class="btn btn-sm" style="background:var(--primary); color:#fff;">📄</a>
+                <a href="/leave-pdf/{{ l.id }}" class="btn btn-sm" style="background:var(--primary); color:#fff;">PDF</a>
                 {% if session.role in ['admin','ceo','HR','HR Assistant'] %}
                 <form method="POST" action="/delete-leave/{{ l.id }}" style="display:inline;" onsubmit="return confirm('Delete this leave record permanently?');">
-                    <button class="btn btn-sm btn-danger">🗑️</button>
+                    <button class="btn btn-sm btn-danger">Delete</button>
                 </form>
                 {% endif %}
             </td>
@@ -72,5 +72,16 @@
         {% endfor %}
         </tbody>
     </table>
+</div>
+
+<!-- Pagination -->
+<div style="margin-top:12px; display:flex; gap:8px;">
+    {% if page > 1 %}
+    <a href="?page={{ page-1 }}&status={{ status_filter }}&from_date={{ from_date }}&to_date={{ to_date }}" class="btn btn-sm">Previous</a>
+    {% endif %}
+    <span style="padding:6px 12px;">Page {{ page }}</span>
+    {% if has_next %}
+    <a href="?page={{ page+1 }}&status={{ status_filter }}&from_date={{ from_date }}&to_date={{ to_date }}" class="btn btn-sm">Next</a>
+    {% endif %}
 </div>
 {% endblock %}
