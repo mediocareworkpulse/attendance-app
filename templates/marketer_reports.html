@@ -24,15 +24,16 @@
                 {% endfor %}
             </select>
         </div>
-        <div style="display:flex; align-items:end;">
-            <button type="submit" class="btn" style="width:100%;">Apply</button>
+        <div style="display:flex; align-items:end; gap:8px;">
+            <button type="submit" class="btn" style="flex:1;">Apply</button>
+            <a href="/export-marketer-reports?from_date={{ filter_from }}&to_date={{ filter_to }}&marketer={{ filter_marketer }}" class="btn" style="background:var(--accent); color:#fff; white-space:nowrap;">📥 Export CSV</a>
         </div>
     </form>
 </div>
 
 <!-- Reports Table -->
 <div class="form-card" style="margin-top:20px;">
-    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">📝 Submitted Reports</h2>
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">📝 Submitted Reports ({{ reports|length }})</h2>
     <div class="table-container">
         <table>
             <thead>
@@ -41,7 +42,8 @@
                     <th>Marketer</th>
                     <th>Customer</th>
                     <th>Phone</th>
-                    <th>Details</th>
+                    <th>Location</th>
+                    <th>Notes</th>
                     <th>Expenses</th>
                     <th>Expected Order</th>
                 </tr>
@@ -53,6 +55,7 @@
                 <td class="td-name">{{ r.full_name }}</td>
                 <td>{{ r.customer_name }}</td>
                 <td>{{ r.customer_phone or '—' }}</td>
+                <td>{{ r.location or '—' }}</td>
                 <td>{{ r.details or '—' }}</td>
                 <td>{{ r.expenses }}</td>
                 <td>{{ r.expected_order_date or '—' }}</td>
