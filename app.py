@@ -59,12 +59,6 @@ def strip_emojis(text):
     )
     return emoji_pattern.sub("", text)
 
-@app.after_request
-def remove_emoji_from_response(response):
-    if response.content_type and 'text/html' in response.content_type:
-        response.set_data(strip_emojis(response.get_data(as_text=True)))
-    return response
-
 app = Flask(__name__)
 app.secret_key = 'mediocare-attendance-secret-2024'
 
@@ -73,6 +67,12 @@ app.config.update(
     SESSION_COOKIE_SECURE = True,
     SESSION_COOKIE_SAMESITE = 'Lax'
 )
+
+@app.after_request
+def remove_emoji_from_response(response):
+    if response.content_type and 'text/html' in response.content_type:
+        response.set_data(strip_emojis(response.get_data(as_text=True)))
+    return response
 
 SUPABASE_URL = 'https://lznqrkujlrcxcxizygzq.supabase.co'
 SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6bnFya3VqbHJjeGN4aXp5Z3pxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDU2MjA2NSwiZXhwIjoyMTAwMTM4MDY1fQ.XmMAGB1G8hOOLr7PTnn100cifWMkja2gcZfKRSBI5Ec'
