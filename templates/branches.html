@@ -3,28 +3,40 @@
 <h1 class="page-title">Branches</h1>
 <p class="page-subtitle">{{ company }}</p>
 
-<!-- Add Branch -->
 <div class="form-card">
-    <h2 style="font-size:16px; margin-bottom:12px;">➕ Add Branch</h2>
+    <h2 style="font-size:16px; margin-bottom:12px;">Add Branch</h2>
     <form method="POST" action="/branches/add" class="form-grid">
         <div><input type="text" name="name" placeholder="Branch Name" required></div>
         <div><input type="time" name="shift_start" value="08:00"></div>
         <div><input type="time" name="shift_end" value="17:00"></div>
+        <div><input type="number" step="any" name="latitude" placeholder="Latitude"></div>
+        <div><input type="number" step="any" name="longitude" placeholder="Longitude"></div>
         <div><button type="submit" class="btn">Add</button></div>
     </form>
 </div>
 
-<!-- Branch List -->
 <div class="table-container">
     <table>
-        <thead><tr><th>Name</th><th>Shift Start</th><th>Shift End</th><th>Actions</th></tr></thead>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Shift Start</th>
+                <th>Shift End</th>
+                <th>Latitude</th>
+                <th>Longitude</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
         <tbody>
         {% for b in branches %}
         <tr>
             <td class="td-name">{{ b.name }}</td>
             <td>{{ b.shift_start or '08:00' }}</td>
             <td>{{ b.shift_end or '17:00' }}</td>
+            <td>{{ b.latitude or '—' }}</td>
+            <td>{{ b.longitude or '—' }}</td>
             <td>
+                <button class="btn btn-sm" style="background:var(--accent); color:#fff;" onclick="openEditModal({{ b.id }}, '{{ b.name }}', '{{ b.shift_start|default('08:00') }}', '{{ b.shift_end|default('17:00') }}', '{{ b.latitude if b.latitude else '' }}', '{{ b.longitude if b.longitude else '' }}')">Edit</button>
                 <form method="POST" action="/branches/delete/{{ b.id }}" style="display:inline">
                     <button class="btn btn-sm btn-danger">Delete</button>
                 </form>
@@ -34,4 +46,41 @@
         </tbody>
     </table>
 </div>
+
+<div id="editModal" class="modal-overlay" style="display: none;">
+    <div class="modal-box">
+        <h3>Edit Branch</h3>
+        <form id="editForm" method="POST">
+            <label>Branch Name</label>
+            <input type="text" name="name" id="edit-name" required>
+            <label>Shift Start</label>
+            <input type="time" name="shift_start" id="edit-start">
+            <label>Shift End</label>
+            <input type="time" name="shift_end" id="edit-end">
+            <label>Latitude</label>
+            <input type="number" step="any" name="latitude" id="edit-lat">
+            <label>Longitude</label>
+            <input type="number" step="any" name="longitude" id="edit-lng">
+            <div class="modal-actions" style="margin-top:16px;">
+                <button type="button" class="btn btn-danger" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditModal(id, name, start, end, lat, lng) {
+        document.getElementById('edit-name').value = name;
+        document.getElementById('edit-start').value = start;
+        document.getElementById('edit-end').value = end;
+        document.getElementById('edit-lat').value = lat;
+        document.getElementById('edit-lng').value = lng;
+        document.getElementById('editForm').action = '/branches/edit/' + id;
+        document.getElementById('editModal').style.display = 'flex';
+    }
+    function closeEditModal() {
+        document.getElementById('editModal').style.display = 'none';
+    }
+</script>
 {% endblock %}
