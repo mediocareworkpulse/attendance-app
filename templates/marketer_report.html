@@ -1,47 +1,73 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="marketer-report-form">
-    <h1 class="page-title">Customer Report</h1>
+    <h1 class="page-title">📝 Customer Report</h1>
     <p class="page-subtitle">{{ today }}</p>
 
     <form method="POST" action="/marketer/report" id="reportForm">
-        <!-- Customer section -->
-        <div class="card">
-            <h3>Customer</h3>
-            <label>Customer Name *</label>
-            <input type="text" name="customer_name" required>
-            <label>Phone</label>
-            <input type="text" name="customer_phone">
-            <label>Contact Person</label>
-            <input type="text" name="contact_person">
-            <label>Location</label>
-            <input type="text" name="location">
+        <!-- CUSTOMER SECTION -->
+        <div class="card" style="margin-bottom: 20px;">
+            <h3 style="border-bottom: 2px solid var(--border); padding-bottom: 8px;">👤 Customer</h3>
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label>Customer Name *</label>
+                    <input type="text" name="customer_name" required>
+                </div>
+                <div>
+                    <label>Phone</label>
+                    <input type="text" name="customer_phone">
+                </div>
+                <div>
+                    <label>Contact Person</label>
+                    <input type="text" name="contact_person">
+                </div>
+                <div>
+                    <label>Location</label>
+                    <input type="text" name="location" value="{{ request.args.get('place', '') }}">
+                </div>
+            </div>
         </div>
 
-        <!-- Visit section -->
-        <div class="card">
-            <h3>Visit</h3>
-            <label>Purpose of Visit</label>
-            <input type="text" name="purpose">
-            <label>Notes</label>
-            <textarea name="details" rows="3"></textarea>
+        <!-- VISIT SECTION -->
+        <div class="card" style="margin-bottom: 20px;">
+            <h3 style="border-bottom: 2px solid var(--border); padding-bottom: 8px;">🚶 Visit</h3>
+            <div class="form-grid">
+                <div>
+                    <label>Purpose of Visit</label>
+                    <input type="text" name="purpose">
+                </div>
+                <div>
+                    <label>Notes</label>
+                    <textarea name="details" rows="3"></textarea>
+                </div>
+            </div>
         </div>
 
-        <!-- Opportunity section -->
-        <div class="card">
-            <h3>Opportunity</h3>
-            <label>Expected Order Date</label>
-            <input type="date" name="expected_order_date">
+        <!-- OPPORTUNITY SECTION -->
+        <div class="card" style="margin-bottom: 20px;">
+            <h3 style="border-bottom: 2px solid var(--border); padding-bottom: 8px;">💼 Opportunity</h3>
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label>Expected Order Date</label>
+                    <input type="date" name="expected_order_date">
+                </div>
+                <!-- Expected order value not in existing DB, so omitted -->
+            </div>
         </div>
 
-        <!-- Expense section -->
-        <div class="card">
-            <h3>Expense</h3>
-            <label>Expense Amount</label>
-            <input type="number" step="0.01" name="expenses" value="0">
+        <!-- EXPENSE SECTION -->
+        <div class="card" style="margin-bottom: 20px;">
+            <h3 style="border-bottom: 2px solid var(--border); padding-bottom: 8px;">💰 Expense</h3>
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label>Expense Amount (Ksh)</label>
+                    <input type="number" step="0.01" name="expenses" value="0">
+                </div>
+                <!-- Expense description not in existing DB, so omitted -->
+            </div>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-block">Submit Report</button>
+        <button type="submit" class="btn btn-primary btn-block" style="width:100%; padding:14px; font-size:15px;">Submit Report</button>
     </form>
 </div>
 {% endblock %}
