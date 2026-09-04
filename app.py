@@ -263,7 +263,8 @@ def geofence_status(lat, lng, branch):
         return 'unknown'
     return 'in_branch' if distance <= 150 else 'out_of_branch'
 
-FIELD_ROLES = ['Marketers']
+# Field roles exempt from geofencing
+FIELD_ROLES = ['Marketers', 'Drivers']
 
 # ==================== LEAVE HELPERS ====================
 def count_weekdays(start_str, end_str):
@@ -1253,7 +1254,7 @@ def process_attendance():
     if len(shift_start) > 5: shift_start = shift_start[:5]
     if not shift_start or ':' not in shift_start: shift_start = '08:00'
 
-    # Determine geofence: only Marketers are exempt
+    # Determine geofence: Marketers and Drivers are exempt
     if role in FIELD_ROLES:
         geofence = 'field'
     else:
