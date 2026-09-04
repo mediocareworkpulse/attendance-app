@@ -2028,6 +2028,46 @@ def assign_place():
         }).execute()
     return redirect('/sales-manager')
 
+# ---------- LIVE LOCATION API & MAP ----------
+@app.route('/api/live-locations')
+@login_required
+def api_live_locations():
+    allowed = ['Sales Manager','Manager','admin','ceo']
+    if session.get('role') not in allowed:
+        return {'error': 'Unauthorized'}, 403
+
+    today = str(now_eat().date())
+    # Fetch today's location pings
+    pings = safe_data(execute_query(
+        supabase.table('marketer_locations')
+        .select('full_name, lat, lng, time, location')
+        .eq('date', today)
+        .order('time', desc=True)
+        .limit(1000)
+    ))
+
+    # Group by marketer, keep the latest ping
+    latest = {}
+    for p in pings:
+        name = p['full_name']
+        if name not in latest:
+            latest[name] = {
+                'full_name': name,
+                'lat': p.get('lat'),
+                'lng': p.get('lng'),
+                'time': p.get('time'),
+                'location': p.get('location', '')
+            }
+    return {'marketers': list(latest.values())}
+
+@app.route('/live-map')
+@login_required
+def live_map_page():
+    allowed = ['Sales Manager','Manager','admin','ceo']
+    if session.get('role') not in allowed:
+        return redirect('/')
+    return render_template('live_map.html', company=COMPANY_NAME)
+
 # ---------- FIELD MARKETING: MARKETER DETAIL (NEW) ----------
 @app.route('/sales-manager/marketer/<path:full_name>')
 @login_required
