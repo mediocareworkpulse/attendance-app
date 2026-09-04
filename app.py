@@ -1,4 +1,3 @@
-app.py
 from flask import Flask, render_template, request, redirect, url_for, session, Response
 from datetime import date, datetime, timedelta, timezone
 from supabase import create_client
@@ -2512,6 +2511,38 @@ def marketer_reports():
     ))
     return render_template('marketer_reports.html', reports=reports, marketers=marketers,
                          filter_from=filter_from, filter_to=filter_to, filter_marketer=filter_marketer, company=COMPANY_NAME)
+
+@app.route('/export-marketer-reports')
+@login_required
+def export_marketer_reports():
+    if session.get('role') not in ['admin','ceo','Sales Manager','Manager']:
+        return redirect('/')
+    filter_from = request.args.get('from_date', str(now_eat().date()))
+    filter_to   = request.args.get('to_date', str(now_eat().date()))
+    filter_marketer = request.args.get('marketer', '')
+    query = supabase.table('customer_reports').select('*').gte('date', filter_from).lte('date', filter_to)
+    if filter_marketer:
+        query = query.eq('full_name', filter_marketer)
+    reports = safe_data(execute_query(query.order('date', desc=True).order('full_name').limit(2000)))
+
+    si = io.StringIO()
+    cw = csv.writer(si)
+    cw.writerow(['Date', 'Marketer', 'Customer', 'Phone', 'Location', 'Details', 'Expenses', 'Expected Order Date'])
+    for r in reports:
+        cw.writerow([
+            r.get('date',''),
+            r.get('full_name',''),
+            r.get('customer_name',''),
+            r.get('customer_phone',''),
+            r.get('location',''),
+            r.get('details',''),
+            r.get('expenses',''),
+            r.get('expected_order_date','')
+        ])
+    output = si.getvalue()
+    si.close()
+    return Response(output, mimetype='text/csv',
+                    headers={"Content-Disposition": "attachment;filename=marketer_reports.csv"})
 
 # ---------- ABSENT TODAY ----------
 @app.route('/absent-today')
