@@ -4,7 +4,50 @@
 <h1 class="page-title">⏱ Check In / Out</h1>
 <p class="page-subtitle">{{ company }} — {{ today }}</p>
 
-<!-- Status card -->
+<!-- ===== MARKETER CHECK‑IN SECTION ===== -->
+{% if role == 'Marketers' %}
+<div class="checkin-container shift-timer-card" style="border-left: 6px solid var(--accent);">
+    <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+        <span style="font-size: 32px;">📍</span>
+        <div>
+            <div class="timer-label">Your Status</div>
+            <div class="timer-value" style="font-size: 22px;">
+                {% if user_status == 'approved' %}
+                    <span class="badge badge-success">Approved</span>
+                {% elif user_status == 'pending' %}
+                    <span class="badge badge-warning">Pending Approval</span>
+                {% elif user_status == 'rejected' %}
+                    <span class="badge badge-danger">Rejected</span>
+                {% else %}
+                    <span class="badge badge-secondary" style="background:#e2e8f0; color:#475569;">Not Checked In</span>
+                {% endif %}
+            </div>
+            {% if check_in_time %}
+                <small style="color: var(--text-secondary);">Submitted at {{ check_in_time }}</small>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if user_status in ['none', 'rejected'] %}
+    <form method="POST" action="/marketer/checkin" id="marketerCheckinForm" style="margin-top:16px;">
+        <input type="hidden" name="lat" id="marketer-lat">
+        <input type="hidden" name="lng" id="marketer-lng">
+        <input type="hidden" name="location" id="marketer-location">
+        <button type="button" class="checkin-btn btn-check-in" onclick="submitMarketerCheckin()" style="width:100%;">
+            ⏰ Submit Check‑in Request
+        </button>
+        <div id="gpsStatus" style="font-size:12px; color:#64748b; margin-top:8px;"></div>
+    </form>
+    {% elif user_status == 'pending' %}
+        <div class="alert alert-info" style="margin-top:12px;">⏳ Awaiting Sales Manager approval.</div>
+    {% elif user_status == 'approved' %}
+        <div class="alert alert-success" style="margin-top:12px;">✅ Your check‑in has been approved.</div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- ===== EXISTING STATUS CARD (for non‑marketers) ===== -->
+{% if role not in ['Marketers','admin','ceo'] %}
 <div class="checkin-container shift-timer-card" style="background: linear-gradient(135deg, #ffffff, #f8fafc); border-radius: 16px; padding: 20px 24px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; border-left: 6px solid var(--primary);">
     <div style="display: flex; align-items: center; gap: 14px;">
         <span style="font-size: 32px;">📍</span>
@@ -13,10 +56,8 @@
             <div style="font-size: 22px; font-weight: 800; color: var(--text);">
                 {% if user_status == 'completed' %}
                     <span class="badge badge-success">Checked Out</span>
-                {% elif user_status in ['checked_in','working','approved'] %}
+                {% elif user_status in ['checked_in','working'] %}
                     <span class="badge" style="background: #e0ecf9; color: #1e40af;">Working</span>
-                {% elif user_status == 'pending' %}
-                    <span class="badge badge-warning">Pending Approval</span>
                 {% else %}
                     <span class="badge badge-danger">Not Checked In</span>
                 {% endif %}
@@ -30,7 +71,6 @@
         </div>
     </div>
 
-    {% if role not in ['Marketers','admin','ceo'] %}
     <div>
         <form method="POST" action="/check-in" id="attendanceForm" style="display:inline;">
             <input type="hidden" name="lat" id="att-lat" value="">
@@ -48,12 +88,10 @@
             {% endif %}
         </form>
     </div>
-    {% endif %}
 </div>
+{% endif %}
 
-<!-- Marketer section (unchanged) -->
-
-<!-- Riders/Drivers Journey Section -->
+<!-- ===== RIDERS / DRIVERS JOURNEY SECTION (unchanged) ===== -->
 {% if role in ['Riders','Drivers','Manager'] %}
 <div class="form-card" style="margin-top:20px;">
     <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">🚚 Journeys</h2>
@@ -118,7 +156,7 @@
 </div>
 {% endif %}
 
-<!-- Attendance records (managers) -->
+<!-- ===== ATTENDANCE RECORDS (managers) unchanged ===== -->
 {% if records %}
 <div class="form-card" style="margin-top:20px;">
     <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">👥 Today's Attendance</h2>
@@ -150,15 +188,39 @@
 
 {% block scripts %}
 <script>
-    // Check-in confirmation
+    // ===== MARKETER CHECK‑IN FUNCTIONS =====
+    function submitMarketerCheckin() {
+        const gpsDiv = document.getElementById('gpsStatus');
+        gpsDiv.innerHTML = '📍 Locating...';
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    document.getElementById('marketer-lat').value = pos.coords.latitude;
+                    document.getElementById('marketer-lng').value = pos.coords.longitude;
+                    document.getElementById('marketer-location').value = pos.coords.latitude + ', ' + pos.coords.longitude;
+                    gpsDiv.innerHTML = '✅ Location acquired. Submitting...';
+                    document.getElementById('marketerCheckinForm').submit();
+                },
+                function(err) {
+                    gpsDiv.innerHTML = '⚠️ Location unavailable, submitting without GPS.';
+                    // Proceed with empty location if user denies or timeout
+                    document.getElementById('marketerCheckinForm').submit();
+                },
+                { timeout: 5000 }
+            );
+        } else {
+            gpsDiv.innerHTML = '⚠️ Geolocation not supported. Submitting without GPS.';
+            document.getElementById('marketerCheckinForm').submit();
+        }
+    }
+
+    // ===== EXISTING ATTENDANCE FUNCTIONS (unchanged) =====
     function confirmCheckIn() {
         if (confirm('Are you sure you want to check in now?')) {
             document.getElementById('att-action').value = 'check_in';
             captureLocationAndSubmit();
         }
     }
-
-    // Check-out confirmation with remaining time
     function confirmCheckOut() {
         const shiftEnd = "{{ shift_end }}";
         let message = 'Are you sure you want to check out?';
@@ -179,8 +241,6 @@
             captureLocationAndSubmit();
         }
     }
-
-    // Capture location and submit
     function captureLocationAndSubmit() {
         if (navigator.geolocation) {
             const locationTimeout = setTimeout(function() {
@@ -205,7 +265,7 @@
         }
     }
 
-    // Journey location helpers
+    // Journey location helpers (unchanged)
     function getJourneyStartLocation() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(function(pos) {
