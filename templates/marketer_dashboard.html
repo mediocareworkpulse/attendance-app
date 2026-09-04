@@ -331,59 +331,81 @@
 <!-- Font Awesome for icons -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script>
-function sendLocation() {
+// ---------- Reverse Geocoding ----------
+async function getAddressFromCoords(lat, lng) {
+    try {
+        const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+            { headers: { 'Accept': 'application/json' } }
+        );
+        const data = await response.json();
+        if (data && data.display_name) {
+            // Shorten the address for readability: use city, suburb, road
+            const parts = [];
+            if (data.address.road) parts.push(data.address.road);
+            if (data.address.suburb) parts.push(data.address.suburb);
+            if (data.address.city || data.address.town || data.address.village) {
+                parts.push(data.address.city || data.address.town || data.address.village);
+            }
+            if (parts.length === 0 && data.display_name) parts.push(data.display_name);
+            return parts.join(', ');
+        }
+    } catch (e) {
+        console.error('Reverse geocoding failed:', e);
+    }
+    return `${lat}, ${lng}`; // fallback to coordinates
+}
+
+// ---------- Send Location (with address) ----------
+async function sendLocationToBackend(lat, lng) {
+    const address = await getAddressFromCoords(lat, lng);
+    fetch('/marketer/submit-location', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `lat=${lat}&lng=${lng}&location=${encodeURIComponent(address)}`
+    }).catch(err => console.error('Location send failed:', err));
+}
+
+// Manual location send button
+async function sendLocation() {
     if (!navigator.geolocation) {
         alert('Geolocation is not supported by your device.');
         return;
     }
     navigator.geolocation.getCurrentPosition(
-        function(pos) {
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
-            const loc = `${lat}, ${lng}`;
-            fetch('/marketer/submit-location', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `lat=${lat}&lng=${lng}&location=${encodeURIComponent(loc)}`
-            }).then(() => alert('Location sent successfully.'));
+        async function(pos) {
+            await sendLocationToBackend(pos.coords.latitude, pos.coords.longitude);
+            alert('Location sent successfully.');
         },
         function(err) {
             alert('Unable to get location: ' + err.message);
-        }
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
     );
 }
 
-// Automatically send location every 60 seconds
+// ---------- Automatic Tracking (every 20 minutes) ----------
 function startLocationTracking() {
     if (!navigator.geolocation) {
         console.log('Geolocation not supported');
         return;
     }
 
-    function sendLocationAuto(position) {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        const loc = `${lat}, ${lng}`;
-        fetch('/marketer/submit-location', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: `lat=${lat}&lng=${lng}&location=${encodeURIComponent(loc)}`
-        }).catch(err => console.error('Location send failed:', err));
+    function trackOnce() {
+        navigator.geolocation.getCurrentPosition(
+            async function(pos) {
+                await sendLocationToBackend(pos.coords.latitude, pos.coords.longitude);
+            },
+            console.error,
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
     }
 
-    navigator.geolocation.getCurrentPosition(sendLocationAuto, console.error, {enableHighAccuracy: true});
+    // Send initial location immediately
+    trackOnce();
 
-    const watchId = navigator.geolocation.watchPosition(
-        sendLocationAuto,
-        console.error,
-        {enableHighAccuracy: true, maximumAge: 60000, timeout: 10000}
-    );
-
-    setInterval(() => {
-        navigator.geolocation.getCurrentPosition(sendLocationAuto, console.error, {enableHighAccuracy: true});
-    }, 60000);
-
-    window._locationWatchId = watchId;
+    // Then every 20 minutes
+    setInterval(trackOnce, 20 * 60 * 1000); // 20 minutes in milliseconds
 }
 
 document.addEventListener('DOMContentLoaded', startLocationTracking);
