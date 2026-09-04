@@ -74,7 +74,7 @@
             <a href="/hr/annual-leave" class="{% if request.path == '/hr/annual-leave' %}active{% endif %}"><i class="fas fa-calendar-check"></i> Annual Leave</a>
         {% endif %}
 
-        {% if session.role in ['admin','ceo','HR','HR Assistant','General Manager','Operations Manager','Assistant Operations Manager','Store Manager','Sales Manager','Person in Charge','Procurement Officer'] %}
+        {% if session.role in ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','General Manager','Operations Manager','Assistant Operations Manager','Store Manager','Sales Manager','Person in Charge','Procurement Officer'] %}
             <a href="/live-status" class="{% if request.path == '/live-status' %}active{% endif %}"><i class="fas fa-circle"></i> Live Status</a>
         {% endif %}
 
