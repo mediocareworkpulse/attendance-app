@@ -95,6 +95,7 @@ SALES_SUBMIT_ROLES = ['Staff','Branch Manager']
 SALES_VIEW_ROLES = ['admin','ceo','Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant']
 STORE_MANAGER_TEAM = ['Store Assistant','Store Personnel','Storekeeper']
 OPERATIONS_MANAGER_TEAM = [
+    'Branch Order Processor',
     'Store Manager','Store Assistant','Store Personnel','Storekeeper',
     'Dispatch Supervisor','Dispatch Assistant','Dispatch Personnel',
     'Riders','Drivers','Security','Cleaner'
@@ -109,7 +110,8 @@ MANAGER_LIVE_BRANCHES = ['Kisumu HQ', 'Kisumu Retail']
 MANAGER_ATTENDANCE_ROLES = [
     'Branch Manager','Operations Manager','Assistant Operations Manager','Store Manager',
     'Sales Manager','Procurement Officer','Stock Controller','Assistant Stock Controller',
-    'Accountant','Accountant Assistant','HR','HR Assistant','Cashier','Manager'
+    'Accountant','Accountant Assistant','HR','HR Assistant','Cashier','Manager',
+    'Branch Order Processor'
 ]
 
 DIRECTORATE_ROLES = ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager','Assistant Operations Manager']
