@@ -6,8 +6,6 @@ from collections import defaultdict
 from werkzeug.security import generate_password_hash, check_password_hash
 import pytz, time, csv, io, math
 import re
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
 
@@ -70,12 +68,6 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY = True,
     SESSION_COOKIE_SECURE = True,
     SESSION_COOKIE_SAMESITE = 'Lax'
-)
-
-limiter = Limiter(
-    app=app,
-    key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"]
 )
 
 @app.after_request
@@ -1232,7 +1224,6 @@ def check_in_page():
 
 @app.route('/check-in', methods=['POST'])
 @login_required
-@limiter.limit("10 per minute")
 def process_attendance():
     if session.get('role') in NO_CHECKIN_ROLES: return redirect('/')
     un = session.get('user')
@@ -2153,7 +2144,6 @@ def process_leave(lid, action):
 # ==================== MARKETER ROUTES ====================
 @app.route('/marketer/checkin', methods=['POST'])
 @login_required
-@limiter.limit("5 per minute")
 def marketer_checkin():
     if session.get('role') != MARKETER_ROLE: return redirect('/check-in')
     un = session.get('user'); today = str(now_eat().date()); now = now_eat().strftime('%H:%M:%S')
@@ -2198,7 +2188,6 @@ def marketer_report():
 
 @app.route('/marketer/submit-location', methods=['POST'])
 @login_required
-@limiter.limit("10 per minute")
 def submit_marketer_location():
     if session.get('role') != MARKETER_ROLE: return redirect('/check-in')
     un = session.get('user'); today = str(now_eat().date()); now = now_eat().strftime('%H:%M:%S')
