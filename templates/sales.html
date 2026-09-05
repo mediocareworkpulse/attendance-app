@@ -242,16 +242,6 @@
 </div>
 {% endif %}
 
-<!-- Pagination -->
-<div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
-    {% if page > 1 %}
-    <a href="?page={{ page-1 }}&view_type={{ view_type }}&branch={{ filter_branch }}&employee={{ filter_employee }}&from_date={{ filter_from }}&to_date={{ filter_to }}&period={{ period }}" class="btn btn-sm">Previous</a>
-    {% endif %}
-    <span style="padding:6px 12px;">Page {{ page }}</span>
-    {% if has_next %}
-    <a href="?page={{ page+1 }}&view_type={{ view_type }}&branch={{ filter_branch }}&employee={{ filter_employee }}&from_date={{ filter_from }}&to_date={{ filter_to }}&period={{ period }}" class="btn btn-sm">Next</a>
-    {% endif %}
-</div>
 {% endblock %}
 
 {% block scripts %}
