@@ -69,9 +69,16 @@
     {% if show_sales_card %}
     <div class="stat-card">
         <div class="stat-icon">💰</div>
-        <div class="stat-label">Today's Sales</div>
-        <div class="stat-value">Ksh {{ "%.2f"|format(total_sales) }}</div>
+        <div class="stat-label">Individual Sales Today</div>
+        <div class="stat-value">Ksh {{ "%.2f"|format(individual_sales_total) }}</div>
     </div>
+    {% if branch_sales_total > 0 %}
+    <div class="stat-card">
+        <div class="stat-icon">🏢</div>
+        <div class="stat-label">Branch Sales Today</div>
+        <div class="stat-value">Ksh {{ "%.2f"|format(branch_sales_total) }}</div>
+    </div>
+    {% endif %}
     {% endif %}
 </div>
 
