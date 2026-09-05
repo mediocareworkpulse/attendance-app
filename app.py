@@ -1,4 +1,3 @@
-app.py
 from flask import Flask, render_template, request, redirect, url_for, session, Response
 from datetime import date, datetime, timedelta, timezone
 from supabase import create_client
@@ -2773,7 +2772,6 @@ def targets_progress():
         emp_name = t['full_name']
         target_amt = float(t['target_amount'])
 
-        # Calculate month start and end correctly
         month_start = month + '-01'
         if month == now_eat().date().strftime('%Y-%m'):
             month_end = str(now_eat().date())
