@@ -2227,26 +2227,25 @@ def marketer_report():
         customer_name = request.form.get('customer_name','').strip()
         customer_phone = request.form.get('customer_phone','').strip()
         details = request.form.get('details','').strip()
-        expenses = request.form.get('expenses','0')
-        expected_order_date = request.form.get('expected_order_date','').strip()
-        lat = request.form.get('lat',''); lng = request.form.get('lng','')
         location = request.form.get('location','').strip()
-        try: exp = float(expenses) if expenses else 0.0
-        except: exp = 0.0
-        if not customer_name: return redirect('/check-in?report=error')
+        lat = request.form.get('lat','')
+        lng = request.form.get('lng','')
+        expected_order_date = request.form.get('expected_order_date','').strip()
+        if not customer_name: return redirect('/marketer/report?error=1')
         existing = safe_data(execute_query(
             supabase.table('customer_reports').select('id')
                    .eq('full_name', un).eq('date', today).eq('customer_name', customer_name).limit(1)
         ))
-        if existing: return redirect('/check-in?report=duplicate')
+        if existing:
+            return redirect('/marketer/report?duplicate=1')
         supabase.table('customer_reports').insert({
             'full_name': un, 'date': today, 'customer_name': customer_name,
-            'customer_phone': customer_phone, 'details': details, 'expenses': exp,
-            'expected_order_date': expected_order_date if expected_order_date else None,
-            'lat': lat if lat else None, 'lng': lng if lng else None, 'location': location if location else None
+            'customer_phone': customer_phone, 'details': details,
+            'location': location, 'lat': lat if lat else None, 'lng': lng if lng else None,
+            'expected_order_date': expected_order_date if expected_order_date else None
         }).execute()
         add_audit_log('marketer_report', target=un, details={'customer':customer_name})
-        return redirect('/marketer')
+        return redirect('/marketer?report=ok')
     return render_template('marketer_report.html', today=str(now_eat().date()), company=COMPANY_NAME)
 
 @app.route('/marketer/submit-location', methods=['POST'])
@@ -2258,7 +2257,7 @@ def submit_marketer_location():
     supabase.table('marketer_locations').insert({
         'full_name': un, 'date': today, 'time': now, 'lat': lat, 'lng': lng, 'location': loc
     }).execute()
-    return redirect('/check-in?location=ok')
+    return redirect('/marketer?location=ok')
 
 @app.route('/api/marketer/status')
 @login_required
