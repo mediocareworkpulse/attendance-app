@@ -79,6 +79,10 @@
 </style>
 
 <div class="marketer-dashboard">
+    {% if request.args.get('location') == 'ok' %}
+    <div class="alert alert-success">📍 Location sent successfully.</div>
+    {% endif %}
+
     <div class="md-hero">
         <div class="md-hero-top">
             <div>
@@ -189,7 +193,6 @@
 {% block scripts %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script>
-// ---------- Toast Notification ----------
 function showToast(message, type = 'success') {
     if (typeof window.showToast === 'function') {
         window.showToast(message, type);
@@ -198,7 +201,6 @@ function showToast(message, type = 'success') {
     }
 }
 
-// ---------- Reverse Geocoding ----------
 async function getAddressFromCoords(lat, lng) {
     try {
         const response = await fetch(
@@ -218,7 +220,6 @@ async function getAddressFromCoords(lat, lng) {
     return `${lat}, ${lng}`;
 }
 
-// ---------- Send Location with Address ----------
 async function sendLocationToBackend(lat, lng) {
     const address = await getAddressFromCoords(lat, lng);
     try {
@@ -233,7 +234,6 @@ async function sendLocationToBackend(lat, lng) {
     }
 }
 
-// Manual location send
 async function sendLocation() {
     if (!navigator.geolocation) {
         showToast('Geolocation not supported on this device.', 'error');
@@ -242,8 +242,13 @@ async function sendLocation() {
     navigator.geolocation.getCurrentPosition(
         async function(pos) {
             const ok = await sendLocationToBackend(pos.coords.latitude, pos.coords.longitude);
-            if (ok) showToast('Location sent successfully.');
-            else showToast('Failed to send location.', 'error');
+            if (ok) {
+                showToast('Location sent successfully.');
+                // Refresh to show the success alert via query param
+                window.location.href = '/marketer?location=ok';
+            } else {
+                showToast('Failed to send location.', 'error');
+            }
         },
         function(err) {
             showToast('Unable to get location: ' + err.message, 'error');
@@ -252,7 +257,7 @@ async function sendLocation() {
     );
 }
 
-// ---------- Adaptive Location Tracking ----------
+// Auto-tracking
 let lastSentCoords = null;
 const DISTANCE_THRESHOLD_METERS = 100;
 
@@ -297,7 +302,7 @@ function startLocationTracking() {
 
 document.addEventListener('DOMContentLoaded', startLocationTracking);
 
-// ---------- Push-like Notifications (Polling) ----------
+// Status polling
 let lastStatus = '{{ checkin_status }}';
 let lastOverdue = {{ overdue|length if overdue is defined else 0 }};
 
