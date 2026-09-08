@@ -40,19 +40,23 @@
     </div>
 
     {% if role in ['Marketers'] %}
-    <div>
+    <div style="text-align:center;">
         <form method="POST" action="/marketer/checkin" id="marketerCheckinForm" style="display:inline;">
             <input type="hidden" name="lat" id="marketer-lat">
             <input type="hidden" name="lng" id="marketer-lng">
             <input type="hidden" name="location" id="marketer-location">
             {% if user_status == 'none' or user_status == 'rejected' %}
-                <button type="button" class="checkin-btn btn-check-in" id="marketerCheckinBtn" onclick="prepareMarketerCheckIn()" style="width:auto; min-width:160px;">
-                    <i class="fas fa-clock"></i> Check In (Field)
+                <button type="button" class="checkin-btn btn-check-in" id="marketerCheckinBtn" onclick="prepareMarketerCheckIn()" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background: linear-gradient(135deg, #27ae60, #2ecc71); color:#fff; border:none; box-shadow:0 8px 20px rgba(39,174,96,0.4); display:inline-flex; align-items:center; gap:8px;">
+                    <i class="fas fa-location-arrow"></i> Start Field Check‑In
                 </button>
             {% elif user_status == 'pending' %}
-                <button disabled class="checkin-btn" style="background:#f39c12; color:#fff;">Pending Approval</button>
+                <button disabled class="checkin-btn" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background:#f39c12; color:#fff; border:none; display:inline-flex; align-items:center; gap:8px;">
+                    <i class="fas fa-hourglass-half"></i> Pending Approval
+                </button>
             {% else %}
-                <button disabled class="checkin-btn">Already Checked In</button>
+                <button disabled class="checkin-btn" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background:#95a5a6; color:#fff; border:none; display:inline-flex; align-items:center; gap:8px;">
+                    <i class="fas fa-check"></i> Checked In
+                </button>
             {% endif %}
         </form>
     </div>
@@ -77,7 +81,7 @@
     {% endif %}
 </div>
 
-<!-- Existing records table below (unchanged) -->
+<!-- Recent attendance list (unchanged) -->
 {% if records %}
 <div class="form-card" style="margin-top: 20px;">
     <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">Recent Attendance</h2>
@@ -114,7 +118,7 @@
 
 {% block scripts %}
 <script>
-    // ---------- Helper: fetch with timeout ----------
+    // ---------- Helper functions (fetchWithTimeout, getAddressFromCoords, getCurrentPosition) ----------
     async function fetchWithTimeout(url, options = {}, timeoutMs = 3000) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -128,7 +132,6 @@
         }
     }
 
-    // ---------- Reverse geocoding with timeout ----------
     async function getAddressFromCoords(lat, lng) {
         try {
             const response = await fetchWithTimeout(
@@ -145,13 +148,10 @@
                 if (parts.length === 0 && data.display_name) parts.push(data.display_name);
                 return parts.join(', ');
             }
-        } catch (e) {
-            // ignore and fallback to coordinates
-        }
+        } catch (e) {}
         return `${lat}, ${lng}`;
     }
 
-    // ---------- Geolocation with timeout ----------
     function getCurrentPosition(timeoutMs = 10000) {
         return new Promise((resolve, reject) => {
             if (!navigator.geolocation) {
@@ -160,59 +160,39 @@
             }
             const timeoutId = setTimeout(() => reject(new Error('Geolocation timeout')), timeoutMs);
             navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    clearTimeout(timeoutId);
-                    resolve(pos);
-                },
-                (err) => {
-                    clearTimeout(timeoutId);
-                    reject(err);
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: timeoutMs,
-                    maximumAge: 0
-                }
+                (pos) => { clearTimeout(timeoutId); resolve(pos); },
+                (err) => { clearTimeout(timeoutId); reject(err); },
+                { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 0 }
             );
         });
     }
 
-    // ---------- Capture location and submit for regular attendance ----------
+    // ---------- Regular attendance ----------
     async function captureLocationAndSubmit() {
         const latInput = document.getElementById('att-lat');
         const lngInput = document.getElementById('att-lng');
         const locInput = document.getElementById('att-location');
         const form = document.getElementById('attendanceForm');
-
         const btn = document.getElementById('checkinBtn') || document.getElementById('checkoutBtn');
         if (btn) {
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Locating...';
         }
-
         try {
             const position = await getCurrentPosition(10000);
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
             latInput.value = lat;
             lngInput.value = lng;
-
             let address = `${lat}, ${lng}`;
-            try {
-                address = await getAddressFromCoords(lat, lng);
-            } catch (e) {
-                // keep raw coordinates
-            }
+            try { address = await getAddressFromCoords(lat, lng); } catch (e) {}
             locInput.value = address;
         } catch (error) {
             latInput.value = '0';
             lngInput.value = '0';
             locInput.value = 'Location unavailable';
         }
-
-        if (btn) {
-            btn.disabled = false;
-        }
+        if (btn) btn.disabled = false;
         form.submit();
     }
 
@@ -250,18 +230,21 @@
             alert('Geolocation not supported');
             return;
         }
+        const btn = document.getElementById('marketerCheckinBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Locating...';
         navigator.geolocation.getCurrentPosition(async (pos) => {
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
             document.getElementById('marketer-lat').value = lat;
             document.getElementById('marketer-lng').value = lng;
             let address = `${lat}, ${lng}`;
-            try {
-                address = await getAddressFromCoords(lat, lng);
-            } catch (e) {}
+            try { address = await getAddressFromCoords(lat, lng); } catch (e) {}
             document.getElementById('marketer-location').value = address;
             document.getElementById('marketerCheckinForm').submit();
         }, (err) => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-location-arrow"></i> Start Field Check‑In';
             alert('Unable to get location: ' + err.message);
         }, { enableHighAccuracy: true, timeout: 10000 });
     }
