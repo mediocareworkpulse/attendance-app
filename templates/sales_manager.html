@@ -70,7 +70,7 @@
 <div class="sm-grid" style="margin-top: 20px;">
     <!-- Left Column: Check‑in Approvals -->
     <div class="sm-column">
-        <!-- Pending Check‑ins (already shown above, but keep for completeness) -->
+        <!-- Pending Check‑ins -->
         <div class="sm-card">
             <div class="sm-card-header"><h2>⏳ Pending Check‑ins</h2></div>
             {% if pending_checkins %}
@@ -131,7 +131,7 @@
             {% if reports %}
             <div class="table-container">
                 <table>
-                    <thead><tr><th>Marketer</th><th>Customer</th><th>Phone</th><th>Needs</th><th>Expenses</th><th>Order Date</th></tr></thead>
+                    <thead><tr><th>Marketer</th><th>Customer</th><th>Phone</th><th>Needs</th><th>Order Date</th></tr></thead>
                     <tbody>
                     {% for r in reports %}
                     <tr>
@@ -139,7 +139,6 @@
                         <td>{{ r.customer_name }}</td>
                         <td>{{ r.customer_phone or '—' }}</td>
                         <td>{{ r.details or '—' }}</td>
-                        <td>{{ r.expenses }}</td>
                         <td>{{ r.expected_order_date or '—' }}</td>
                     </tr>
                     {% endfor %}
@@ -194,7 +193,12 @@
         </div>
         <div>
             <label>Place</label>
-            <input type="text" name="place_name" placeholder="e.g. Westlands" required>
+            <input type="text" name="place_name" id="placeName" placeholder="e.g. Westlands" required>
+            <input type="hidden" name="place_lat" id="placeLat">
+            <input type="hidden" name="place_lng" id="placeLng">
+            <button type="button" class="btn btn-sm" style="margin-top:6px;" onclick="getPlaceCoordinates()">
+                🗺 Get Coordinates
+            </button>
         </div>
         <div>
             <button type="submit" class="btn">Assign</button>
@@ -260,6 +264,31 @@
 
     function closeMap() {
         document.getElementById('mapModal').style.display = 'none';
+    }
+
+    // Geocoding function
+    async function getPlaceCoordinates() {
+        const placeName = document.getElementById('placeName').value.trim();
+        if (!placeName) {
+            alert('Enter a place name first');
+            return;
+        }
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(placeName)}`;
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            if (data && data.length > 0) {
+                const lat = data[0].lat;
+                const lng = data[0].lon;
+                document.getElementById('placeLat').value = lat;
+                document.getElementById('placeLng').value = lng;
+                alert(`Coordinates found: ${lat}, ${lng}`);
+            } else {
+                alert('Place not found. Try a different name.');
+            }
+        } catch (e) {
+            alert('Error fetching coordinates.');
+        }
     }
 </script>
 {% endblock %}
