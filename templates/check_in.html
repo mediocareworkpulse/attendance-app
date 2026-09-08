@@ -39,7 +39,24 @@
         </div>
     </div>
 
-    {% if role not in ['Marketers','admin','ceo'] %}
+    {% if role in ['Marketers'] %}
+    <div>
+        <form method="POST" action="/marketer/checkin" id="marketerCheckinForm" style="display:inline;">
+            <input type="hidden" name="lat" id="marketer-lat">
+            <input type="hidden" name="lng" id="marketer-lng">
+            <input type="hidden" name="location" id="marketer-location">
+            {% if user_status == 'none' or user_status == 'rejected' %}
+                <button type="button" class="checkin-btn btn-check-in" id="marketerCheckinBtn" onclick="prepareMarketerCheckIn()" style="width:auto; min-width:160px;">
+                    <i class="fas fa-clock"></i> Check In (Field)
+                </button>
+            {% elif user_status == 'pending' %}
+                <button disabled class="checkin-btn" style="background:#f39c12; color:#fff;">Pending Approval</button>
+            {% else %}
+                <button disabled class="checkin-btn">Already Checked In</button>
+            {% endif %}
+        </form>
+    </div>
+    {% elif role not in ['admin','ceo'] %}
     <div>
         <form method="POST" action="/check-in" id="attendanceForm" style="display:inline;">
             <input type="hidden" name="lat" id="att-lat" value="">
@@ -59,6 +76,39 @@
     </div>
     {% endif %}
 </div>
+
+<!-- Existing records table below (unchanged) -->
+{% if records %}
+<div class="form-card" style="margin-top: 20px;">
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">Recent Attendance</h2>
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Name</th><th>Department</th><th>Role</th><th>Check In</th><th>Check Out</th><th>Status</th><th>Geofence</th></tr></thead>
+            <tbody>
+            {% for r in records %}
+            <tr>
+                <td class="td-name">{{ r.full_name }}</td>
+                <td>{{ r.department }}</td>
+                <td>{{ r.role }}</td>
+                <td>{{ r.check_in }}</td>
+                <td>{{ r.check_out }}</td>
+                <td>
+                    {% if r.label == 'Working' %}
+                        <span class="badge" style="background: #e0ecf9; color: #1e40af;">Working</span>
+                    {% elif r.label == 'Arrived Late' %}
+                        <span class="badge badge-danger">Late</span>
+                    {% else %}
+                        <span class="badge badge-success">Done</span>
+                    {% endif %}
+                </td>
+                <td>{{ r.geofence or '—' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
 
 {% endblock %}
 
@@ -127,14 +177,13 @@
         });
     }
 
-    // ---------- Capture location and submit ----------
+    // ---------- Capture location and submit for regular attendance ----------
     async function captureLocationAndSubmit() {
         const latInput = document.getElementById('att-lat');
         const lngInput = document.getElementById('att-lng');
         const locInput = document.getElementById('att-location');
         const form = document.getElementById('attendanceForm');
 
-        // Disable the button to prevent double clicks
         const btn = document.getElementById('checkinBtn') || document.getElementById('checkoutBtn');
         if (btn) {
             btn.disabled = true;
@@ -148,7 +197,6 @@
             latInput.value = lat;
             lngInput.value = lng;
 
-            // Try reverse geocoding, but don't block submission if it fails
             let address = `${lat}, ${lng}`;
             try {
                 address = await getAddressFromCoords(lat, lng);
@@ -157,13 +205,11 @@
             }
             locInput.value = address;
         } catch (error) {
-            // If geolocation fails, set fallback values
             latInput.value = '0';
             lngInput.value = '0';
             locInput.value = 'Location unavailable';
         }
 
-        // Re-enable button and submit
         if (btn) {
             btn.disabled = false;
         }
@@ -196,6 +242,28 @@
             document.getElementById('att-action').value = 'check_out';
             captureLocationAndSubmit();
         }
+    }
+
+    // ---------- Marketer check-in ----------
+    function prepareMarketerCheckIn() {
+        if (!navigator.geolocation) {
+            alert('Geolocation not supported');
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            document.getElementById('marketer-lat').value = lat;
+            document.getElementById('marketer-lng').value = lng;
+            let address = `${lat}, ${lng}`;
+            try {
+                address = await getAddressFromCoords(lat, lng);
+            } catch (e) {}
+            document.getElementById('marketer-location').value = address;
+            document.getElementById('marketerCheckinForm').submit();
+        }, (err) => {
+            alert('Unable to get location: ' + err.message);
+        }, { enableHighAccuracy: true, timeout: 10000 });
     }
 
     // Journey location helpers (unchanged)
