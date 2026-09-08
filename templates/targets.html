@@ -3,9 +3,15 @@
 <h1 class="page-title">🎯 Sales Targets</h1>
 <p class="page-subtitle">{{ company }} – Set monthly targets</p>
 
+{% if request.args.get('error') %}
+<div class="alert alert-error">Please provide valid month and amount.</div>
+{% endif %}
+
+<!-- Individual Target Form -->
 <div class="form-card">
-    <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">📌 Set / Update Target</h2>
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">📌 Set Individual Target</h2>
     <form method="POST" class="form-grid">
+        <input type="hidden" name="target_type" value="individual">
         <div>
             <label>Employee</label>
             <select name="employee_name" required>
@@ -28,8 +34,36 @@
     </form>
 </div>
 
+<!-- Branch Target Form -->
 <div class="form-card" style="margin-top:20px;">
-    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">📊 Current Targets</h2>
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">🏢 Set Branch Target</h2>
+    <form method="POST" class="form-grid">
+        <input type="hidden" name="target_type" value="branch">
+        <div>
+            <label>Branch</label>
+            <select name="branch_name" required>
+                {% for b in branches %}
+                <option value="{{ b }}">{{ b }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Month</label>
+            <input type="month" name="month" value="{{ today[:7] }}" required>
+        </div>
+        <div>
+            <label>Target Amount (Ksh)</label>
+            <input type="number" step="0.01" name="amount" required>
+        </div>
+        <div>
+            <button type="submit" class="btn">Set Target</button>
+        </div>
+    </form>
+</div>
+
+<!-- Current Individual Targets -->
+<div class="form-card" style="margin-top:20px;">
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">📊 Current Individual Targets</h2>
     <div class="table-container">
         <table>
             <thead>
@@ -41,9 +75,36 @@
                 </tr>
             </thead>
             <tbody>
-            {% for t in targets %}
+            {% for t in individual_targets %}
             <tr>
                 <td class="td-name">{{ t.full_name }}</td>
+                <td>{{ t.month }}</td>
+                <td>{{ t.target_amount }}</td>
+                <td>{{ t.set_by }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Current Branch Targets -->
+<div class="form-card" style="margin-top:20px;">
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">🏢 Current Branch Targets</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Branch</th>
+                    <th>Month</th>
+                    <th>Target (Ksh)</th>
+                    <th>Set By</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for t in branch_targets %}
+            <tr>
+                <td class="td-name">{{ t.branch }}</td>
                 <td>{{ t.month }}</td>
                 <td>{{ t.target_amount }}</td>
                 <td>{{ t.set_by }}</td>
