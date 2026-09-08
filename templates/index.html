@@ -52,6 +52,43 @@
 </div>
 {% endif %}
 
+<!-- Branch targets summary for Admin/Stock Controllers/CEO -->
+{% if branch_targets_summary %}
+<div class="form-card" style="margin-top:16px;">
+    <h3 style="font-size:16px; font-weight:800;">🏢 Branch Targets Progress (Current Month)</h3>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Branch</th>
+                    <th>Target</th>
+                    <th>Achieved</th>
+                    <th>Percent</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for bt in branch_targets_summary %}
+            <tr>
+                <td class="td-name">{{ bt.branch }}</td>
+                <td>Ksh {{ "%.2f"|format(bt.target) }}</td>
+                <td>Ksh {{ "%.2f"|format(bt.current) }}</td>
+                <td>{{ bt.percent }}%</td>
+                <td>
+                    {% if bt.achieved %}
+                        <span class="badge badge-success">Achieved</span>
+                    {% else %}
+                        <span class="badge badge-warning">In Progress</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
 {% if leave_remaining %}
 <div class="alert" style="background: #e8f0fe; color: #1e40af; border-left: 4px solid #2563eb; margin-top:12px;">
     📅 Your leave ends on <strong>{{ leave_remaining.end_date }}</strong> ({{ leave_remaining.days }} day(s) left).
