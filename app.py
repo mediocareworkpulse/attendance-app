@@ -646,30 +646,26 @@ def home():
     on_leave_count = count_employees_on_leave(team_names=team_names)
 
     if show_sales_card:
-        # Individual sales (already working)
+        # Individual sales
         sales_query = apply_team(
             supabase.table('sales').select('total_sales').eq('date', today)
         )
         sales_data = safe_data(execute_query(sales_query))
         total_sales = sum(float(s.get('total_sales',0)) for s in sales_data)
 
-        # Branch sales – include for roles that should see them
+        # Branch sales
         branch_sales_total = 0
         if role == 'Staff':
-            # Staff only see their own individual sales, not branch
             branch_sales_total = 0
         elif role == 'Person in Charge':
-            # PIC sees branch sales for their own branch
             branch_sales_query = supabase.table('branch_sales').select('total_sales').eq('date', today).eq('branch', ub)
             branch_data = safe_data(execute_query(branch_sales_query))
             branch_sales_total = sum(float(s.get('total_sales',0)) for s in branch_data)
         elif can_view_all() or role in FULL_ACCESS_ROLES:
-            # Admins, stock controllers, accountants, etc. see all branch sales
             branch_sales_query = supabase.table('branch_sales').select('total_sales').eq('date', today)
             branch_data = safe_data(execute_query(branch_sales_query))
             branch_sales_total = sum(float(s.get('total_sales',0)) for s in branch_data)
 
-        # Combined total for display
         total_sales_combined = total_sales + branch_sales_total
     else:
         total_sales = 0
@@ -754,7 +750,7 @@ def home():
     return render_template('index.html',
         total_employees=total_emp, working=working, checked_out=checked_out,
         late_count=late_count, on_leave_count=on_leave_count,
-        total_sales=total_sales_combined,           # combined total (individual + branch)
+        total_sales=total_sales_combined,           # combined total
         individual_sales_total=total_sales,         # individual only
         branch_sales_total=branch_sales_total,      # branch only
         recent_records=records,
@@ -774,6 +770,7 @@ def manager_dashboard():
     un = session.get('user')
     team_names = get_manager_attendance_team_names()
 
+    # Attendance overview
     total_emp = len(team_names)
     working = execute_query(
         supabase.table('attendance').select('id', count='exact')
@@ -815,10 +812,29 @@ def manager_dashboard():
             'label': label
         })
 
+    # Marketer management data
+    marketers = safe_data(execute_query(
+        supabase.table('employees').select('full_name').eq('status','approved').eq('role','Marketers').order('full_name')
+    ))
+    pending_checkins = safe_data(execute_query(
+        supabase.table('marketer_checkins').select('*').eq('date',today).eq('status','pending').order('created_at',desc=True).limit(50)
+    ))
+    approved_checkins = safe_data(execute_query(
+        supabase.table('marketer_checkins').select('*').eq('date',today).eq('status','approved').order('check_in_time').limit(50)
+    ))
+    assigned = safe_data(execute_query(
+        supabase.table('assigned_places').select('*').order('date_assigned',desc=True).limit(100)
+    ))
+    reports = safe_data(execute_query(
+        supabase.table('customer_reports').select('*').eq('date',today).order('created_at',desc=True).limit(50)
+    ))
+
     return render_template('manager_dashboard.html',
         total_employees=total_emp, working=working, checked_out=checked_out,
         late_count=late_count, on_leave_count=on_leave_count,
-        recent_records=records, today=today, company=COMPANY_NAME)
+        recent_records=records, today=today, company=COMPANY_NAME,
+        marketers=marketers, pending_checkins=pending_checkins,
+        approved_checkins=approved_checkins, assigned=assigned, reports=reports)
 
 # ==================== ADMIN PANEL ====================
 @app.route('/admin')
@@ -1502,14 +1518,12 @@ def sales_page():
         filter_from = str(today_date.replace(month=1, day=1))
         filter_to = str(today_date)
     elif not filter_from:
-        # Default: show current month
         filter_from = str(today_date.replace(day=1))
         filter_to = str(today_date)
     if not filter_to:
         filter_to = str(today_date)
 
     if role == 'Staff':
-        # Staff only see their own individual sales
         query = supabase.table('sales').select('*').eq('full_name', un)
         query = query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True)
         individual_sales = safe_data(execute_query(query))
@@ -1520,35 +1534,27 @@ def sales_page():
         filter_employee = ''
         total_individual = sum(float(s['total_sales']) for s in individual_sales)
         total_branch = 0
-
     elif role == 'Person in Charge':
         filter_branch = ub
         filter_employee = request.args.get('employee','')
-        # Individual sales for the branch
         ind_query = supabase.table('sales').select('*').eq('branch', ub)
         if filter_employee:
             ind_query = ind_query.eq('full_name', filter_employee)
         ind_query = ind_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True)
         individual_sales = safe_data(execute_query(ind_query))
-
-        # Branch sales for the branch
         br_query = supabase.table('branch_sales').select('*').eq('branch', ub)
         br_query = br_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True)
         branch_sales = safe_data(execute_query(br_query))
-
         employees = safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved').eq('branch', ub).order('full_name')
         ))
         branches_for_filter = [ub]
         total_individual = sum(float(s['total_sales']) for s in individual_sales)
         total_branch = sum(float(s['total_sales']) for s in branch_sales)
-
     else:
-        # Admins, Stock Controllers, Accountants, etc.
         allowed_branches = get_branch_names()
         filter_branch = request.args.get('branch','')
         filter_employee = request.args.get('employee','')
-
         ind_query = supabase.table('sales').select('*')
         if filter_branch and filter_branch in allowed_branches:
             ind_query = ind_query.eq('branch', filter_branch)
@@ -1556,7 +1562,6 @@ def sales_page():
             ind_query = ind_query.eq('full_name', filter_employee)
         ind_query = ind_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True)
         individual_sales = safe_data(execute_query(ind_query))
-
         br_query = supabase.table('branch_sales').select('*')
         if filter_branch and filter_branch in allowed_branches:
             br_query = br_query.eq('branch', filter_branch)
@@ -1564,7 +1569,6 @@ def sales_page():
             br_query = br_query.eq('submitted_by', filter_employee)
         br_query = br_query.gte('date', filter_from).lte('date', filter_to).order('date', desc=True)
         branch_sales = safe_data(execute_query(br_query))
-
         if filter_branch:
             employees = safe_data(execute_query(
                 supabase.table('employees').select('full_name').eq('status','approved').eq('branch', filter_branch).order('full_name')
@@ -1577,7 +1581,6 @@ def sales_page():
         total_individual = sum(float(s['total_sales']) for s in individual_sales)
         total_branch = sum(float(s['total_sales']) for s in branch_sales)
 
-    # Target progress (unchanged)
     target_progress = None
     month_str = now_eat().date().replace(day=1).strftime('%Y-%m')
     target = safe_data(execute_query(supabase.table('sales_targets').select('target_amount').eq('full_name',un).eq('month',month_str).limit(1)))
@@ -1591,7 +1594,6 @@ def sales_page():
                            'percent': round((month_total / target_amt * 100), 1) if target_amt > 0 else 0,
                            'achieved': month_total >= target_amt}
 
-    # NO pagination
     return render_template('sales.html',
         individual_sales=individual_sales,
         branch_sales=branch_sales,
@@ -2361,7 +2363,8 @@ def marketer_dashboard():
 @app.route('/sales-manager')
 @login_required
 def sales_manager_dashboard():
-    if session.get('role') != SALES_MANAGER_ROLE: return redirect('/')
+    if session.get('role') != SALES_MANAGER_ROLE and session.get('role') != 'General Manager':
+        return redirect('/')
     today = str(now_eat().date())
     pending_checkins = safe_data(execute_query(
         supabase.table('marketer_checkins').select('*').eq('date',today).eq('status','pending').order('created_at',desc=True).limit(50)
@@ -2423,7 +2426,7 @@ def sales_manager_dashboard():
 @app.route('/sales-manager/approve/<int:cid>', methods=['POST'])
 @login_required
 def approve_checkin(cid):
-    if session.get('role') != SALES_MANAGER_ROLE: return redirect('/')
+    if session.get('role') not in [SALES_MANAGER_ROLE, 'General Manager']: return redirect('/')
     supabase.table('marketer_checkins').update({'status':'approved'}).eq('id',cid).execute()
     req = safe_data(execute_query(supabase.table('marketer_checkins').select('*').eq('id',cid)))
     if req:
@@ -2436,28 +2439,35 @@ def approve_checkin(cid):
                 'check_in_location': r.get('location',''), 'department': '', 'branch': ''
             }).execute()
     add_audit_log('approve_marketer_checkin', target=str(cid))
-    return redirect('/sales-manager')
+    return redirect('/sales-manager' if session.get('role') == SALES_MANAGER_ROLE else '/manager-dashboard')
 
 @app.route('/sales-manager/reject/<int:cid>', methods=['POST'])
 @login_required
 def reject_checkin(cid):
-    if session.get('role') != SALES_MANAGER_ROLE: return redirect('/')
+    if session.get('role') not in [SALES_MANAGER_ROLE, 'General Manager']: return redirect('/')
     supabase.table('marketer_checkins').update({'status':'rejected'}).eq('id',cid).execute()
     add_audit_log('reject_marketer_checkin', target=str(cid))
-    return redirect('/sales-manager')
+    return redirect('/sales-manager' if session.get('role') == SALES_MANAGER_ROLE else '/manager-dashboard')
 
 @app.route('/sales-manager/assign', methods=['POST'])
 @login_required
 def assign_place():
-    if session.get('role') != SALES_MANAGER_ROLE: return redirect('/')
+    if session.get('role') not in [SALES_MANAGER_ROLE, 'General Manager']: return redirect('/')
     marketer = request.form.get('marketer_name','').strip()
     place = request.form.get('place_name','').strip()
+    place_lat = request.form.get('place_lat','').strip()
+    place_lng = request.form.get('place_lng','').strip()
     if marketer and place:
-        supabase.table('assigned_places').insert({
+        data = {
             'marketer_name': marketer, 'place_name': place, 'date_assigned': str(now_eat().date())
-        }).execute()
+        }
+        if place_lat:
+            data['latitude'] = float(place_lat)
+        if place_lng:
+            data['longitude'] = float(place_lng)
+        supabase.table('assigned_places').insert(data).execute()
         add_audit_log('assign_place', target=marketer, details={'place':place})
-    return redirect('/sales-manager')
+    return redirect('/sales-manager' if session.get('role') == SALES_MANAGER_ROLE else '/manager-dashboard')
 
 # ==================== LIVE LOCATION API & MAP ====================
 @app.route('/api/live-locations')
@@ -2548,7 +2558,7 @@ def live_status():
 @app.route('/sales-manager/marketer/<path:full_name>')
 @login_required
 def marketer_detail(full_name):
-    if session.get('role') != SALES_MANAGER_ROLE and session.get('role') not in FULL_ACCESS_ROLES:
+    if session.get('role') not in [SALES_MANAGER_ROLE, 'General Manager'] and session.get('role') not in FULL_ACCESS_ROLES:
         return redirect('/')
     emp = safe_data(execute_query(
         supabase.table('employees').select('*').eq('full_name', full_name).limit(1)
@@ -2674,7 +2684,7 @@ def field_executive():
 @app.route('/field-reports')
 @login_required
 def field_reports():
-    if session.get('role') not in FULL_ACCESS_ROLES and session.get('role') != SALES_MANAGER_ROLE:
+    if session.get('role') not in FULL_ACCESS_ROLES and session.get('role') not in [SALES_MANAGER_ROLE, 'General Manager']:
         return redirect('/')
     marketer_filter = request.args.get('marketer', '')
     date_from = request.args.get('from_date', '')
