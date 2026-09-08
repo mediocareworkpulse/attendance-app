@@ -31,6 +31,17 @@
 </div>
 {% endif %}
 
+<!-- BRANCH TARGET for Person in Charge -->
+{% if branch_target %}
+<div class="target-progress-card" style="margin-top: 12px; border-left: 6px solid var(--primary);">
+    <h3 style="font-size:16px; font-weight:800;">🏢 Branch Monthly Target</h3>
+    <div style="display:flex; justify-content:space-between;">
+        <span>Target: Ksh {{ "%.2f"|format(branch_target) }}</span>
+        <span>Branch: {{ session.branch }}</span>
+    </div>
+</div>
+{% endif %}
+
 {% if leave_remaining %}
 <div class="alert" style="background: #e8f0fe; color: #1e40af; border-left: 4px solid #2563eb; margin-top:12px;">
     📅 Your leave ends on <strong>{{ leave_remaining.end_date }}</strong> ({{ leave_remaining.days }} day(s) left).
