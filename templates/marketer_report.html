@@ -17,57 +17,64 @@
                     <label>Phone</label>
                     <input type="text" name="customer_phone">
                 </div>
-                <div>
-                    <label>Contact Person</label>
-                    <input type="text" name="contact_person">
-                </div>
-                <div>
+                <div style="grid-column: span 2;">
                     <label>Location</label>
-                    <input type="text" name="location" value="{{ request.args.get('place', '') }}">
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input type="text" name="location" id="locationField" readonly style="flex:1;" placeholder="Click 'Capture Location' to set">
+                        <input type="hidden" name="lat" id="latField">
+                        <input type="hidden" name="lng" id="lngField">
+                        <button type="button" class="btn btn-sm" style="white-space:nowrap;" onclick="captureLocation()">
+                            <i class="fas fa-map-marker-alt"></i> Capture Location
+                        </button>
+                    </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- VISIT SECTION -->
-        <div class="card" style="margin-bottom: 20px;">
-            <h3 style="border-bottom: 2px solid var(--border); padding-bottom: 8px;">🚶 Visit</h3>
-            <div class="form-grid">
-                <div>
-                    <label>Purpose of Visit</label>
-                    <input type="text" name="purpose">
-                </div>
-                <div>
-                    <label>Notes</label>
-                    <textarea name="details" rows="3"></textarea>
-                </div>
-            </div>
-        </div>
-
-        <!-- OPPORTUNITY SECTION -->
-        <div class="card" style="margin-bottom: 20px;">
-            <h3 style="border-bottom: 2px solid var(--border); padding-bottom: 8px;">💼 Opportunity</h3>
-            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div>
                     <label>Expected Order Date</label>
                     <input type="date" name="expected_order_date">
                 </div>
-                <!-- Expected order value not in existing DB, so omitted -->
             </div>
         </div>
 
-        <!-- EXPENSE SECTION -->
+        <!-- VISIT DETAILS -->
         <div class="card" style="margin-bottom: 20px;">
-            <h3 style="border-bottom: 2px solid var(--border); padding-bottom: 8px;">💰 Expense</h3>
-            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+            <h3 style="border-bottom: 2px solid var(--border); padding-bottom: 8px;">📋 Visit Details</h3>
+            <div class="form-grid">
                 <div>
-                    <label>Expense Amount (Ksh)</label>
-                    <input type="number" step="0.01" name="expenses" value="0">
+                    <label>Notes / Purpose</label>
+                    <textarea name="details" rows="4"></textarea>
                 </div>
-                <!-- Expense description not in existing DB, so omitted -->
             </div>
         </div>
 
         <button type="submit" class="btn btn-primary btn-block" style="width:100%; padding:14px; font-size:15px;">Submit Report</button>
     </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function captureLocation() {
+        if (!navigator.geolocation) {
+            alert('Geolocation not supported');
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            document.getElementById('latField').value = lat;
+            document.getElementById('lngField').value = lng;
+            document.getElementById('locationField').value = `${lat}, ${lng}`;
+            // Reverse geocode for better address
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+                const data = await response.json();
+                if (data && data.display_name) {
+                    document.getElementById('locationField').value = data.display_name;
+                }
+            } catch (e) {}
+        }, (err) => {
+            alert('Unable to get location: ' + err.message);
+        }, { enableHighAccuracy: true, timeout: 10000 });
+    }
+</script>
 {% endblock %}
