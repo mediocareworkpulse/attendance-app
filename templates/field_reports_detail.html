@@ -1,8 +1,5 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="page-title">📋 Reports for {{ marketer }}</h1>
-<p class="page-subtitle">{{ company }} • {{ date_from or 'All d{% extends "base.html" %}
-{% block content %}
 <h1 class="page-title">Reports for {{ marketer }}</h1>
 <p class="page-subtitle">{{ company }} • {{ date_from or 'All dates' }} to {{ date_to or 'All dates' }}</p>
 
@@ -10,7 +7,7 @@
 
 <div class="table-container" style="margin-top: 16px;">
     <table>
-        <thead><tr><th>Date</th><th>Customer</th><th>Phone</th><th>Notes</th><th>Expenses</th><th>Expected Order</th></tr></thead>
+        <thead><tr><th>Date</th><th>Customer</th><th>Phone</th><th>Notes</th><th>Expected Order</th></tr></thead>
         <tbody>
         {% for r in reports %}
         <tr>
@@ -18,7 +15,6 @@
             <td>{{ r.customer_name }}</td>
             <td>{{ r.customer_phone or '—' }}</td>
             <td>{{ r.details or '—' }}</td>
-            <td>{{ r.expenses }}</td>
             <td>{{ r.expected_order_date or '—' }}</td>
         </tr>
         {% endfor %}
@@ -35,26 +31,5 @@
     {% if has_next %}
     <a href="?page={{ page+1 }}&marketer={{ marketer|urlencode }}&from_date={{ date_from }}&to_date={{ date_to }}" class="btn btn-sm">Next</a>
     {% endif %}
-</div>
-{% endblock %}ates' }} to {{ date_to or 'All dates' }}</p>
-
-<a href="/field-reports?from_date={{ date_from }}&to_date={{ date_to }}" class="btn btn-sm">← Back to Summary</a>
-
-<div class="table-container" style="margin-top: 16px;">
-    <table>
-        <thead><tr><th>Date</th><th>Customer</th><th>Phone</th><th>Notes</th><th>Expenses</th><th>Expected Order</th></tr></thead>
-        <tbody>
-        {% for r in reports %}
-        <tr>
-            <td>{{ r.date }}</td>
-            <td>{{ r.customer_name }}</td>
-            <td>{{ r.customer_phone or '—' }}</td>
-            <td>{{ r.details or '—' }}</td>
-            <td>{{ r.expenses }}</td>
-            <td>{{ r.expected_order_date or '—' }}</td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
 </div>
 {% endblock %}
