@@ -674,7 +674,7 @@ def home():
     branch_target = None
     branch_target_progress = None
     if role == 'Person in Charge':
-        month_str = now_eat().date().replace(day=1).strftime('%Y-%m')
+        month_str = now_eat().date().strftime('%Y-%m')
         target_data = safe_data(execute_query(
             supabase.table('branch_targets').select('target_amount').eq('branch', ub).eq('month', month_str).limit(1)
         ))
@@ -695,33 +695,6 @@ def home():
                 'percent': round((branch_sales_total / branch_target * 100), 1) if branch_target > 0 else 0,
                 'achieved': branch_sales_total >= branch_target
             }
-
-    # Branch targets summary for Admin/Stock Controllers/CEO (only branch sales)
-    branch_targets_summary = []
-    if role in ['admin','ceo','Stock Controller','Assistant Stock Controller']:
-        month_str = now_eat().date().replace(day=1).strftime('%Y-%m')
-        month_start = datetime.strptime(month_str + '-01', '%Y-%m-%d').date()
-        all_branch_targets = safe_data(execute_query(
-            supabase.table('branch_targets').select('*').eq('month', month_str).limit(100)
-        ))
-        for bt in all_branch_targets:
-            branch_name = bt['branch']
-            target_amount = float(bt['target_amount'])
-            b_sales = safe_data(execute_query(
-                supabase.table('branch_sales').select('total_sales')
-                .eq('branch', branch_name)
-                .gte('date', str(month_start)).lte('date', today)
-            ))
-            total_branch_sales = sum(float(s['total_sales']) for s in b_sales)
-            remaining = max(0, target_amount - total_branch_sales)
-            branch_targets_summary.append({
-                'branch': branch_name,
-                'target': target_amount,
-                'current': total_branch_sales,
-                'remaining': remaining,
-                'percent': round((total_branch_sales / target_amount * 100), 1) if target_amount > 0 else 0,
-                'achieved': total_branch_sales >= target_amount
-            })
 
     recent_query = apply_team(
         supabase.table('attendance').select('*').eq('date', today).order('check_in', desc=True).limit(10)
@@ -775,7 +748,7 @@ def home():
     target_progress = None
     target_achieved = False
     if role in SALES_SUBMIT_ROLES:
-        month_str = now_eat().date().replace(day=1).strftime('%Y-%m')
+        month_str = now_eat().date().strftime('%Y-%m')
         target = safe_data(execute_query(
             supabase.table('sales_targets').select('target_amount').eq('full_name', un).eq('month', month_str).limit(1)
         ))
@@ -811,7 +784,6 @@ def home():
         leave_remaining=leave_remaining if 'leave_remaining' in locals() else None,
         branch_target=branch_target,
         branch_target_progress=branch_target_progress,
-        branch_targets_summary=branch_targets_summary,
         company=COMPANY_NAME)
 
 # ==================== MANAGER DASHBOARD ====================
@@ -1644,7 +1616,7 @@ def sales_page():
         total_branch = sum(float(s['total_sales']) for s in branch_sales)
 
     target_progress = None
-    month_str = now_eat().date().replace(day=1).strftime('%Y-%m')
+    month_str = now_eat().date().strftime('%Y-%m')
     target = safe_data(execute_query(supabase.table('sales_targets').select('target_amount').eq('full_name',un).eq('month',month_str).limit(1)))
     if target:
         target_amt = float(target[0]['target_amount'])
@@ -2433,7 +2405,7 @@ def marketer_dashboard():
         .limit(100)
     ))
 
-    month_str = now_eat().date().replace(day=1).strftime('%Y-%m')
+    month_str = now_eat().date().strftime('%Y-%m')
     target = safe_data(execute_query(
         supabase.table('sales_targets')
         .select('target_amount')
@@ -2678,7 +2650,7 @@ def marketer_detail(full_name):
         .order('time', desc=True).limit(1)
     ))
     latest_loc = latest_location[0] if latest_location else None
-    month_str = now_eat().date().replace(day=1).strftime('%Y-%m')
+    month_str = now_eat().date().strftime('%Y-%m')
     target = safe_data(execute_query(
         supabase.table('sales_targets').select('target_amount')
         .eq('full_name', full_name).eq('month', month_str).limit(1)
@@ -2901,7 +2873,7 @@ def targets_progress():
     allowed = ['admin','ceo','Stock Controller','Assistant Stock Controller','HR','HR Assistant','Accountant','Accountant Assistant']
     if session.get('role') not in allowed:
         return redirect('/')
-    month = request.args.get('month', str(now_eat().date().replace(day=1)))
+    month = request.args.get('month', now_eat().date().strftime('%Y-%m'))
     month_start = month + '-01'
     if month == now_eat().date().strftime('%Y-%m'):
         month_end = str(now_eat().date())
@@ -2913,7 +2885,6 @@ def targets_progress():
             next_month = f"{year}-{mon+1:02d}-01"
         month_end = (datetime.strptime(next_month, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
 
-    # Individual targets
     targets = safe_data(execute_query(
         supabase.table('sales_targets').select('*').eq('month', month).limit(1000)
     ))
@@ -2936,7 +2907,6 @@ def targets_progress():
             'achieved': total_sales >= target_amt
         })
 
-    # Branch targets
     branch_targets = safe_data(execute_query(
         supabase.table('branch_targets').select('*').eq('month', month).limit(100)
     ))
