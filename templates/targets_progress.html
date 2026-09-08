@@ -10,6 +10,8 @@
     </div>
 </form>
 
+<!-- Individual Targets Progress -->
+<h2 style="font-size:18px; font-weight:700; margin-bottom:12px;">👤 Individual Targets</h2>
 <div class="table-container">
     <table>
         <thead>
@@ -22,9 +24,42 @@
             </tr>
         </thead>
         <tbody>
-        {% for p in progress %}
+        {% for p in individual_progress %}
         <tr>
             <td class="td-name">{{ p.full_name }}</td>
+            <td>Ksh {{ "%.2f"|format(p.target_amount) }}</td>
+            <td>Ksh {{ "%.2f"|format(p.total_sales) }}</td>
+            <td>{{ p.percent }}%</td>
+            <td>
+                {% if p.achieved %}
+                <span class="badge badge-success">Achieved</span>
+                {% else %}
+                <span class="badge badge-warning">In Progress</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Branch Targets Progress -->
+<h2 style="font-size:18px; font-weight:700; margin:24px 0 12px;">🏢 Branch Targets</h2>
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Branch</th>
+                <th>Target</th>
+                <th>Achieved</th>
+                <th>Percent</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for p in branch_progress %}
+        <tr>
+            <td class="td-name">{{ p.branch }}</td>
             <td>Ksh {{ "%.2f"|format(p.target_amount) }}</td>
             <td>Ksh {{ "%.2f"|format(p.total_sales) }}</td>
             <td>{{ p.percent }}%</td>
