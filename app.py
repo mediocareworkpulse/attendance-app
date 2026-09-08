@@ -646,12 +646,14 @@ def home():
     on_leave_count = count_employees_on_leave(team_names=team_names)
 
     if show_sales_card:
+        # Individual sales
         sales_query = apply_team(
             supabase.table('sales').select('total_sales').eq('date', today)
         )
         sales_data = safe_data(execute_query(sales_query))
         total_sales = sum(float(s.get('total_sales',0)) for s in sales_data)
 
+        # Branch sales
         branch_sales_total = 0
         if role == 'Staff':
             branch_sales_total = 0
@@ -672,6 +674,7 @@ def home():
 
     # Branch target for Person in Charge
     branch_target = None
+    branch_target_progress = None
     if role == 'Person in Charge':
         month_str = now_eat().date().replace(day=1).strftime('%Y-%m')
         target_data = safe_data(execute_query(
@@ -679,6 +682,21 @@ def home():
         ))
         if target_data:
             branch_target = float(target_data[0]['target_amount'])
+            month_start = datetime.strptime(month_str + '-01', '%Y-%m-%d').date()
+            branch_sales_data = safe_data(execute_query(
+                supabase.table('branch_sales').select('total_sales')
+                .eq('branch', ub)
+                .gte('date', str(month_start)).lte('date', today)
+            ))
+            branch_sales_total = sum(float(s['total_sales']) for s in branch_sales_data)
+            remaining = max(0, branch_target - branch_sales_total)
+            branch_target_progress = {
+                'target': branch_target,
+                'current': branch_sales_total,
+                'remaining': remaining,
+                'percent': round((branch_sales_total / branch_target * 100), 1) if branch_target > 0 else 0,
+                'achieved': branch_sales_total >= branch_target
+            }
 
     recent_query = apply_team(
         supabase.table('attendance').select('*').eq('date', today).order('check_in', desc=True).limit(10)
@@ -767,6 +785,7 @@ def home():
         target_achieved=target_achieved, target_progress=target_progress,
         leave_remaining=leave_remaining if 'leave_remaining' in locals() else None,
         branch_target=branch_target,
+        branch_target_progress=branch_target_progress,
         company=COMPANY_NAME)
 
 # ==================== MANAGER DASHBOARD ====================
@@ -1184,7 +1203,15 @@ def check_in_page():
             check_in_time = rec.get('check_in')
         geofence = rec.get('check_in_geofence')
 
+    marketer_has_checkin = False
+    marketer_has_checkout = False
     if role == MARKETER_ROLE:
+        if my_att:
+            rec = my_att[0]
+            if rec.get('check_in') and not rec.get('check_out'):
+                marketer_has_checkin = True
+            elif rec.get('check_out'):
+                marketer_has_checkout = True
         if marketer_approved: current_status = 'approved'
         elif marketer_pending: current_status = 'pending'
         elif marketer_rejected: current_status = 'rejected'
@@ -1268,7 +1295,9 @@ def check_in_page():
     return render_template('check_in.html',
         records=records, user_status=current_status, today=today, company=COMPANY_NAME,
         check_in_time=check_in_time, shift_start=shift_start, shift_end=shift_end,
-        journeys=journeys, role=role, drivers=drivers, geofence=geofence)
+        journeys=journeys, role=role, drivers=drivers, geofence=geofence,
+        marketer_has_checkin=marketer_has_checkin,
+        marketer_has_checkout=marketer_has_checkout)
 
 @app.route('/check-in', methods=['POST'])
 @login_required
@@ -2268,6 +2297,38 @@ def submit_marketer_location():
     }).execute()
     return redirect('/marketer?location=ok')
 
+@app.route('/marketer/checkout', methods=['POST'])
+@login_required
+def marketer_checkout():
+    if session.get('role') != MARKETER_ROLE: return redirect('/check-in')
+    un = session.get('user')
+    today = str(now_eat().date())
+    now = now_eat().strftime('%H:%M:%S')
+    lat = request.form.get('lat','')
+    lng = request.form.get('lng','')
+    loc = request.form.get('location','')
+    att = safe_data(execute_query(
+        supabase.table('attendance')
+        .select('*')
+        .eq('full_name', un)
+        .eq('date', today)
+        .not_.is_('check_in', 'null')
+        .is_('check_out', 'null')
+        .limit(1)
+    ))
+    if att:
+        supabase.table('attendance').update({
+            'check_out': now,
+            'status': 'checked_out',
+            'check_out_lat': lat,
+            'check_out_lng': lng,
+            'check_out_location': loc
+        }).eq('id', att[0]['id']).execute()
+        add_audit_log('marketer_checkout', target=un)
+        return redirect('/check-in?checkout=ok')
+    else:
+        return redirect('/check-in?error=no_checkin')
+
 @app.route('/api/marketer/status')
 @login_required
 def marketer_status_api():
@@ -2748,7 +2809,7 @@ def targets_page():
     if session.get('role') not in TARGET_SETTER_ROLES: return redirect('/')
     user_role = session.get('role')
 
-    # Only Staff and Person in Charge (including Branch Manager normalized)
+    # Fetch all approved employees, filter in Python to include Staff and Person in Charge (and Branch Manager variants)
     all_employees = safe_data(execute_query(
         supabase.table('employees')
         .select('full_name, role')
