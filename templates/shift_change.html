@@ -6,7 +6,7 @@
 {% if success %}<div class="alert alert-success">Request submitted.</div>{% endif %}
 {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
 
-{% if session.role == 'Branch Manager' %}
+{% if session.role == 'Person in Charge' %}
 <div class="form-card">
     <h2>Request Shift Change</h2>
     <form method="POST" class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:12px;">
