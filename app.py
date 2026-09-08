@@ -2902,25 +2902,25 @@ def targets_progress():
     if session.get('role') not in allowed:
         return redirect('/')
     month = request.args.get('month', str(now_eat().date().replace(day=1)))
+    month_start = month + '-01'
+    if month == now_eat().date().strftime('%Y-%m'):
+        month_end = str(now_eat().date())
+    else:
+        year, mon = map(int, month.split('-'))
+        if mon == 12:
+            next_month = f"{year+1}-01-01"
+        else:
+            next_month = f"{year}-{mon+1:02d}-01"
+        month_end = (datetime.strptime(next_month, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+
+    # Individual targets
     targets = safe_data(execute_query(
         supabase.table('sales_targets').select('*').eq('month', month).limit(1000)
     ))
-    progress = []
+    individual_progress = []
     for t in targets:
         emp_name = t['full_name']
         target_amt = float(t['target_amount'])
-
-        month_start = month + '-01'
-        if month == now_eat().date().strftime('%Y-%m'):
-            month_end = str(now_eat().date())
-        else:
-            year, mon = map(int, month.split('-'))
-            if mon == 12:
-                next_month = f"{year+1}-01-01"
-            else:
-                next_month = f"{year}-{mon+1:02d}-01"
-            month_end = (datetime.strptime(next_month, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
-
         sales = safe_data(execute_query(
             supabase.table('sales').select('total_sales')
             .eq('full_name', emp_name)
@@ -2928,14 +2928,42 @@ def targets_progress():
         ))
         total_sales = sum(float(s['total_sales']) for s in sales)
         percent = round((total_sales / target_amt * 100), 1) if target_amt > 0 else 0
-        progress.append({
+        individual_progress.append({
             'full_name': emp_name,
             'target_amount': target_amt,
             'total_sales': total_sales,
             'percent': percent,
             'achieved': total_sales >= target_amt
         })
-    return render_template('targets_progress.html', progress=progress, month=month, company=COMPANY_NAME)
+
+    # Branch targets
+    branch_targets = safe_data(execute_query(
+        supabase.table('branch_targets').select('*').eq('month', month).limit(100)
+    ))
+    branch_progress = []
+    for bt in branch_targets:
+        branch_name = bt['branch']
+        target_amt = float(bt['target_amount'])
+        b_sales = safe_data(execute_query(
+            supabase.table('branch_sales').select('total_sales')
+            .eq('branch', branch_name)
+            .gte('date', month_start).lte('date', month_end)
+        ))
+        total_branch_sales = sum(float(s['total_sales']) for s in b_sales)
+        percent = round((total_branch_sales / target_amt * 100), 1) if target_amt > 0 else 0
+        branch_progress.append({
+            'branch': branch_name,
+            'target_amount': target_amt,
+            'total_sales': total_branch_sales,
+            'percent': percent,
+            'achieved': total_branch_sales >= target_amt
+        })
+
+    return render_template('targets_progress.html',
+                           individual_progress=individual_progress,
+                           branch_progress=branch_progress,
+                           month=month,
+                           company=COMPANY_NAME)
 
 # ==================== PROCUREMENT DELEGATION ====================
 @app.route('/procurement/delegation', methods=['GET','POST'])
