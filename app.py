@@ -672,6 +672,16 @@ def home():
         branch_sales_total = 0
         total_sales_combined = 0
 
+    # Branch target for Person in Charge
+    branch_target = None
+    if role == 'Person in Charge':
+        month_str = now_eat().date().replace(day=1).strftime('%Y-%m')
+        target_data = safe_data(execute_query(
+            supabase.table('branch_targets').select('target_amount').eq('branch', ub).eq('month', month_str).limit(1)
+        ))
+        if target_data:
+            branch_target = float(target_data[0]['target_amount'])
+
     recent_query = apply_team(
         supabase.table('attendance').select('*').eq('date', today).order('check_in', desc=True).limit(10)
     )
@@ -758,6 +768,7 @@ def home():
         pending_count=pending, show_sales_card=show_sales_card,
         target_achieved=target_achieved, target_progress=target_progress,
         leave_remaining=leave_remaining if 'leave_remaining' in locals() else None,
+        branch_target=branch_target,  # new
         company=COMPANY_NAME)
 
 # ==================== MANAGER DASHBOARD (General Manager) ====================
@@ -836,21 +847,22 @@ def manager_dashboard():
         approved_checkins=approved_checkins, assigned=assigned, reports=reports)
 
 # ==================== ADMIN PANEL ====================
-# (all other routes unchanged, but include the target route with fix)
+# (all other routes unchanged, but include the corrected target route)
 @app.route('/targets', methods=['GET','POST'])
 @login_required
 def targets_page():
     if session.get('role') not in TARGET_SETTER_ROLES: return redirect('/')
     user_role = session.get('role')
 
-    # Only Staff and Person in Charge
-    employees = safe_data(execute_query(
+    # Fetch all approved employees, filter in Python to include Staff and Person in Charge (and Branch Manager variants)
+    all_employees = safe_data(execute_query(
         supabase.table('employees')
-        .select('full_name')
+        .select('full_name, role')
         .eq('status','approved')
-        .in_('role', ['Staff','Person in Charge'])
         .order('full_name')
     ))
+    employees = [e for e in all_employees if normalize_role(e.get('role','')) in ['Staff','Person in Charge']]
+
     branches = get_branch_names()
 
     individual_targets = safe_data(execute_query(
@@ -902,7 +914,7 @@ def targets_page():
                            today=str(now_eat().date()),
                            company=COMPANY_NAME)
 
-# ==================== MARKETER SUBMIT LOCATION (success redirect) ====================
+# ==================== MARKETER SUBMIT LOCATION ====================
 @app.route('/marketer/submit-location', methods=['POST'])
 @login_required
 def submit_marketer_location():
