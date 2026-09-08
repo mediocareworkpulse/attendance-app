@@ -646,14 +646,12 @@ def home():
     on_leave_count = count_employees_on_leave(team_names=team_names)
 
     if show_sales_card:
-        # Individual sales
         sales_query = apply_team(
             supabase.table('sales').select('total_sales').eq('date', today)
         )
         sales_data = safe_data(execute_query(sales_query))
         total_sales = sum(float(s.get('total_sales',0)) for s in sales_data)
 
-        # Branch sales
         branch_sales_total = 0
         if role == 'Staff':
             branch_sales_total = 0
@@ -672,7 +670,7 @@ def home():
         branch_sales_total = 0
         total_sales_combined = 0
 
-    # Branch target for Person in Charge
+    # Branch target for Person in Charge (uses only branch_sales)
     branch_target = None
     branch_target_progress = None
     if role == 'Person in Charge':
@@ -697,6 +695,33 @@ def home():
                 'percent': round((branch_sales_total / branch_target * 100), 1) if branch_target > 0 else 0,
                 'achieved': branch_sales_total >= branch_target
             }
+
+    # Branch targets summary for Admin/Stock Controllers/CEO (only branch sales)
+    branch_targets_summary = []
+    if role in ['admin','ceo','Stock Controller','Assistant Stock Controller']:
+        month_str = now_eat().date().replace(day=1).strftime('%Y-%m')
+        month_start = datetime.strptime(month_str + '-01', '%Y-%m-%d').date()
+        all_branch_targets = safe_data(execute_query(
+            supabase.table('branch_targets').select('*').eq('month', month_str).limit(100)
+        ))
+        for bt in all_branch_targets:
+            branch_name = bt['branch']
+            target_amount = float(bt['target_amount'])
+            b_sales = safe_data(execute_query(
+                supabase.table('branch_sales').select('total_sales')
+                .eq('branch', branch_name)
+                .gte('date', str(month_start)).lte('date', today)
+            ))
+            total_branch_sales = sum(float(s['total_sales']) for s in b_sales)
+            remaining = max(0, target_amount - total_branch_sales)
+            branch_targets_summary.append({
+                'branch': branch_name,
+                'target': target_amount,
+                'current': total_branch_sales,
+                'remaining': remaining,
+                'percent': round((total_branch_sales / target_amount * 100), 1) if target_amount > 0 else 0,
+                'achieved': total_branch_sales >= target_amount
+            })
 
     recent_query = apply_team(
         supabase.table('attendance').select('*').eq('date', today).order('check_in', desc=True).limit(10)
@@ -786,6 +811,7 @@ def home():
         leave_remaining=leave_remaining if 'leave_remaining' in locals() else None,
         branch_target=branch_target,
         branch_target_progress=branch_target_progress,
+        branch_targets_summary=branch_targets_summary,
         company=COMPANY_NAME)
 
 # ==================== MANAGER DASHBOARD ====================
@@ -2809,7 +2835,6 @@ def targets_page():
     if session.get('role') not in TARGET_SETTER_ROLES: return redirect('/')
     user_role = session.get('role')
 
-    # Fetch all approved employees, filter in Python to include Staff and Person in Charge (and Branch Manager variants)
     all_employees = safe_data(execute_query(
         supabase.table('employees')
         .select('full_name, role')
