@@ -31,14 +31,24 @@
 </div>
 {% endif %}
 
-<!-- BRANCH TARGET for Person in Charge -->
-{% if branch_target %}
+<!-- BRANCH TARGET PROGRESS for Person in Charge -->
+{% if branch_target_progress %}
 <div class="target-progress-card" style="margin-top: 12px; border-left: 6px solid var(--primary);">
     <h3 style="font-size:16px; font-weight:800;">🏢 Branch Monthly Target</h3>
-    <div style="display:flex; justify-content:space-between;">
-        <span>Target: Ksh {{ "%.2f"|format(branch_target) }}</span>
-        <span>Branch: {{ session.branch }}</span>
+    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+        <span>Ksh {{ "%.2f"|format(branch_target_progress.current) }} / {{ "%.2f"|format(branch_target_progress.target) }}</span>
+        <span>{{ branch_target_progress.percent }}%</span>
     </div>
+    <div class="progress-bar-bg">
+        <div class="progress-bar-fill" style="width:{{ branch_target_progress.percent }}%;">
+            <span class="progress-text">{{ branch_target_progress.percent }}%</span>
+        </div>
+    </div>
+    {% if branch_target_progress.achieved %}
+        <div class="alert alert-success" style="margin-top:8px;">🏆 Branch target achieved!</div>
+    {% else %}
+        <small style="color: var(--text-secondary);">Remaining: Ksh {{ "%.2f"|format(branch_target_progress.remaining) }}</small>
+    {% endif %}
 </div>
 {% endif %}
 
