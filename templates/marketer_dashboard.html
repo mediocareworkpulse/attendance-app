@@ -244,7 +244,6 @@ async function sendLocation() {
             const ok = await sendLocationToBackend(pos.coords.latitude, pos.coords.longitude);
             if (ok) {
                 showToast('Location sent successfully.');
-                // Refresh to show the success alert via query param
                 window.location.href = '/marketer?location=ok';
             } else {
                 showToast('Failed to send location.', 'error');
