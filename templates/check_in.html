@@ -39,7 +39,7 @@
         </div>
     </div>
 
-    {% if role in ['Marketers'] %}
+    {% if role == 'Marketers' %}
     <div style="text-align:center;">
         <form method="POST" action="/marketer/checkin" id="marketerCheckinForm" style="display:inline;">
             <input type="hidden" name="lat" id="marketer-lat">
@@ -53,6 +53,15 @@
                 <button disabled class="checkin-btn" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background:#f39c12; color:#fff; border:none; display:inline-flex; align-items:center; gap:8px;">
                     <i class="fas fa-hourglass-half"></i> Pending Approval
                 </button>
+            {% elif user_status == 'approved' or marketer_has_checkin %}
+                <form method="POST" action="/marketer/checkout" id="marketerCheckoutForm" style="display:inline;">
+                    <input type="hidden" name="lat" id="marketer-checkout-lat">
+                    <input type="hidden" name="lng" id="marketer-checkout-lng">
+                    <input type="hidden" name="location" id="marketer-checkout-location">
+                    <button type="button" class="checkin-btn btn-check-out" id="marketerCheckoutBtn" onclick="prepareMarketerCheckOut()" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background: #e74c3c; color:#fff; border:none; box-shadow:0 8px 20px rgba(231,76,60,0.4); display:inline-flex; align-items:center; gap:8px;">
+                        <i class="fas fa-sign-out-alt"></i> Check Out
+                    </button>
+                </form>
             {% else %}
                 <button disabled class="checkin-btn" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background:#95a5a6; color:#fff; border:none; display:inline-flex; align-items:center; gap:8px;">
                     <i class="fas fa-check"></i> Checked In
@@ -118,7 +127,7 @@
 
 {% block scripts %}
 <script>
-    // ---------- Helper functions (fetchWithTimeout, getAddressFromCoords, getCurrentPosition) ----------
+    // ---------- Helper functions ----------
     async function fetchWithTimeout(url, options = {}, timeoutMs = 3000) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -245,6 +254,31 @@
         }, (err) => {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-location-arrow"></i> Start Field Check‑In';
+            alert('Unable to get location: ' + err.message);
+        }, { enableHighAccuracy: true, timeout: 10000 });
+    }
+
+    // ---------- Marketer checkout ----------
+    function prepareMarketerCheckOut() {
+        if (!navigator.geolocation) {
+            alert('Geolocation not supported');
+            return;
+        }
+        const btn = document.getElementById('marketerCheckoutBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Locating...';
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            document.getElementById('marketer-checkout-lat').value = lat;
+            document.getElementById('marketer-checkout-lng').value = lng;
+            let address = `${lat}, ${lng}`;
+            try { address = await getAddressFromCoords(lat, lng); } catch (e) {}
+            document.getElementById('marketer-checkout-location').value = address;
+            document.getElementById('marketerCheckoutForm').submit();
+        }, (err) => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Check Out';
             alert('Unable to get location: ' + err.message);
         }, { enableHighAccuracy: true, timeout: 10000 });
     }
