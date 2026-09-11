@@ -25,65 +25,69 @@
     </div>
 </form>
 
-<!-- Bulk Delete Form (separate from table to avoid nested forms) -->
-<form id="bulkDeleteForm" method="POST" action="/admin/sales/bulk-delete">
-    <input type="hidden" name="type" value="{{ stype }}">
-    <div style="margin-bottom: 8px;">
-        <button type="submit" class="btn btn-danger" onclick="return confirm('Delete selected sales records?');">Delete Selected</button>
-    </div>
+<!-- Bulk delete button (JavaScript-driven, no form wrapper) -->
+<div style="margin-bottom: 8px;">
+    <button type="button" class="btn btn-danger" onclick="bulkDeleteSales()">Delete Selected</button>
+</div>
 
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th><input type="checkbox" id="selectAll" onclick="toggleAllCheckboxes()"></th>
-                    <th>Date</th>
-                    <th>Type</th>
-                    <th>Employee / Branch</th>
-                    <th>M‑Pesa</th>
-                    <th>Cash</th>
-                    <th>Total</th>
-                    <th>Notes</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for s in sales %}
+<div class="table-container">
+    <table>
+        <thead>
             <tr>
-                <td><input type="checkbox" name="sale_ids" value="{{ s.id }}" class="sale-checkbox"></td>
-                <td>{{ s.date }}</td>
-                <td>
-                    {% if s._type == 'Branch' %}
-                        <span class="badge badge-purple">Branch</span>
-                    {% else %}
-                        <span class="badge badge-info">Individual</span>
-                    {% endif %}
-                </td>
-                <td class="td-name">
-                    {% if s._type == 'Branch' %}
-                        {{ s.branch }} (by {{ s.submitted_by }})
-                    {% else %}
-                        {{ s.full_name }}
-                    {% endif %}
-                </td>
-                <td>{{ s.mpesa_sales }}</td>
-                <td>{{ s.cash_sales }}</td>
-                <td>{{ s.total_sales }}</td>
-                <td>{{ s.notes or '—' }}</td>
-                <td>
-                    <!-- Edit button opens modal (no form) -->
-                    <button class="btn btn-sm" style="background:var(--accent);" onclick="openEditModal({{ s.id }}, '{{ 'branch' if s._type == 'Branch' else 'individual' }}')">Edit</button>
-                    <!-- Delete form (independent, outside bulk form) -->
-                    <form method="POST" action="/admin/sales/delete/{{ s.id }}?type={{ 'branch' if s._type == 'Branch' else 'individual' }}" style="display:inline;" onsubmit="return confirm('Delete this sale?');">
-                        <button class="btn btn-sm btn-danger">Delete</button>
-                    </form>
-                </td>
+                <th><input type="checkbox" id="selectAll" onclick="toggleAllCheckboxes()"></th>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Employee / Branch</th>
+                <th>M‑Pesa</th>
+                <th>Cash</th>
+                <th>Total</th>
+                <th>Notes</th>
+                <th>Action</th>
             </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</form>
+        </thead>
+        <tbody>
+        {% for s in sales %}
+        <tr>
+            <td>
+                <input type="checkbox" class="sale-checkbox"
+                       value="{{ 'Branch' if s._type == 'Branch' else 'Individual' }}:{{ s.id }}">
+            </td>
+            <td>{{ s.date }}</td>
+            <td>
+                {% if s._type == 'Branch' %}
+                    <span class="badge badge-purple">Branch</span>
+                {% else %}
+                    <span class="badge badge-info">Individual</span>
+                {% endif %}
+            </td>
+            <td class="td-name">
+                {% if s._type == 'Branch' %}
+                    {{ s.branch }} (by {{ s.submitted_by }})
+                {% else %}
+                    {{ s.full_name }}
+                {% endif %}
+            </td>
+            <td>{{ s.mpesa_sales }}</td>
+            <td>{{ s.cash_sales }}</td>
+            <td>{{ s.total_sales }}</td>
+            <td>{{ s.notes or '—' }}</td>
+            <td>
+                <button type="button" class="btn btn-sm" style="background:var(--accent);"
+                        onclick="openEditModal({{ s.id }}, '{{ 'branch' if s._type == 'Branch' else 'individual' }}')">Edit</button>
+
+                <!-- Independent delete form (NOT nested inside any other form) -->
+                <form method="POST"
+                      action="/admin/sales/delete/{{ s.id }}?type={{ 'branch' if s._type == 'Branch' else 'individual' }}"
+                      style="display:inline;"
+                      onsubmit="return confirm('Delete this sale?');">
+                    <button class="btn btn-sm btn-danger">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
 
 <!-- Pagination -->
 <div style="margin-top: 12px; display: flex; gap: 8px;">
@@ -126,6 +130,31 @@
         const checkboxes = document.querySelectorAll('.sale-checkbox');
         const selectAll = document.getElementById('selectAll');
         checkboxes.forEach(cb => cb.checked = selectAll.checked);
+    }
+
+    function bulkDeleteSales() {
+        const checked = document.querySelectorAll('.sale-checkbox:checked');
+        if (checked.length === 0) {
+            alert('Please select at least one sale to delete.');
+            return;
+        }
+        if (!confirm('Delete ' + checked.length + ' selected sales records?')) return;
+
+        // Build a form on the fly and submit
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/sales/bulk-delete';
+
+        checked.forEach(cb => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'sale_ids';
+            input.value = cb.value;   // e.g. "Branch:123" or "Individual:45"
+            form.appendChild(input);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
     }
 
     function openEditModal(sid, stype) {
