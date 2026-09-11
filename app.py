@@ -963,17 +963,37 @@ def admin_sales():
 @login_required
 @admin_required
 def bulk_delete_sales():
-    ids = request.form.getlist('sale_ids')
-    stype = request.form.get('type','individual')
-    if not ids:
+    items = request.form.getlist('sale_ids')
+    if not items:
         return redirect(request.referrer or '/admin/sales')
+    deleted_count = 0
     try:
-        for sid in ids:
-            if stype == 'branch':
-                supabase.table('branch_sales').delete().eq('id', int(sid)).execute()
-            else:
-                supabase.table('sales').delete().eq('id', int(sid)).execute()
-        add_audit_log('bulk_delete_sales', target=f'{len(ids)} records', details={'type':stype})
+        for item in items:
+            # Expected format: "Branch:123" or "Individual:45"
+            if ':' not in item:
+                # Legacy fallback: use global type from form
+                fallback_type = request.form.get('type', 'individual')
+                table = 'branch_sales' if fallback_type == 'branch' else 'sales'
+                try:
+                    sid = int(item)
+                    supabase.table(table).delete().eq('id', sid).execute()
+                    deleted_count += 1
+                except ValueError:
+                    continue
+                continue
+
+            sale_type, sid_str = item.split(':', 1)
+            try:
+                sid = int(sid_str)
+            except ValueError:
+                continue
+            table = 'branch_sales' if sale_type == 'Branch' else 'sales'
+            try:
+                supabase.table(table).delete().eq('id', sid).execute()
+                deleted_count += 1
+            except Exception as e:
+                print(f"Failed to delete {sale_type} id={sid}: {e}")
+        add_audit_log('bulk_delete_sales', target=f'{deleted_count} records')
     except Exception as e:
         print(f"Bulk delete error: {e}")
     return redirect(request.referrer or '/admin/sales')
@@ -983,11 +1003,21 @@ def bulk_delete_sales():
 @admin_required
 def delete_sale(sid):
     stype = request.args.get('type', 'individual')
-    if stype == 'branch':
-        supabase.table('branch_sales').delete().eq('id', sid).execute()
-    else:
-        supabase.table('sales').delete().eq('id', sid).execute()
-    add_audit_log('delete_sale', target=str(sid))
+    table = 'branch_sales' if stype == 'branch' else 'sales'
+    try:
+        # Verify the record exists first
+        check = safe_data(execute_query(
+            supabase.table(table).select('id').eq('id', sid).limit(1)
+        ))
+        if not check:
+            print(f"Sale id={sid} not found in {table}")
+            return redirect(request.referrer or '/admin/sales')
+
+        result = supabase.table(table).delete().eq('id', sid).execute()
+        print(f"Deleted {table} id={sid}: {safe_data(result)}")
+        add_audit_log('delete_sale', target=str(sid), details={'table': table})
+    except Exception as e:
+        print(f"Delete sale error for id={sid} in {table}: {e}")
     return redirect(request.referrer or '/admin/sales')
 
 @app.route('/admin/sales/edit/<int:sid>', methods=['POST'])
