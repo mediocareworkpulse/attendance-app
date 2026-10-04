@@ -1227,19 +1227,28 @@ def check_in_page():
             check_in_time = rec.get('check_in')
         geofence = rec.get('check_in_geofence')
 
+    # Marketer status resolution - attendance record is the source of truth
     marketer_has_checkin = False
     marketer_has_checkout = False
     if role == MARKETER_ROLE:
         if my_att:
             rec = my_att[0]
-            if rec.get('check_in') and not rec.get('check_out'):
-                marketer_has_checkin = True
-            elif rec.get('check_out'):
+            if rec.get('check_out'):
                 marketer_has_checkout = True
-        if marketer_approved: current_status = 'approved'
-        elif marketer_pending: current_status = 'pending'
-        elif marketer_rejected: current_status = 'rejected'
-        else: current_status = 'none'
+                current_status = 'completed'
+            elif rec.get('check_in'):
+                marketer_has_checkin = True
+                current_status = 'approved'
+            else:
+                if marketer_approved: current_status = 'approved'
+                elif marketer_pending: current_status = 'pending'
+                elif marketer_rejected: current_status = 'rejected'
+                else: current_status = 'none'
+        else:
+            if marketer_approved: current_status = 'approved'
+            elif marketer_pending: current_status = 'pending'
+            elif marketer_rejected: current_status = 'rejected'
+            else: current_status = 'none'
 
     journeys = []
     drivers = []
@@ -1256,7 +1265,6 @@ def check_in_page():
                 supabase.table('journeys').select('*').eq('full_name', un).eq('date', today).order('journey_number')
             ))
 
-    # Fetch today's deliveries for these journeys
     deliveries_by_journey = {}
     if journeys:
         journey_ids = [jj['id'] for jj in journeys]
