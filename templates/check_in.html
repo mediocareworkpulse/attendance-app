@@ -13,15 +13,19 @@
 {% if request.args.get('journey_ended') == '1' %}
 <div class="alert alert-success">✅ Journey ended. You are back at the shop.</div>
 {% endif %}
+{% if request.args.get('checkout') == 'ok' %}
+<div class="alert alert-success">✅ You have checked out successfully.</div>
+{% endif %}
 
-<!-- Status card -->
 <div class="checkin-container shift-timer-card" style="background: linear-gradient(135deg, #ffffff, #f8fafc); border-radius: 16px; padding: 20px 24px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; border-left: 6px solid var(--primary);">
     <div style="display: flex; align-items: center; gap: 14px;">
         <span style="font-size: 32px;"><i class="fas fa-map-marker-alt"></i></span>
         <div>
             <div style="font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">Your Status</div>
             <div style="font-size: 22px; font-weight: 800; color: var(--text);">
-                {% if user_status == 'completed' %}
+                {% if role == 'Marketers' and marketer_has_checkout %}
+                    <span class="badge badge-success">Checked Out</span>
+                {% elif user_status == 'completed' %}
                     <span class="badge badge-success">Checked Out</span>
                 {% elif user_status in ['checked_in','working','approved'] %}
                     <span class="badge" style="background: #e0ecf9; color: #1e40af;">Working</span>
@@ -50,32 +54,51 @@
     </div>
 
     {% if role == 'Marketers' %}
-        {% if user_status == 'none' or user_status == 'rejected' %}
-            <form method="POST" action="/marketer/checkin" id="marketerCheckinForm" style="display:inline;">
-                <input type="hidden" name="lat" id="marketer-lat">
-                <input type="hidden" name="lng" id="marketer-lng">
-                <input type="hidden" name="location" id="marketer-location">
-                <button type="button" class="checkin-btn btn-check-in" id="marketerCheckinBtn" onclick="prepareMarketerCheckIn()" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background: linear-gradient(135deg, #27ae60, #2ecc71); color:#fff; border:none; box-shadow:0 8px 20px rgba(39,174,96,0.4); display:inline-flex; align-items:center; gap:8px;">
-                    <i class="fas fa-location-arrow"></i> Start Field Check‑In
+        {% if marketer_has_checkout %}
+            <div style="text-align:center;">
+                <button disabled class="checkin-btn" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background:#27ae60; color:#fff; border:none; display:inline-flex; align-items:center; gap:8px; opacity:0.85;">
+                    <i class="fas fa-check-circle"></i> Checked Out
                 </button>
-            </form>
+            </div>
+        {% elif marketer_has_checkin %}
+            <div style="text-align:center;">
+                <form method="POST" action="/marketer/checkout" id="marketerCheckoutForm" style="display:inline;">
+                    <input type="hidden" name="lat" id="marketer-checkout-lat">
+                    <input type="hidden" name="lng" id="marketer-checkout-lng">
+                    <input type="hidden" name="location" id="marketer-checkout-location">
+                    <button type="button" class="checkin-btn btn-check-out" id="marketerCheckoutBtn" onclick="prepareMarketerCheckOut()" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background: #e74c3c; color:#fff; border:none; box-shadow:0 8px 20px rgba(231,76,60,0.4); display:inline-flex; align-items:center; gap:8px;">
+                        <i class="fas fa-sign-out-alt"></i> Check Out
+                    </button>
+                </form>
+            </div>
         {% elif user_status == 'pending' %}
-            <button disabled class="checkin-btn" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background:#f39c12; color:#fff; border:none; display:inline-flex; align-items:center; gap:8px;">
-                <i class="fas fa-hourglass-half"></i> Pending Approval
-            </button>
-        {% elif user_status == 'approved' or marketer_has_checkin %}
-            <form method="POST" action="/marketer/checkout" id="marketerCheckoutForm" style="display:inline;">
-                <input type="hidden" name="lat" id="marketer-checkout-lat">
-                <input type="hidden" name="lng" id="marketer-checkout-lng">
-                <input type="hidden" name="location" id="marketer-checkout-location">
-                <button type="button" class="checkin-btn btn-check-out" id="marketerCheckoutBtn" onclick="prepareMarketerCheckOut()" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background: #e74c3c; color:#fff; border:none; box-shadow:0 8px 20px rgba(231,76,60,0.4); display:inline-flex; align-items:center; gap:8px;">
-                    <i class="fas fa-sign-out-alt"></i> Check Out
+            <div style="text-align:center;">
+                <button disabled class="checkin-btn" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background:#f39c12; color:#fff; border:none; display:inline-flex; align-items:center; gap:8px;">
+                    <i class="fas fa-hourglass-half"></i> Pending Approval
                 </button>
-            </form>
+            </div>
+        {% elif user_status == 'rejected' %}
+            <div style="text-align:center;">
+                <form method="POST" action="/marketer/checkin" id="marketerCheckinForm" style="display:inline;">
+                    <input type="hidden" name="lat" id="marketer-lat">
+                    <input type="hidden" name="lng" id="marketer-lng">
+                    <input type="hidden" name="location" id="marketer-location">
+                    <button type="button" class="checkin-btn btn-check-in" id="marketerCheckinBtn" onclick="prepareMarketerCheckIn()" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background: linear-gradient(135deg, #27ae60, #2ecc71); color:#fff; border:none; box-shadow:0 8px 20px rgba(39,174,96,0.4); display:inline-flex; align-items:center; gap:8px;">
+                        <i class="fas fa-location-arrow"></i> Retry Field Check‑In
+                    </button>
+                </form>
+            </div>
         {% else %}
-            <button disabled class="checkin-btn" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background:#95a5a6; color:#fff; border:none; display:inline-flex; align-items:center; gap:8px;">
-                <i class="fas fa-check"></i> Checked In
-            </button>
+            <div style="text-align:center;">
+                <form method="POST" action="/marketer/checkin" id="marketerCheckinForm" style="display:inline;">
+                    <input type="hidden" name="lat" id="marketer-lat">
+                    <input type="hidden" name="lng" id="marketer-lng">
+                    <input type="hidden" name="location" id="marketer-location">
+                    <button type="button" class="checkin-btn btn-check-in" id="marketerCheckinBtn" onclick="prepareMarketerCheckIn()" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background: linear-gradient(135deg, #27ae60, #2ecc71); color:#fff; border:none; box-shadow:0 8px 20px rgba(39,174,96,0.4); display:inline-flex; align-items:center; gap:8px;">
+                        <i class="fas fa-location-arrow"></i> Start Field Check‑In
+                    </button>
+                </form>
+            </div>
         {% endif %}
     {% elif role not in ['admin','ceo'] and role not in ['Drivers','Riders'] %}
         <form method="POST" action="/check-in" id="attendanceForm" style="display:inline;">
@@ -96,7 +119,6 @@
     {% endif %}
 </div>
 
-<!-- ==================== DRIVER / RIDER JOURNEYS ==================== -->
 {% if role in ['Drivers','Riders'] or role == 'General Manager' %}
 <div class="form-card" style="margin-top: 20px; border-top: 4px solid var(--accent);">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -116,23 +138,6 @@
         {% endif %}
     </div>
 
-    {% if role == 'General Manager' %}
-    <form method="GET" style="margin: 16px 0;" class="form-grid">
-        <div>
-            <label>Driver / Rider</label>
-            <select name="driver">
-                <option value="">All</option>
-                {% for d in drivers %}
-                <option value="{{ d.full_name }}">{{ d.full_name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div style="display:flex; align-items:end;">
-            <button type="submit" class="btn">Filter</button>
-        </div>
-    </form>
-    {% endif %}
-
     {% if journeys %}
     <div style="display:flex; flex-direction:column; gap:16px; margin-top:16px;">
         {% for j in journeys %}
@@ -151,7 +156,6 @@
                 {% endif %}
             </div>
 
-            <!-- Deliveries list -->
             {% set dels = deliveries_by_journey.get(j.id, []) %}
             {% if dels %}
             <div style="margin-bottom:10px;">
@@ -168,7 +172,6 @@
 
             {% if j.status == 'active' and (role in ['Drivers','Riders'] and j.full_name == session.user or role == 'General Manager') %}
             <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
-                <!-- Log delivery form -->
                 <form method="POST" action="/journey/delivery/{{ j.id }}" id="deliveryForm-{{ j.id }}" style="flex:1; min-width:280px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                     <input type="hidden" name="lat" id="del-lat-{{ j.id }}">
                     <input type="hidden" name="lng" id="del-lng-{{ j.id }}">
@@ -179,7 +182,6 @@
                     </button>
                 </form>
 
-                <!-- End journey form -->
                 <form method="POST" action="/journey/end/{{ j.id }}" id="endJourneyForm-{{ j.id }}" style="display:flex; gap:8px; align-items:center;">
                     <input type="hidden" name="lat" id="end-lat-{{ j.id }}">
                     <input type="hidden" name="lng" id="end-lng-{{ j.id }}">
@@ -199,7 +201,6 @@
 </div>
 {% endif %}
 
-<!-- ==================== RECENT ATTENDANCE ==================== -->
 {% if records %}
 <div class="form-card" style="margin-top: 20px;">
     <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">Recent Attendance</h2>
@@ -281,7 +282,6 @@
         });
     }
 
-    // ---------- Regular attendance ----------
     async function captureLocationAndSubmit() {
         const latInput = document.getElementById('att-lat');
         const lngInput = document.getElementById('att-lng');
@@ -318,7 +318,6 @@
         }
     }
 
-    // ---------- Marketer check-in/out ----------
     function prepareMarketerCheckIn() {
         if (!navigator.geolocation) { alert('Geolocation not supported'); return; }
         const btn = document.getElementById('marketerCheckinBtn');
@@ -353,7 +352,6 @@
         }, { enableHighAccuracy: true, timeout: 10000 });
     }
 
-    // ---------- Driver / Rider journey ----------
     async function startJourney() {
         if (!navigator.geolocation) { alert('Geolocation not supported'); return; }
         if (!confirm('Start a new journey from your current location?')) return;
