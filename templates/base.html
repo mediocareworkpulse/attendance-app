@@ -82,6 +82,10 @@
             <a href="/live-map" class="{% if request.path == '/live-map' %}active{% endif %}"><i class="fas fa-map-marked-alt"></i> Live Map</a>
         {% endif %}
 
+        {% if session.role in ['admin','ceo','Operations Manager','Assistant Operations Manager'] %}
+            <a href="/driver-movements" class="{% if request.path == '/driver-movements' %}active{% endif %}"><i class="fas fa-motorcycle"></i> Driver Movements</a>
+        {% endif %}
+
         {% if session.role in ['admin','ceo','HR','HR Assistant','Stock Controller','Assistant Stock Controller','Operations Manager','Sales Manager','Store Manager','Person in Charge','Procurement Officer','General Manager'] %}
             <a href="/absent-today" class="{% if request.path == '/absent-today' %}active{% endif %}"><i class="fas fa-user-slash"></i> Absent Today</a>
         {% endif %}
@@ -182,7 +186,6 @@
     }
 </script>
 
-<!-- Table sort & search -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('table').forEach(function(table) {
