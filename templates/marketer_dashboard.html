@@ -1,332 +1,234 @@
 {% extends "base.html" %}
 {% block content %}
+
 <style>
-    .md-hero {
+    .mk-hero {
         background: linear-gradient(135deg, #0b2b4a 0%, #134b6e 100%);
-        border-radius: 16px;
-        padding: 24px;
-        margin-bottom: 20px;
-        color: #fff;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
+        border-radius: 16px; padding: 24px 26px; color: #fff;
+        box-shadow: 0 10px 28px rgba(11,43,74,0.18);
+        display: flex; justify-content: space-between; align-items: center;
+        flex-wrap: wrap; gap: 14px; margin-bottom: 22px;
     }
-    .md-hero-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-    .md-hero-title { font-size: 22px; font-weight: 700; }
-    .md-hero-date { font-size: 14px; opacity: 0.8; }
-    .md-status-badge {
+    .mk-hero-left h1 { font-size: 22px; font-weight: 800; margin: 0 0 4px 0; }
+    .mk-hero-left p { margin: 0; font-size: 13px; opacity: 0.85; }
+    .mk-status-badge {
         display: inline-flex; align-items: center; gap: 6px;
-        background: rgba(255,255,255,0.2); padding: 6px 14px;
-        border-radius: 20px; font-size: 13px; font-weight: 600;
+        padding: 7px 16px; border-radius: 20px; font-size: 12px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.5px;
     }
-    .md-status-badge.success { background: rgba(46,204,113,0.3); }
-    .md-status-badge.warning { background: rgba(243,156,18,0.3); }
-    .md-status-badge.danger { background: rgba(231,76,60,0.3); }
-    .md-status-badge.neutral { background: rgba(255,255,255,0.15); }
-    .md-actions {
-        display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-        gap: 14px; margin-bottom: 20px;
+    .mk-status-badge.approved { background: rgba(46,204,113,0.35); }
+    .mk-status-badge.pending { background: rgba(243,156,18,0.4); }
+    .mk-status-badge.rejected { background: rgba(231,76,60,0.4); }
+    .mk-status-badge.none { background: rgba(255,255,255,0.2); }
+
+    .mk-quick-actions {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 14px; margin-bottom: 22px;
     }
-    .md-action-card {
-        background: #fff; border-radius: 14px; padding: 18px 12px;
-        text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.04);
-        border: 1px solid #f0f0f0; display: flex; flex-direction: column;
-        align-items: center; gap: 8px; text-decoration: none;
-        color: var(--text); font-weight: 600; font-size: 13px; cursor: pointer;
-        transition: all 0.2s ease;
+    .mk-quick {
+        background: #fff; border-radius: 14px; padding: 20px 16px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.04); border: 1px solid #eef1f5;
+        text-align: center; text-decoration: none; color: var(--text);
+        transition: all 0.2s ease; display: flex; flex-direction: column;
+        align-items: center; gap: 10px;
     }
-    .md-action-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); border-color: var(--accent); }
-    .md-action-icon {
+    .mk-quick:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); border-color: var(--accent); }
+    .mk-quick-icon {
         width: 48px; height: 48px; border-radius: 12px;
-        background: var(--primary); color: #fff; display: flex;
-        align-items: center; justify-content: center; font-size: 22px; margin-bottom: 4px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 20px; color: #fff;
     }
-    .md-action-card:nth-child(2) .md-action-icon { background: #8e44ad; }
-    .md-action-card:nth-child(3) .md-action-icon { background: #e67e22; }
-    .md-action-card:nth-child(4) .md-action-icon { background: #27ae60; }
-    .md-action-card:nth-child(5) .md-action-icon { background: #c0392b; }
-    .md-stats {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 14px; margin-bottom: 20px;
+    .mk-quick-label { font-size: 13px; font-weight: 700; }
+
+    .mk-kpi-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 14px; margin-bottom: 22px;
     }
-    .md-stat {
-        background: #fff; border-radius: 12px; padding: 16px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04); text-align: center;
-        border: 1px solid #f0f0f0;
+    .mk-kpi {
+        background: #fff; border-radius: 14px; padding: 18px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.04); border: 1px solid #eef1f5;
+        text-align: center;
     }
-    .md-stat-value { font-size: 26px; font-weight: 700; color: var(--primary); }
-    .md-stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-top: 4px; }
-    .md-card {
+    .mk-kpi-value { font-size: 28px; font-weight: 800; color: var(--primary); line-height: 1.1; }
+    .mk-kpi-label { font-size: 11px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-secondary); margin-top: 6px; }
+
+    .mk-card {
         background: #fff; border-radius: 14px; padding: 20px;
-        margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        border: 1px solid #f0f0f0;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.04); border: 1px solid #eef1f5;
+        margin-bottom: 20px;
     }
-    .md-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
-    .md-empty { color: var(--text-secondary); font-style: italic; font-size: 13px; }
-    @media (max-width: 600px) {
-        .md-hero { padding: 18px; }
-        .md-hero-title { font-size: 20px; }
-        .md-actions { grid-template-columns: repeat(2, 1fr); }
-        .md-stats { grid-template-columns: repeat(2, 1fr); }
+    .mk-card h3 { font-size: 15px; font-weight: 800; margin: 0 0 12px 0; color: var(--text); }
+
+    .mk-follow-summary {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px; margin-bottom: 16px;
     }
+    .mk-follow-stat {
+        padding: 12px; border-radius: 10px; text-align: center; font-size: 12px;
+    }
+    .mk-follow-stat.overdue { background: #fef2f2; color: #b91c1c; }
+    .mk-follow-stat.today { background: #fffbeb; color: #b45309; }
+    .mk-follow-stat.upcoming { background: #eff6ff; color: #1d4ed8; }
+    .mk-follow-stat strong { display: block; font-size: 22px; font-weight: 800; margin-bottom: 2px; }
+
+    .mk-follow-item {
+        padding: 10px 12px; border-left: 4px solid #e5e7eb;
+        background: #f8fafc; border-radius: 6px; margin-bottom: 6px; font-size: 13px;
+    }
+    .mk-follow-item.overdue { border-left-color: #dc2626; }
+    .mk-follow-item.today { border-left-color: #f59e0b; }
+    .mk-follow-item.upcoming { border-left-color: #2563eb; }
 </style>
 
-<div class="marketer-dashboard">
-    {% if request.args.get('location') == 'ok' %}
-    <div class="alert alert-success" style="margin-bottom:16px;">📍 Location sent successfully.</div>
-    {% endif %}
-
-    <div class="md-hero">
-        <div class="md-hero-top">
-            <div>
-                <div class="md-hero-title">Field Dashboard</div>
-                <div class="md-hero-date">{{ today }} · {{ company }}</div>
-            </div>
-            {% if checkin_status == 'approved' %}
-                <span class="md-status-badge success">Approved</span>
-            {% elif checkin_status == 'pending' %}
-                <span class="md-status-badge warning">Pending Approval</span>
-            {% elif checkin_status == 'rejected' %}
-                <span class="md-status-badge danger">Rejected</span>
-            {% else %}
-                <span class="md-status-badge neutral">Not Checked In</span>
-            {% endif %}
-        </div>
+<!-- ============ HERO ============ -->
+<div class="mk-hero">
+    <div class="mk-hero-left">
+        <h1>Field Dashboard</h1>
+        <p>{{ today }} · {{ company }}</p>
         {% if checkin_time %}
-        <div style="font-size: 14px; opacity: 0.9;">Check‑in time: <strong>{{ checkin_time }}</strong></div>
-        {% endif %}
-        <a href="/check-in" style="color: #fff; text-decoration: underline; font-size: 14px; font-weight: 600;">Go to Check‑In</a>
-    </div>
-
-    <div class="md-actions">
-        <a href="/check-in" class="md-action-card">
-            <div class="md-action-icon"><i class="fas fa-clock"></i></div>
-            <span>Check In</span>
-        </a>
-        <a href="/my-places" class="md-action-card">
-            <div class="md-action-icon"><i class="fas fa-map-marker-alt"></i></div>
-            <span>My Places</span>
-        </a>
-        <a href="/marketer/report" class="md-action-card">
-            <div class="md-action-icon"><i class="fas fa-file-alt"></i></div>
-            <span>Customer Report</span>
-        </a>
-        <a href="#" onclick="sendLocation()" class="md-action-card">
-            <div class="md-action-icon"><i class="fas fa-location-arrow"></i></div>
-            <span>Send Location</span>
-        </a>
-        <a href="#followups" class="md-action-card">
-            <div class="md-action-icon"><i class="fas fa-bell"></i></div>
-            <span>Follow‑ups</span>
-        </a>
-    </div>
-
-    <div class="md-stats">
-        <div class="md-stat">
-            <div class="md-stat-value">{{ places|length }}</div>
-            <div class="md-stat-label">Assigned Places</div>
-        </div>
-        <div class="md-stat">
-            <div class="md-stat-value">{{ reports_today|length }}</div>
-            <div class="md-stat-label">Reports Today</div>
-        </div>
-        {% if target_amount %}
-        <div class="md-stat">
-            <div class="md-stat-value">{{ "%.0f"|format(target_amount) }}</div>
-            <div class="md-stat-label">Monthly Target (Ksh)</div>
-        </div>
+        <p style="margin-top:6px;">Check‑in time: <strong>{{ checkin_time }}</strong></p>
         {% endif %}
     </div>
-
-    <div class="md-card" id="followups">
-        <h3>Follow‑ups</h3>
-        {% if followups %}
-            {% set overdue = followups | selectattr('expected_order_date', 'lt', today) | list %}
-            {% set due_today = followups | selectattr('expected_order_date', 'equalto', today) | list %}
-            {% set upcoming = followups | selectattr('expected_order_date', 'gt', today) | list %}
-            <div style="margin-bottom:12px;">
-                <strong>Overdue:</strong> {{ overdue|length }} &nbsp;|&nbsp;
-                <strong>Due Today:</strong> {{ due_today|length }} &nbsp;|&nbsp;
-                <strong>Upcoming:</strong> {{ upcoming|length }}
-            </div>
-            {% if overdue %}
-            <div style="margin-bottom:8px;"><span style="color:#dc2626; font-weight:600;">Overdue</span>
-                <ul>
-                {% for f in overdue %}
-                    <li>{{ f.customer_name }} – Expected: {{ f.expected_order_date }}</li>
-                {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
-            {% if due_today %}
-            <div style="margin-bottom:8px;"><span style="color:#d97706; font-weight:600;">Due Today</span>
-                <ul>
-                {% for f in due_today %}
-                    <li>{{ f.customer_name }} – Expected: {{ f.expected_order_date }}</li>
-                {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
-            {% if upcoming %}
-            <div><span style="color:#2563eb; font-weight:600;">Upcoming</span>
-                <ul>
-                {% for f in upcoming %}
-                    <li>{{ f.customer_name }} – Expected: {{ f.expected_order_date }}</li>
-                {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
+    <div>
+        {% if checkin_status == 'approved' %}
+            <span class="mk-status-badge approved"><i class="fas fa-check-circle"></i> Approved</span>
+        {% elif checkin_status == 'pending' %}
+            <span class="mk-status-badge pending"><i class="fas fa-hourglass-half"></i> Pending</span>
+        {% elif checkin_status == 'rejected' %}
+            <span class="mk-status-badge rejected"><i class="fas fa-times-circle"></i> Rejected</span>
         {% else %}
-            <p class="md-empty">No follow‑ups scheduled. Ask your Sales Manager to assign places and set expected orders.</p>
+            <span class="mk-status-badge none"><i class="fas fa-circle"></i> Not Checked In</span>
         {% endif %}
     </div>
 </div>
+
+{% if request.args.get('location') == 'ok' %}
+<div class="alert alert-success" style="margin-bottom:16px;">📍 Location sent successfully.</div>
+{% endif %}
+{% if request.args.get('report') == 'ok' %}
+<div class="alert alert-success" style="margin-bottom:16px;">✅ Customer report submitted.</div>
+{% endif %}
+
+<!-- ============ QUICK ACTIONS ============ -->
+<div class="mk-quick-actions">
+    <a href="/check-in" class="mk-quick">
+        <div class="mk-quick-icon" style="background:#0b2b4a;"><i class="fas fa-clock"></i></div>
+        <span class="mk-quick-label">Check In / Out</span>
+    </a>
+    <a href="/my-places" class="mk-quick">
+        <div class="mk-quick-icon" style="background:#8e44ad;"><i class="fas fa-map-marker-alt"></i></div>
+        <span class="mk-quick-label">My Places</span>
+    </a>
+    <a href="/marketer/report" class="mk-quick">
+        <div class="mk-quick-icon" style="background:#e67e22;"><i class="fas fa-file-alt"></i></div>
+        <span class="mk-quick-label">Customer Report</span>
+    </a>
+    <a href="#" onclick="sendLocation(event)" class="mk-quick">
+        <div class="mk-quick-icon" style="background:#27ae60;"><i class="fas fa-location-arrow"></i></div>
+        <span class="mk-quick-label">Send Location</span>
+    </a>
+</div>
+
+<!-- ============ KPIs ============ -->
+<div class="mk-kpi-grid">
+    <div class="mk-kpi">
+        <div class="mk-kpi-value">{{ places|length }}</div>
+        <div class="mk-kpi-label">Assigned Places</div>
+    </div>
+    <div class="mk-kpi">
+        <div class="mk-kpi-value">{{ reports_today|length }}</div>
+        <div class="mk-kpi-label">Reports Today</div>
+    </div>
+    {% if target_amount %}
+    <div class="mk-kpi">
+        <div class="mk-kpi-value">{{ "%.0f"|format(target_amount) }}</div>
+        <div class="mk-kpi-label">Monthly Target (Ksh)</div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ============ FOLLOW-UPS ============ -->
+<div class="mk-card" id="followups">
+    <h3>🔔 Follow‑ups</h3>
+    {% if followups %}
+        {% set overdue = followups | selectattr('expected_order_date', 'lt', today) | list %}
+        {% set due_today = followups | selectattr('expected_order_date', 'equalto', today) | list %}
+        {% set upcoming = followups | selectattr('expected_order_date', 'gt', today) | list %}
+
+        <div class="mk-follow-summary">
+            <div class="mk-follow-stat overdue"><strong>{{ overdue|length }}</strong> Overdue</div>
+            <div class="mk-follow-stat today"><strong>{{ due_today|length }}</strong> Due Today</div>
+            <div class="mk-follow-stat upcoming"><strong>{{ upcoming|length }}</strong> Upcoming</div>
+        </div>
+
+        {% if overdue %}
+        <div style="margin-bottom:14px;">
+            <div style="font-size:12px; font-weight:700; color:#dc2626; text-transform:uppercase; margin-bottom:6px;">Overdue</div>
+            {% for f in overdue %}
+            <div class="mk-follow-item overdue">
+                <strong>{{ f.customer_name }}</strong> — Expected: {{ f.expected_order_date }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if due_today %}
+        <div style="margin-bottom:14px;">
+            <div style="font-size:12px; font-weight:700; color:#d97706; text-transform:uppercase; margin-bottom:6px;">Due Today</div>
+            {% for f in due_today %}
+            <div class="mk-follow-item today">
+                <strong>{{ f.customer_name }}</strong> — Expected: {{ f.expected_order_date }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if upcoming %}
+        <div>
+            <div style="font-size:12px; font-weight:700; color:#2563eb; text-transform:uppercase; margin-bottom:6px;">Upcoming</div>
+            {% for f in upcoming[:10] %}
+            <div class="mk-follow-item upcoming">
+                <strong>{{ f.customer_name }}</strong> — Expected: {{ f.expected_order_date }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% else %}
+        <p style="color:var(--text-secondary); font-style:italic; font-size:13px; margin:0;">No follow‑ups scheduled. Ask your Sales Manager to assign places and set expected order dates.</p>
+    {% endif %}
+</div>
+
 {% endblock %}
 
 {% block scripts %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script>
-function showToast(message, type = 'success') {
-    if (typeof window.showToast === 'function') {
-        window.showToast(message, type);
-    } else {
-        alert(message);
-    }
-}
+    async function sendLocation(event) {
+        if (event) event.preventDefault();
+        if (!navigator.geolocation) { alert('Geolocation not supported on this device.'); return; }
 
-async function getAddressFromCoords(lat, lng) {
-    try {
-        const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-            { headers: { 'Accept': 'application/json' } }
-        );
-        const data = await response.json();
-        if (data && data.display_name) {
-            const parts = [];
-            if (data.address.road) parts.push(data.address.road);
-            if (data.address.suburb) parts.push(data.address.suburb);
-            if (data.address.city || data.address.town || data.address.village) parts.push(data.address.city || data.address.town || data.address.village);
-            if (parts.length === 0 && data.display_name) parts.push(data.display_name);
-            return parts.join(', ');
-        }
-    } catch (e) {}
-    return `${lat}, ${lng}`;
-}
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            let address = `${lat}, ${lng}`;
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+                const data = await response.json();
+                if (data && data.display_name) address = data.display_name;
+            } catch (e) {}
 
-async function sendLocationToBackend(lat, lng) {
-    const address = await getAddressFromCoords(lat, lng);
-    try {
-        await fetch('/marketer/submit-location', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: `lat=${lat}&lng=${lng}&location=${encodeURIComponent(address)}`
-        });
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
-
-async function sendLocation() {
-    if (!navigator.geolocation) {
-        showToast('Geolocation not supported on this device.', 'error');
-        return;
-    }
-    navigator.geolocation.getCurrentPosition(
-        async function(pos) {
-            const ok = await sendLocationToBackend(pos.coords.latitude, pos.coords.longitude);
-            if (ok) {
-                showToast('Location sent successfully.');
+            try {
+                await fetch('/marketer/submit-location', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: `lat=${lat}&lng=${lng}&location=${encodeURIComponent(address)}`
+                });
                 window.location.href = '/marketer?location=ok';
-            } else {
-                showToast('Failed to send location.', 'error');
+            } catch (e) {
+                alert('Failed to send location.');
             }
-        },
-        function(err) {
-            showToast('Unable to get location: ' + err.message, 'error');
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-    );
-}
-
-// Auto-tracking
-let lastSentCoords = null;
-const DISTANCE_THRESHOLD_METERS = 100;
-
-function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
-    const R = 6371000;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-function shouldSendLocation(lat, lng) {
-    if (!lastSentCoords) return true;
-    const dist = getDistanceFromLatLonInMeters(lastSentCoords.lat, lastSentCoords.lng, lat, lng);
-    return dist > DISTANCE_THRESHOLD_METERS;
-}
-
-function startLocationTracking() {
-    if (!navigator.geolocation) return;
-
-    function handlePosition(pos) {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        if (shouldSendLocation(lat, lng)) {
-            lastSentCoords = { lat, lng };
-            sendLocationToBackend(lat, lng).catch(() => {});
-        }
+        }, (err) => {
+            alert('Unable to get location: ' + err.message);
+        }, { enableHighAccuracy: true, timeout: 10000 });
     }
-
-    navigator.geolocation.getCurrentPosition(handlePosition, () => {}, {enableHighAccuracy: true, timeout: 10000});
-    navigator.geolocation.watchPosition(handlePosition, () => {}, {
-        enableHighAccuracy: true,
-        maximumAge: 30000,
-        timeout: 10000
-    });
-    setInterval(() => {
-        navigator.geolocation.getCurrentPosition(handlePosition, () => {}, {enableHighAccuracy: true, timeout: 10000});
-    }, 20 * 60 * 1000);
-}
-
-document.addEventListener('DOMContentLoaded', startLocationTracking);
-
-// Status polling
-let lastStatus = '{{ checkin_status }}';
-let lastOverdue = {{ overdue|length if overdue is defined else 0 }};
-
-function checkStatusUpdates() {
-    fetch('/api/marketer/status')
-        .then(res => res.json())
-        .then(data => {
-            if (data.checkin_status !== lastStatus) {
-                lastStatus = data.checkin_status;
-                if (data.checkin_status === 'approved') {
-                    showToast('Your check-in has been approved!', 'success');
-                } else if (data.checkin_status === 'rejected') {
-                    showToast('Your check-in was rejected.', 'error');
-                } else if (data.checkin_status === 'pending') {
-                    showToast('Check-in is pending approval.', 'warning');
-                }
-            }
-            if (data.overdue_followups > lastOverdue) {
-                showToast('You have overdue follow-ups!', 'warning');
-            }
-            lastOverdue = data.overdue_followups;
-        })
-        .catch(() => {});
-}
-
-setInterval(checkStatusUpdates, 60000);
 </script>
 {% endblock %}
