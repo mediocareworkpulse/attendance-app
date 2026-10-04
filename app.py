@@ -579,6 +579,9 @@ def home():
     if role == 'General Manager':
         return redirect('/manager-dashboard')
 
+    if role == 'Sales Manager':
+        return redirect('/sales-manager')
+
     show_sales_card = (
         role in ['Staff','Person in Charge','admin','ceo'] or
         session.get('department','') in ['Stock Control','Stock Assistant','Accounts Office','Accountant','Accountant Assistant']
@@ -1227,7 +1230,6 @@ def check_in_page():
             check_in_time = rec.get('check_in')
         geofence = rec.get('check_in_geofence')
 
-    # Marketer status resolution - attendance record is the source of truth
     marketer_has_checkin = False
     marketer_has_checkout = False
     if role == MARKETER_ROLE:
