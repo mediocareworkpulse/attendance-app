@@ -670,7 +670,6 @@ def home():
         branch_sales_total = 0
         total_sales_combined = 0
 
-    # Branch target for Person in Charge (uses only branch_sales)
     branch_target = None
     branch_target_progress = None
     if role == 'Person in Charge':
@@ -969,9 +968,7 @@ def bulk_delete_sales():
     deleted_count = 0
     try:
         for item in items:
-            # Expected format: "Branch:123" or "Individual:45"
             if ':' not in item:
-                # Legacy fallback: use global type from form
                 fallback_type = request.form.get('type', 'individual')
                 table = 'branch_sales' if fallback_type == 'branch' else 'sales'
                 try:
@@ -1005,7 +1002,6 @@ def delete_sale(sid):
     stype = request.args.get('type', 'individual')
     table = 'branch_sales' if stype == 'branch' else 'sales'
     try:
-        # Verify the record exists first
         check = safe_data(execute_query(
             supabase.table(table).select('id').eq('id', sid).limit(1)
         ))
@@ -1260,6 +1256,19 @@ def check_in_page():
                 supabase.table('journeys').select('*').eq('full_name', un).eq('date', today).order('journey_number')
             ))
 
+    # Fetch today's deliveries for these journeys
+    deliveries_by_journey = {}
+    if journeys:
+        journey_ids = [jj['id'] for jj in journeys]
+        try:
+            deliveries_data = safe_data(execute_query(
+                supabase.table('journey_deliveries').select('*').in_('journey_id', journey_ids).order('time')
+            ))
+            for d in deliveries_data:
+                deliveries_by_journey.setdefault(d['journey_id'], []).append(d)
+        except Exception as e:
+            print(f"Error fetching deliveries: {e}")
+
     team_names = None
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant']:
         pass
@@ -1325,7 +1334,8 @@ def check_in_page():
         check_in_time=check_in_time, shift_start=shift_start, shift_end=shift_end,
         journeys=journeys, role=role, drivers=drivers, geofence=geofence,
         marketer_has_checkin=marketer_has_checkin,
-        marketer_has_checkout=marketer_has_checkout)
+        marketer_has_checkout=marketer_has_checkout,
+        deliveries_by_journey=deliveries_by_journey)
 
 @app.route('/check-in', methods=['POST'])
 @login_required
@@ -1402,7 +1412,8 @@ def start_journey():
         'full_name': un, 'date': today, 'journey_number': next_num,
         'start_time': now, 'start_lat': lat, 'start_lng': lng, 'start_location': loc, 'status': 'active'
     }).execute()
-    return redirect('/check-in')
+    add_audit_log('journey_start', target=un, details={'journey_number': next_num})
+    return redirect('/check-in?journey_started=1')
 
 @app.route('/journey/end/<int:jid>', methods=['POST'])
 @login_required
@@ -1414,7 +1425,85 @@ def end_journey(jid):
     supabase.table('journeys').update({
         'end_time': now, 'end_lat': lat, 'end_lng': lng, 'end_location': loc, 'status': 'completed'
     }).eq('id', jid).execute()
-    return redirect('/check-in')
+    add_audit_log('journey_end', target=str(jid))
+    return redirect('/check-in?journey_ended=1')
+
+# ==================== JOURNEY DELIVERY LOG ====================
+@app.route('/journey/delivery/<int:jid>', methods=['POST'])
+@login_required
+def journey_delivery(jid):
+    role = session.get('role')
+    if role not in RIDER_DRIVER_ROLES and role != 'General Manager':
+        return redirect('/check-in')
+    j = safe_data(execute_query(supabase.table('journeys').select('*').eq('id', jid).limit(1)))
+    if not j:
+        return redirect('/check-in?error=journey_not_found')
+    if role != 'General Manager' and j[0].get('full_name') != session.get('user'):
+        return redirect('/check-in?error=unauthorized')
+    if j[0].get('status') != 'active':
+        return redirect('/check-in?error=journey_closed')
+
+    today = str(now_eat().date())
+    now = now_eat().strftime('%H:%M:%S')
+    lat = request.form.get('lat', '')
+    lng = request.form.get('lng', '')
+    loc = request.form.get('location', '')
+    notes = request.form.get('notes', '')
+
+    supabase.table('journey_deliveries').insert({
+        'journey_id': jid,
+        'full_name': j[0].get('full_name'),
+        'date': today,
+        'time': now,
+        'lat': lat,
+        'lng': lng,
+        'location': loc,
+        'notes': notes
+    }).execute()
+    add_audit_log('journey_delivery', target=j[0].get('full_name'), details={'journey_id': jid})
+    return redirect('/check-in?delivery=ok')
+
+# ==================== DRIVER MOVEMENTS VIEW ====================
+@app.route('/driver-movements')
+@login_required
+def driver_movements():
+    allowed = ['admin', 'ceo', 'Operations Manager', 'Assistant Operations Manager']
+    if session.get('role') not in allowed:
+        return redirect('/')
+
+    filter_date = request.args.get('date', str(now_eat().date()))
+    filter_driver = request.args.get('driver', '')
+
+    q = supabase.table('journeys').select('*').eq('date', filter_date).order('full_name').order('journey_number')
+    if filter_driver:
+        q = q.eq('full_name', filter_driver)
+    journeys = safe_data(execute_query(q.limit(500)))
+
+    deliveries_by_journey = {}
+    if journeys:
+        journey_ids = [j['id'] for j in journeys]
+        try:
+            deliveries_data = safe_data(execute_query(
+                supabase.table('journey_deliveries').select('*').in_('journey_id', journey_ids).order('time')
+            ))
+            for d in deliveries_data:
+                deliveries_by_journey.setdefault(d['journey_id'], []).append(d)
+        except Exception as e:
+            print(f"Error fetching deliveries: {e}")
+
+    drivers = safe_data(execute_query(
+        supabase.table('employees').select('full_name').eq('status', 'approved')
+        .in_('role', ['Drivers', 'Riders']).order('full_name')
+    ))
+
+    return render_template('driver_movements.html',
+                           journeys=journeys,
+                           deliveries_by_journey=deliveries_by_journey,
+                           drivers=drivers,
+                           filter_date=filter_date,
+                           filter_driver=filter_driver,
+                           today=str(now_eat().date()),
+                           company=COMPANY_NAME)
 
 # ==================== ATTENDANCE HISTORY ====================
 @app.route('/attendance-history')
