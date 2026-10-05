@@ -17,6 +17,7 @@
 <div class="alert alert-success">✅ You have checked out successfully.</div>
 {% endif %}
 
+<!-- ==================== STATUS CARD + CHECK IN/OUT ==================== -->
 <div class="checkin-container shift-timer-card" style="background: linear-gradient(135deg, #ffffff, #f8fafc); border-radius: 16px; padding: 20px 24px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; border-left: 6px solid var(--primary);">
     <div style="display: flex; align-items: center; gap: 14px;">
         <span style="font-size: 32px;"><i class="fas fa-map-marker-alt"></i></span>
@@ -100,41 +101,59 @@
                 </form>
             </div>
         {% endif %}
-    {% elif role not in ['admin','ceo'] and role not in ['Drivers','Riders'] %}
+    {% elif role not in ['admin','ceo'] %}
+        {# Regular check-in/out — now available to ALL non-admin/ceo roles, including Drivers and Riders #}
         <form method="POST" action="/check-in" id="attendanceForm" style="display:inline;">
             <input type="hidden" name="lat" id="att-lat" value="">
             <input type="hidden" name="lng" id="att-lng" value="">
             <input type="hidden" name="location" id="att-location" value="">
             <input type="hidden" name="action" id="att-action" value="">
             {% if user_status == 'none' %}
-                <button type="button" class="checkin-btn btn-check-in" id="checkinBtn" onclick="confirmCheckIn()" style="width:auto; min-width:160px;">
-                    <i class="fas fa-clock"></i> Clock In
+                <button type="button" class="checkin-btn btn-check-in" id="checkinBtn" onclick="confirmCheckIn()" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background: linear-gradient(135deg, #27ae60, #2ecc71); color:#fff; border:none; box-shadow:0 8px 20px rgba(39,174,96,0.4); display:inline-flex; align-items:center; gap:8px;">
+                    <i class="fas fa-clock"></i> Check In
                 </button>
             {% elif user_status in ['checked_in','working'] %}
-                <button type="button" class="checkin-btn btn-check-out" id="checkoutBtn" style="width:auto; min-width:160px;" onclick="confirmCheckOut()">
-                    <i class="fas fa-sign-out-alt"></i> Clock Out
+                <button type="button" class="checkin-btn btn-check-out" id="checkoutBtn" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background: #e74c3c; color:#fff; border:none; box-shadow:0 8px 20px rgba(231,76,60,0.4); display:inline-flex; align-items:center; gap:8px;" onclick="confirmCheckOut()">
+                    <i class="fas fa-sign-out-alt"></i> Check Out
+                </button>
+            {% elif user_status == 'completed' %}
+                <button disabled class="checkin-btn" style="width:auto; min-width:180px; padding:14px 24px; font-size:16px; border-radius:50px; background:#95a5a6; color:#fff; border:none; display:inline-flex; align-items:center; gap:8px;">
+                    <i class="fas fa-check-circle"></i> Checked Out
                 </button>
             {% endif %}
         </form>
     {% endif %}
 </div>
 
+<!-- ==================== DRIVER / RIDER JOURNEYS ==================== -->
 {% if role in ['Drivers','Riders'] or role == 'General Manager' %}
 <div class="form-card" style="margin-top: 20px; border-top: 4px solid var(--accent);">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
         <div>
             <h2 style="font-size:18px; font-weight:800; margin-bottom:4px;">🛵 Delivery Journeys Today</h2>
-            <p style="color:var(--text-secondary); font-size:13px;">Start a journey, log each delivery, then end the journey when you return to the shop.</p>
+            <p style="color:var(--text-secondary); font-size:13px;">
+                {% if role in ['Drivers','Riders'] %}
+                    Check in first, then start a journey, log each delivery, and end the journey when you return to the shop.
+                {% else %}
+                    Monitor drivers and riders: journeys, deliveries and locations.
+                {% endif %}
+            </p>
         </div>
         {% if role in ['Drivers','Riders'] %}
-        <form method="POST" action="/journey/start" id="startJourneyForm">
-            <input type="hidden" name="lat" id="start-lat">
-            <input type="hidden" name="lng" id="start-lng">
-            <input type="hidden" name="location" id="start-loc">
-            <button type="button" class="btn" onclick="startJourney()" style="background:#27ae60;color:#fff;font-weight:700;">
-                <i class="fas fa-play-circle"></i> Start New Journey
-            </button>
-        </form>
+            {% if user_status in ['checked_in','working'] %}
+                <form method="POST" action="/journey/start" id="startJourneyForm">
+                    <input type="hidden" name="lat" id="start-lat">
+                    <input type="hidden" name="lng" id="start-lng">
+                    <input type="hidden" name="location" id="start-loc">
+                    <button type="button" class="btn" onclick="startJourney()" style="background:#27ae60;color:#fff;font-weight:700;padding:12px 22px;border-radius:10px;">
+                        <i class="fas fa-play-circle"></i> Start New Journey
+                    </button>
+                </form>
+            {% else %}
+                <button disabled class="btn" style="background:#bdc3c7;color:#fff;font-weight:700;padding:12px 22px;border-radius:10px;cursor:not-allowed;">
+                    <i class="fas fa-lock"></i> Check In First
+                </button>
+            {% endif %}
         {% endif %}
     </div>
 
@@ -176,8 +195,8 @@
                     <input type="hidden" name="lat" id="del-lat-{{ j.id }}">
                     <input type="hidden" name="lng" id="del-lng-{{ j.id }}">
                     <input type="hidden" name="location" id="del-loc-{{ j.id }}">
-                    <input type="text" name="notes" placeholder="Notes (e.g. customer, package)" style="flex:1; min-width:180px;">
-                    <button type="button" class="btn" onclick="logDelivery({{ j.id }})" style="background:#3498db; color:#fff; font-weight:700;">
+                    <input type="text" name="notes" placeholder="Notes (e.g. customer, package)" style="flex:1; min-width:180px; padding:10px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:13px;">
+                    <button type="button" class="btn" onclick="logDelivery({{ j.id }})" style="background:#3498db; color:#fff; font-weight:700; padding:10px 18px; border-radius:8px;">
                         <i class="fas fa-box"></i> Log Delivery
                     </button>
                 </form>
@@ -186,7 +205,7 @@
                     <input type="hidden" name="lat" id="end-lat-{{ j.id }}">
                     <input type="hidden" name="lng" id="end-lng-{{ j.id }}">
                     <input type="hidden" name="location" id="end-loc-{{ j.id }}">
-                    <button type="button" class="btn btn-danger" onclick="endJourney({{ j.id }})" style="font-weight:700;">
+                    <button type="button" class="btn btn-danger" onclick="endJourney({{ j.id }})" style="font-weight:700; padding:10px 18px; border-radius:8px;">
                         <i class="fas fa-stop-circle"></i> End Journey
                     </button>
                 </form>
@@ -196,11 +215,23 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="alert alert-info" style="margin-top:14px;">No journeys recorded today yet. Click <strong>Start New Journey</strong> to begin.</div>
+    <div class="alert alert-info" style="margin-top:14px;">
+        {% if role in ['Drivers','Riders'] %}
+            No journeys recorded today yet.
+            {% if user_status in ['checked_in','working'] %}
+                Click <strong>Start New Journey</strong> to begin.
+            {% else %}
+                Please <strong>Check In</strong> first to enable journey tracking.
+            {% endif %}
+        {% else %}
+            No journeys recorded for drivers or riders today.
+        {% endif %}
+    </div>
     {% endif %}
 </div>
 {% endif %}
 
+<!-- ==================== RECENT ATTENDANCE ==================== -->
 {% if records %}
 <div class="form-card" style="margin-top: 20px;">
     <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">Recent Attendance</h2>
@@ -269,7 +300,7 @@
         return `${lat}, ${lng}`;
     }
 
-    // ============ HELPER: hardened geolocation with HARD timeout ============
+    // ============ HELPER: geolocation with hard timeout ============
     function getPositionSafe(timeoutMs = 6000) {
         return new Promise((resolve, reject) => {
             let finished = false;
@@ -302,7 +333,7 @@
         });
     }
 
-    // ============ REGULAR ATTENDANCE ============
+    // ============ REGULAR ATTENDANCE (used by Drivers, Riders, Staff, etc.) ============
     async function captureLocationAndSubmit() {
         const latInput = document.getElementById('att-lat');
         const lngInput = document.getElementById('att-lng');
@@ -310,18 +341,30 @@
         const form = document.getElementById('attendanceForm');
         const btn = document.getElementById('checkinBtn') || document.getElementById('checkoutBtn');
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Locating...'; }
-        try {
-            const position = await getPositionSafe(6000);
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            latInput.value = lat; lngInput.value = lng;
-            let address = `${lat}, ${lng}`;
-            try { address = await getAddressFromCoords(lat, lng); } catch (e) {}
+
+        let submitted = false;
+        const finish = (lat, lng, address) => {
+            if (submitted) return;
+            submitted = true;
+            latInput.value = lat;
+            lngInput.value = lng;
             locInput.value = address;
-        } catch (error) {
-            latInput.value = '0'; lngInput.value = '0'; locInput.value = 'Location unavailable';
-        }
-        form.submit();
+            form.submit();
+        };
+
+        const bailTimer = setTimeout(() => finish('0', '0', 'Location unavailable'), 8000);
+
+        getPositionSafe(6000).then(async (pos) => {
+            clearTimeout(bailTimer);
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            let addr = `${lat}, ${lng}`;
+            try { addr = await getAddressFromCoords(lat, lng); } catch (e) {}
+            finish(lat, lng, addr);
+        }).catch(() => {
+            clearTimeout(bailTimer);
+            finish('0', '0', 'Location unavailable');
+        });
     }
 
     function confirmCheckIn() {
@@ -332,13 +375,13 @@
     }
 
     function confirmCheckOut() {
-        if (confirm('Are you sure you want to check out?')) {
+        if (confirm('Are you sure you want to check out now?')) {
             document.getElementById('att-action').value = 'check_out';
             captureLocationAndSubmit();
         }
     }
 
-    // ============ MARKETER CHECK-IN (bulletproof) ============
+    // ============ MARKETER CHECK-IN ============
     function prepareMarketerCheckIn() {
         const btn = document.getElementById('marketerCheckinBtn');
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Locating...'; }
@@ -353,9 +396,7 @@
             document.getElementById('marketerCheckinForm').submit();
         };
 
-        // Hard 8-second bail-out
         const bailTimer = setTimeout(() => finish('0', '0', 'Location unavailable'), 8000);
-
         getPositionSafe(6000).then(async (pos) => {
             clearTimeout(bailTimer);
             const lat = pos.coords.latitude;
@@ -363,13 +404,13 @@
             let addr = `${lat}, ${lng}`;
             try { addr = await getAddressFromCoords(lat, lng); } catch (e) {}
             finish(lat, lng, addr);
-        }).catch((err) => {
+        }).catch(() => {
             clearTimeout(bailTimer);
             finish('0', '0', 'Location unavailable');
         });
     }
 
-    // ============ MARKETER CHECKOUT (bulletproof) ============
+    // ============ MARKETER CHECKOUT ============
     function prepareMarketerCheckOut() {
         const btn = document.getElementById('marketerCheckoutBtn');
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Locating...'; }
@@ -384,9 +425,7 @@
             document.getElementById('marketerCheckoutForm').submit();
         };
 
-        // Hard 8-second bail-out
         const bailTimer = setTimeout(() => finish('0', '0', 'Location unavailable'), 8000);
-
         getPositionSafe(6000).then(async (pos) => {
             clearTimeout(bailTimer);
             const lat = pos.coords.latitude;
@@ -394,13 +433,13 @@
             let addr = `${lat}, ${lng}`;
             try { addr = await getAddressFromCoords(lat, lng); } catch (e) {}
             finish(lat, lng, addr);
-        }).catch((err) => {
+        }).catch(() => {
             clearTimeout(bailTimer);
             finish('0', '0', 'Location unavailable');
         });
     }
 
-    // ============ JOURNEY HELPERS ============
+    // ============ DRIVER / RIDER JOURNEY HELPERS ============
     async function startJourney() {
         if (!confirm('Start a new journey from your current location?')) return;
         let submitted = false;
