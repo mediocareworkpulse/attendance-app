@@ -2650,17 +2650,12 @@ def assign_place():
     if session.get('role') not in [SALES_MANAGER_ROLE, 'General Manager']: return redirect('/')
     marketer = request.form.get('marketer_name','').strip()
     place = request.form.get('place_name','').strip()
-    place_lat = request.form.get('place_lat','').strip()
-    place_lng = request.form.get('place_lng','').strip()
     if marketer and place:
-        data = {
-            'marketer_name': marketer, 'place_name': place, 'date_assigned': str(now_eat().date())
-        }
-        if place_lat:
-            data['latitude'] = float(place_lat)
-        if place_lng:
-            data['longitude'] = float(place_lng)
-        supabase.table('assigned_places').insert(data).execute()
+        supabase.table('assigned_places').insert({
+            'marketer_name': marketer,
+            'place_name': place,
+            'date_assigned': str(now_eat().date())
+        }).execute()
         add_audit_log('assign_place', target=marketer, details={'place':place})
     return redirect('/sales-manager' if session.get('role') == SALES_MANAGER_ROLE else '/manager-dashboard')
 
