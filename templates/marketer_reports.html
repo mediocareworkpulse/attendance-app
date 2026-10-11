@@ -26,7 +26,7 @@
         </div>
         <div style="display:flex; align-items:end; gap:8px;">
             <button type="submit" class="btn" style="flex:1;">Apply</button>
-            <a href="/export-marketer-reports?from_date={{ filter_from }}&to_date={{ filter_to }}&marketer={{ filter_marketer }}" class="btn" style="background:var(--accent); color:#fff; white-space:nowrap;">Export CSV</a>
+            <a href="/export-marketer-reports?from_date={{ filter_from }}&to_date={{ filter_to }}&marketer={{ filter_marketer }}" class="btn" style="background:var(--accent); color:#fff; white-space:nowrap;">📥 Export CSV</a>
         </div>
     </form>
 </div>
@@ -34,6 +34,9 @@
 <!-- Reports Table -->
 <div class="form-card" style="margin-top:20px;">
     <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">Submitted Reports ({{ reports|length }})</h2>
+    <div class="alert alert-info" style="font-size:12px; margin-bottom:12px;">
+        <strong>Tip:</strong> Click any row to view the full report with location map.
+    </div>
     <div class="table-container">
         <table>
             <thead>
@@ -44,21 +47,23 @@
                     <th>Phone</th>
                     <th>Location</th>
                     <th>Notes</th>
-                    <th>Expenses</th>
                     <th>Expected Order</th>
+                    <th>View</th>
                 </tr>
             </thead>
             <tbody>
             {% for r in reports %}
-            <tr>
+            <tr style="cursor:pointer;" onclick="openReport({{ r.id }})">
                 <td>{{ r.date }}</td>
                 <td class="td-name">{{ r.full_name }}</td>
                 <td>{{ r.customer_name }}</td>
                 <td>{{ r.customer_phone or '—' }}</td>
-                <td>{{ r.location or '—' }}</td>
-                <td>{{ r.details or '—' }}</td>
-                <td>{{ r.expenses }}</td>
+                <td>{{ (r.location or '—')[:40] }}{% if r.location and r.location|length > 40 %}...{% endif %}</td>
+                <td>{{ (r.details or '—')[:50] }}{% if r.details and r.details|length > 50 %}...{% endif %}</td>
                 <td>{{ r.expected_order_date or '—' }}</td>
+                <td>
+                    <button class="btn btn-sm" style="background:var(--primary); color:#fff;" onclick="event.stopPropagation(); openReport({{ r.id }})">👁 Open</button>
+                </td>
             </tr>
             {% endfor %}
             </tbody>
@@ -76,4 +81,81 @@
     <a href="?page={{ page+1 }}&from_date={{ filter_from }}&to_date={{ filter_to }}&marketer={{ filter_marketer }}" class="btn btn-sm">Next</a>
     {% endif %}
 </div>
+
+<!-- Report Detail Modal -->
+<div id="reportModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:2000; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:#fff; border-radius:16px; max-width:720px; width:100%; max-height:90vh; overflow-y:auto; position:relative;">
+        <div style="padding:18px 22px; background:linear-gradient(135deg,#0b2b4a,#134b6e); color:#fff; border-radius:16px 16px 0 0; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <div style="font-size:11px; opacity:0.75; text-transform:uppercase; letter-spacing:1px;">Customer Report</div>
+                <div id="rm-title" style="font-size:18px; font-weight:800;">Loading...</div>
+            </div>
+            <button onclick="closeReportModal()" style="background:rgba(255,255,255,0.2); color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-size:16px; cursor:pointer;">✕</button>
+        </div>
+        <div id="rm-body" style="padding:22px;"></div>
+        <div id="rm-map" style="height:280px; margin:0 22px 22px; border-radius:12px; background:#f1f5f9; display:none; overflow:hidden;"></div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let rmMap = null;
+
+async function openReport(rid) {
+    document.getElementById('reportModal').style.display = 'flex';
+    document.getElementById('rm-body').innerHTML = '<p style="color:#94a3b8;">Loading report...</p>';
+    document.getElementById('rm-map').style.display = 'none';
+    try {
+        const res = await fetch('/api/report/' + rid);
+        if (!res.ok) { document.getElementById('rm-body').innerHTML = '<p style="color:#c0392b;">Failed to load report.</p>'; return; }
+        const r = await res.json();
+        document.getElementById('rm-title').textContent = r.customer_name || 'Report Details';
+
+        const row = (label, value) => `
+            <div style="display:grid; grid-template-columns:160px 1fr; gap:10px; padding:10px 0; border-bottom:1px solid #f1f5f9;">
+                <div style="font-size:11px; font-weight:700; color:#7c8798; text-transform:uppercase; letter-spacing:0.5px;">${label}</div>
+                <div style="font-size:14px; color:#1a1a2e; word-break:break-word;">${value || '—'}</div>
+            </div>`;
+
+        document.getElementById('rm-body').innerHTML =
+            row('Report ID', r.id) +
+            row('Date', r.date) +
+            row('Marketer', r.full_name) +
+            row('Customer Name', r.customer_name) +
+            row('Customer Phone', r.customer_phone) +
+            row('Location', r.location) +
+            row('GPS Coordinates', (r.lat && r.lng) ? `${r.lat}, ${r.lng}` : '—') +
+            row('Visit Details', r.details) +
+            row('Expected Order Date', r.expected_order_date);
+
+        const lat = parseFloat(r.lat), lng = parseFloat(r.lng);
+        if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+            document.getElementById('rm-map').style.display = 'block';
+            setTimeout(() => {
+                if (!rmMap) {
+                    rmMap = L.map('rm-map').setView([lat, lng], 16);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(rmMap);
+                } else {
+                    rmMap.setView([lat, lng], 16);
+                    rmMap.eachLayer(l => { if (l instanceof L.Marker) rmMap.removeLayer(l); });
+                }
+                L.marker([lat, lng]).addTo(rmMap).bindPopup(r.customer_name).openPopup();
+                rmMap.invalidateSize();
+            }, 150);
+        }
+    } catch (e) {
+        document.getElementById('rm-body').innerHTML = '<p style="color:#c0392b;">Error: ' + e.message + '</p>';
+    }
+}
+function closeReportModal() {
+    document.getElementById('reportModal').style.display = 'none';
+}
+document.getElementById('reportModal').addEventListener('click', function(e) {
+    if (e.target === this) closeReportModal();
+});
+</script>
 {% endblock %}
