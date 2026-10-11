@@ -2409,9 +2409,69 @@ def marketer_report():
             'location': location, 'lat': lat if lat else None, 'lng': lng if lng else None,
             'expected_order_date': expected_order_date if expected_order_date else None
         }).execute()
+
+        # ---- Persist customer for the marketer (upsert) ----
+        try:
+            existing_cust = safe_data(execute_query(
+                supabase.table('customers').select('id, visit_count')
+                       .eq('marketer_name', un).eq('customer_name', customer_name).limit(1)
+            ))
+            cust_data = {
+                'marketer_name': un,
+                'customer_name': customer_name,
+                'customer_phone': customer_phone,
+                'location': location,
+                'lat': lat if lat else None,
+                'lng': lng if lng else None,
+                'last_visit_date': today
+            }
+            if existing_cust:
+                cust_data['visit_count'] = (existing_cust[0].get('visit_count') or 1) + 1
+                supabase.table('customers').update(cust_data).eq('id', existing_cust[0]['id']).execute()
+            else:
+                cust_data['first_visit_date'] = today
+                cust_data['visit_count'] = 1
+                supabase.table('customers').insert(cust_data).execute()
+        except Exception as e:
+            print(f"Customer upsert error: {e}")
+
         add_audit_log('marketer_report', target=un, details={'customer':customer_name})
         return redirect('/marketer?report=ok')
     return render_template('marketer_report.html', today=str(now_eat().date()), company=COMPANY_NAME)
+
+# ==================== CUSTOMER APIs ====================
+@app.route('/api/report/<int:rid>')
+@login_required
+def api_report_detail(rid):
+    if session.get('role') not in ['admin','ceo','Sales Manager','General Manager','HR','HR Assistant']:
+        return {'error': 'Unauthorized'}, 403
+    r = safe_data(execute_query(supabase.table('customer_reports').select('*').eq('id', rid).limit(1)))
+    if not r:
+        return {'error': 'Not found'}, 404
+    return r[0]
+
+@app.route('/api/customers')
+@login_required
+def api_customers():
+    if session.get('role') not in ['admin','ceo','Sales Manager','General Manager']:
+        return {'error': 'Unauthorized'}, 403
+    marketer = request.args.get('marketer', '')
+    q = supabase.table('customers').select('*').order('last_visit_date', desc=True).limit(500)
+    if marketer: q = q.eq('marketer_name', marketer)
+    return {'customers': safe_data(execute_query(q))}
+
+@app.route('/api/marketer-trail/<path:marketer_name>')
+@login_required
+def api_marketer_trail(marketer_name):
+    if session.get('role') not in ['admin','ceo','Sales Manager','General Manager']:
+        return {'error': 'Unauthorized'}, 403
+    today = str(now_eat().date())
+    pings = safe_data(execute_query(
+        supabase.table('marketer_locations').select('lat, lng, time, location')
+               .eq('full_name', marketer_name).eq('date', today)
+               .order('time').limit(1000)
+    ))
+    return {'marketer': marketer_name, 'pings': pings}
 
 @app.route('/marketer/submit-location', methods=['POST'])
 @login_required
@@ -2496,12 +2556,9 @@ def marketer_dashboard():
     today = str(now_eat().date())
 
     checkin = safe_data(execute_query(
-        supabase.table('marketer_checkins')
-        .select('*')
-        .eq('full_name', un)
-        .eq('date', today)
-        .order('created_at', desc=True)
-        .limit(1)
+        supabase.table('marketer_checkins').select('*')
+        .eq('full_name', un).eq('date', today)
+        .order('created_at', desc=True).limit(1)
     ))
     checkin_status = None
     checkin_time = None
@@ -2510,37 +2567,29 @@ def marketer_dashboard():
         checkin_time = checkin[0].get('check_in_time')
 
     places = safe_data(execute_query(
-        supabase.table('assigned_places')
-        .select('*')
-        .eq('marketer_name', un)
-        .order('date_assigned', desc=True)
-        .limit(50)
+        supabase.table('assigned_places').select('*')
+        .eq('marketer_name', un).order('date_assigned', desc=True).limit(50)
     ))
-
     reports_today = safe_data(execute_query(
-        supabase.table('customer_reports')
-        .select('*')
-        .eq('full_name', un)
-        .eq('date', today)
-        .order('created_at', desc=True)
+        supabase.table('customer_reports').select('*')
+        .eq('full_name', un).eq('date', today).order('created_at', desc=True)
     ))
-
     all_reports = safe_data(execute_query(
-        supabase.table('customer_reports')
-        .select('*')
-        .eq('full_name', un)
-        .not_.is_('expected_order_date', 'null')
-        .order('expected_order_date', desc=True)
-        .limit(100)
+        supabase.table('customer_reports').select('*')
+        .eq('full_name', un).not_.is_('expected_order_date', 'null')
+        .order('expected_order_date', desc=True).limit(100)
     ))
+    # NEW: my customers (today + all)
+    my_customers = safe_data(execute_query(
+        supabase.table('customers').select('*')
+        .eq('marketer_name', un).order('last_visit_date', desc=True).limit(200)
+    ))
+    my_customers_today = [c for c in my_customers if c.get('last_visit_date') == today]
 
     month_str = now_eat().date().strftime('%Y-%m')
     target = safe_data(execute_query(
-        supabase.table('sales_targets')
-        .select('target_amount')
-        .eq('full_name', un)
-        .eq('month', month_str)
-        .limit(1)
+        supabase.table('sales_targets').select('target_amount')
+        .eq('full_name', un).eq('month', month_str).limit(1)
     ))
     target_amount = float(target[0]['target_amount']) if target else None
 
@@ -2550,6 +2599,8 @@ def marketer_dashboard():
                            places=places,
                            reports_today=reports_today,
                            followups=all_reports,
+                           my_customers=my_customers,
+                           my_customers_today=my_customers_today,
                            target_amount=target_amount,
                            today=today,
                            company=COMPANY_NAME)
@@ -2568,13 +2619,36 @@ def sales_manager_dashboard():
         supabase.table('marketer_checkins').select('*').eq('date',today).eq('status','approved').order('check_in_time').limit(50)
     ))
     reports = safe_data(execute_query(
-        supabase.table('customer_reports').select('*').eq('date',today).order('created_at',desc=True).limit(50)
+        supabase.table('customer_reports').select('*').eq('date',today).order('created_at',desc=True).limit(100)
     ))
     assigned = safe_data(execute_query(
         supabase.table('assigned_places').select('*').order('date_assigned',desc=True).limit(100)
     ))
+    # FIXED: order desc + larger limit so recent pings always show
     location_pings = safe_data(execute_query(
-        supabase.table('marketer_locations').select('*').eq('date', today).order('time').limit(200)
+        supabase.table('marketer_locations').select('*').eq('date', today)
+               .order('time', desc=True).limit(1000)
+    ))
+    # Group pings per marketer
+    pings_by_marketer = defaultdict(list)
+    for p in location_pings:
+        pings_by_marketer[p['full_name']].append(p)
+    ping_summary = []
+    for name, plist in pings_by_marketer.items():
+        latest = plist[0] if plist else {}
+        ping_summary.append({
+            'full_name': name,
+            'count': len(plist),
+            'latest_location': latest.get('location', ''),
+            'latest_time': latest.get('time', ''),
+            'latest_lat': latest.get('lat'),
+            'latest_lng': latest.get('lng'),
+        })
+    ping_summary.sort(key=lambda x: x['latest_time'], reverse=True)
+
+    # All customers (for assign picker)
+    all_customers = safe_data(execute_query(
+        supabase.table('customers').select('*').order('last_visit_date', desc=True).limit(500)
     ))
     marketers = safe_data(execute_query(
         supabase.table('employees').select('full_name').eq('status','approved').eq('role','Marketers').order('full_name')
@@ -2588,25 +2662,20 @@ def sales_manager_dashboard():
             status = 'pending'
         elif any(a['full_name'] == name for a in approved_checkins):
             status = 'approved'
-        reports_today = len([r for r in reports if r['full_name'] == name])
+        reports_today_count = len([r for r in reports if r['full_name'] == name])
         places_count = len([p for p in assigned if p['marketer_name'] == name])
         follow_ups = safe_data(execute_query(
             supabase.table('customer_reports')
-            .select('id')
-            .eq('full_name', name)
+            .select('id').eq('full_name', name)
             .not_.is_('expected_order_date', 'null')
             .lte('expected_order_date', today)
         ))
         follow_ups_due = len(follow_ups)
-        latest_loc = None
-        for loc in location_pings:
-            if loc['full_name'] == name:
-                latest_loc = loc.get('location', '')
-                break
+        latest_loc = pings_by_marketer.get(name, [{}])[0].get('location', '') if pings_by_marketer.get(name) else '—'
         marketer_performance.append({
             'full_name': name,
             'status': status,
-            'reports_today': reports_today,
+            'reports_today': reports_today_count,
             'assigned_places': places_count,
             'follow_ups_due': follow_ups_due,
             'latest_location': latest_loc or '—'
@@ -2615,6 +2684,7 @@ def sales_manager_dashboard():
     return render_template('sales_manager.html',
         pending_checkins=pending_checkins, approved_checkins=approved_checkins,
         reports=reports, assigned=assigned, location_pings=location_pings,
+        ping_summary=ping_summary, all_customers=all_customers,
         marketers=marketers, today=today, company=COMPANY_NAME,
         marketer_performance=marketer_performance)
 
@@ -2649,7 +2719,22 @@ def reject_checkin(cid):
 def assign_place():
     if session.get('role') not in [SALES_MANAGER_ROLE, 'General Manager']: return redirect('/')
     marketer = request.form.get('marketer_name','').strip()
+    customer_id = request.form.get('customer_id','').strip()
     place = request.form.get('place_name','').strip()
+
+    # If a customer was picked, use their name + marketer
+    if customer_id:
+        try:
+            cust = safe_data(execute_query(
+                supabase.table('customers').select('*').eq('id', int(customer_id)).limit(1)
+            ))
+            if cust:
+                place = cust[0].get('customer_name') or place
+                if not marketer:
+                    marketer = cust[0].get('marketer_name', '')
+        except (ValueError, TypeError):
+            pass
+
     if marketer and place:
         supabase.table('assigned_places').insert({
             'marketer_name': marketer,
