@@ -2512,7 +2512,6 @@ def marketer_report():
             'expected_order_date': expected_order_date if expected_order_date else None
         }).execute()
 
-        # ---- Persist customer for the marketer (upsert) ----
         try:
             existing_cust = safe_data(execute_query(
                 supabase.table('customers').select('id, visit_count')
@@ -3473,31 +3472,91 @@ def marketer_reports():
 def export_marketer_reports():
     if session.get('role') not in ['admin','ceo','Sales Manager','General Manager']:
         return redirect('/')
+
     filter_from = request.args.get('from_date', str(now_eat().date()))
     filter_to   = request.args.get('to_date', str(now_eat().date()))
     filter_marketer = request.args.get('marketer', '')
+
     query = supabase.table('customer_reports').select('*').gte('date', filter_from).lte('date', filter_to)
     if filter_marketer:
         query = query.eq('full_name', filter_marketer)
-    reports = safe_data(execute_query(query.order('date', desc=True).order('full_name').limit(2000)))
+    reports = safe_data(execute_query(query.order('date', desc=True).order('full_name').limit(5000)))
+
     si = io.StringIO()
-    cw = csv.writer(si)
-    cw.writerow(['Date', 'Marketer', 'Customer', 'Phone', 'Location', 'Details', 'Expenses', 'Expected Order Date'])
-    for r in reports:
+    cw = csv.writer(si, quoting=csv.QUOTE_MINIMAL, lineterminator='\r\n')
+
+    # ---------- Title Block ----------
+    cw.writerow([COMPANY_NAME])
+    cw.writerow(['Field Marketing - Customer Reports'])
+    cw.writerow(['Period', f'{filter_from} to {filter_to}'])
+    if filter_marketer:
+        cw.writerow(['Marketer Filter', filter_marketer])
+    cw.writerow(['Generated', now_eat().strftime('%Y-%m-%d %H:%M:%S') + ' EAT'])
+    cw.writerow(['Total Reports', len(reports)])
+    cw.writerow([])
+
+    # ---------- Column Headers ----------
+    cw.writerow([
+        'No.',
+        'Date',
+        'Marketer',
+        'Customer Name',
+        'Customer Phone',
+        'Location Address',
+        'Latitude',
+        'Longitude',
+        'Visit Details / Notes',
+        'Expected Order Date',
+        'Report ID'
+    ])
+
+    # ---------- Data Rows ----------
+    for i, r in enumerate(reports, 1):
+        details = (r.get('details') or '—')
+        if isinstance(details, str):
+            details = details.replace('\r', ' ').replace('\n', ' ').strip() or '—'
         cw.writerow([
-            r.get('date',''),
-            r.get('full_name',''),
-            r.get('customer_name',''),
-            r.get('customer_phone',''),
-            r.get('location',''),
-            r.get('details',''),
-            r.get('expenses',''),
-            r.get('expected_order_date','')
+            i,
+            r.get('date', ''),
+            r.get('full_name', ''),
+            r.get('customer_name', ''),
+            r.get('customer_phone') or '—',
+            r.get('location') or '—',
+            r.get('lat') or '—',
+            r.get('lng') or '—',
+            details,
+            r.get('expected_order_date') or '—',
+            r.get('id', '')
         ])
-    output = si.getvalue()
+
+    # ---------- Summary Block ----------
+    cw.writerow([])
+    cw.writerow(['SUMMARY'])
+    cw.writerow(['Total Reports', len(reports)])
+    unique_marketers = sorted(set(r.get('full_name', '') for r in reports if r.get('full_name')))
+    cw.writerow(['Unique Marketers', len(unique_marketers)])
+    for m in unique_marketers:
+        cnt = sum(1 for r in reports if r.get('full_name') == m)
+        cw.writerow([f'  - {m}', cnt])
+    unique_customers = len(set(
+        (r.get('full_name', ''), r.get('customer_name', '')) for r in reports
+        if r.get('customer_name')
+    ))
+    cw.writerow(['Unique Customers', unique_customers])
+    expected_orders = sum(1 for r in reports if r.get('expected_order_date'))
+    cw.writerow(['Reports with Expected Order Date', expected_orders])
+    with_gps = sum(1 for r in reports if r.get('lat') and r.get('lng'))
+    cw.writerow(['Reports with GPS Coordinates', with_gps])
+
+    output = '\ufeff' + si.getvalue()  # BOM so Excel opens it correctly
     si.close()
-    return Response(output, mimetype='text/csv',
-                    headers={"Content-Disposition": "attachment;filename=marketer_reports.csv"})
+
+    filename = f"marketer_reports_{filter_from}_to_{filter_to}.csv"
+    return Response(
+        output,
+        mimetype='text/csv; charset=utf-8',
+        headers={"Content-Disposition": f"attachment;filename={filename}"}
+    )
 
 # ==================== ABSENT TODAY ====================
 @app.route('/absent-today')
