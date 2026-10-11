@@ -2,199 +2,135 @@
 {% block content %}
 
 <style>
-    .mk-hero {
-        background: linear-gradient(135deg, #0b2b4a 0%, #134b6e 100%);
-        border-radius: 16px; padding: 24px 26px; color: #fff;
-        box-shadow: 0 10px 28px rgba(11,43,74,0.18);
-        display: flex; justify-content: space-between; align-items: center;
-        flex-wrap: wrap; gap: 14px; margin-bottom: 22px;
-    }
-    .mk-hero-left h1 { font-size: 22px; font-weight: 800; margin: 0 0 4px 0; }
-    .mk-hero-left p { margin: 0; font-size: 13px; opacity: 0.85; }
-    .mk-status-badge {
-        display: inline-flex; align-items: center; gap: 6px;
-        padding: 7px 16px; border-radius: 20px; font-size: 12px; font-weight: 700;
-        text-transform: uppercase; letter-spacing: 0.5px;
-    }
+    .mk-hero { background: linear-gradient(135deg, #0b2b4a 0%, #134b6e 100%); border-radius: 16px; padding: 24px 26px; color:#fff; box-shadow: 0 10px 28px rgba(11,43,74,0.18); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; margin-bottom:22px; }
+    .mk-hero h1 { font-size:22px; font-weight:800; margin:0 0 4px 0; }
+    .mk-hero p { margin:0; font-size:13px; opacity:0.85; }
+    .mk-status-badge { display:inline-flex; align-items:center; gap:6px; padding:7px 16px; border-radius:20px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
     .mk-status-badge.approved { background: rgba(46,204,113,0.35); }
     .mk-status-badge.pending { background: rgba(243,156,18,0.4); }
     .mk-status-badge.rejected { background: rgba(231,76,60,0.4); }
     .mk-status-badge.none { background: rgba(255,255,255,0.2); }
-
-    .mk-quick-actions {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 14px; margin-bottom: 22px;
-    }
-    .mk-quick {
-        background: #fff; border-radius: 14px; padding: 20px 16px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.04); border: 1px solid #eef1f5;
-        text-align: center; text-decoration: none; color: var(--text);
-        transition: all 0.2s ease; display: flex; flex-direction: column;
-        align-items: center; gap: 10px;
-    }
-    .mk-quick:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); border-color: var(--accent); }
-    .mk-quick-icon {
-        width: 48px; height: 48px; border-radius: 12px;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 20px; color: #fff;
-    }
-    .mk-quick-label { font-size: 13px; font-weight: 700; }
-
-    .mk-kpi-grid {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 14px; margin-bottom: 22px;
-    }
-    .mk-kpi {
-        background: #fff; border-radius: 14px; padding: 18px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.04); border: 1px solid #eef1f5;
-        text-align: center;
-    }
-    .mk-kpi-value { font-size: 28px; font-weight: 800; color: var(--primary); line-height: 1.1; }
-    .mk-kpi-label { font-size: 11px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-secondary); margin-top: 6px; }
-
-    .mk-card {
-        background: #fff; border-radius: 14px; padding: 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.04); border: 1px solid #eef1f5;
-        margin-bottom: 20px;
-    }
-    .mk-card h3 { font-size: 15px; font-weight: 800; margin: 0 0 12px 0; color: var(--text); }
-
-    .mk-follow-summary {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 12px; margin-bottom: 16px;
-    }
-    .mk-follow-stat {
-        padding: 12px; border-radius: 10px; text-align: center; font-size: 12px;
-    }
-    .mk-follow-stat.overdue { background: #fef2f2; color: #b91c1c; }
-    .mk-follow-stat.today { background: #fffbeb; color: #b45309; }
-    .mk-follow-stat.upcoming { background: #eff6ff; color: #1d4ed8; }
-    .mk-follow-stat strong { display: block; font-size: 22px; font-weight: 800; margin-bottom: 2px; }
-
-    .mk-follow-item {
-        padding: 10px 12px; border-left: 4px solid #e5e7eb;
-        background: #f8fafc; border-radius: 6px; margin-bottom: 6px; font-size: 13px;
-    }
-    .mk-follow-item.overdue { border-left-color: #dc2626; }
-    .mk-follow-item.today { border-left-color: #f59e0b; }
-    .mk-follow-item.upcoming { border-left-color: #2563eb; }
+    .mk-quick-actions { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:14px; margin-bottom:22px; }
+    .mk-quick { background:#fff; border-radius:14px; padding:20px 16px; box-shadow:0 2px 10px rgba(0,0,0,0.04); border:1px solid #eef1f5; text-align:center; text-decoration:none; color:var(--text); transition:all 0.2s ease; display:flex; flex-direction:column; align-items:center; gap:10px; }
+    .mk-quick:hover { transform: translateY(-3px); box-shadow:0 8px 20px rgba(0,0,0,0.08); border-color:var(--accent); }
+    .mk-quick-icon { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff; }
+    .mk-quick-label { font-size:13px; font-weight:700; }
+    .mk-kpi-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:14px; margin-bottom:22px; }
+    .mk-kpi { background:#fff; border-radius:14px; padding:18px; box-shadow:0 2px 10px rgba(0,0,0,0.04); border:1px solid #eef1f5; text-align:center; }
+    .mk-kpi-value { font-size:28px; font-weight:800; color:var(--primary); line-height:1.1; }
+    .mk-kpi-label { font-size:11px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-secondary); margin-top:6px; }
+    .mk-card { background:#fff; border-radius:14px; padding:20px; box-shadow:0 2px 10px rgba(0,0,0,0.04); border:1px solid #eef1f5; margin-bottom:20px; }
+    .mk-card h3 { font-size:15px; font-weight:800; margin:0 0 12px 0; color:var(--text); }
+    .mk-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .mk-table th { background:#f8fafc; color:#4a5568; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; padding:9px 10px; text-align:left; border-bottom:1px solid #eef1f5; }
+    .mk-table td { padding:10px; border-bottom:1px solid #f1f5f9; }
+    .mk-follow-summary { display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:12px; margin-bottom:16px; }
+    .mk-follow-stat { padding:12px; border-radius:10px; text-align:center; font-size:12px; }
+    .mk-follow-stat.overdue { background:#fef2f2; color:#b91c1c; }
+    .mk-follow-stat.today { background:#fffbeb; color:#b45309; }
+    .mk-follow-stat.upcoming { background:#eff6ff; color:#1d4ed8; }
+    .mk-follow-stat strong { display:block; font-size:22px; font-weight:800; margin-bottom:2px; }
+    .mk-follow-item { padding:10px 12px; border-left:4px solid #e5e7eb; background:#f8fafc; border-radius:6px; margin-bottom:6px; font-size:13px; }
+    .mk-follow-item.overdue { border-left-color:#dc2626; }
+    .mk-follow-item.today { border-left-color:#f59e0b; }
+    .mk-follow-item.upcoming { border-left-color:#2563eb; }
 </style>
 
-<!-- ============ HERO ============ -->
 <div class="mk-hero">
-    <div class="mk-hero-left">
+    <div>
         <h1>Field Dashboard</h1>
         <p>{{ today }} · {{ company }}</p>
-        {% if checkin_time %}
-        <p style="margin-top:6px;">Check‑in time: <strong>{{ checkin_time }}</strong></p>
-        {% endif %}
+        {% if checkin_time %}<p style="margin-top:6px;">Check‑in time: <strong>{{ checkin_time }}</strong></p>{% endif %}
     </div>
     <div>
-        {% if checkin_status == 'approved' %}
-            <span class="mk-status-badge approved"><i class="fas fa-check-circle"></i> Approved</span>
-        {% elif checkin_status == 'pending' %}
-            <span class="mk-status-badge pending"><i class="fas fa-hourglass-half"></i> Pending</span>
-        {% elif checkin_status == 'rejected' %}
-            <span class="mk-status-badge rejected"><i class="fas fa-times-circle"></i> Rejected</span>
-        {% else %}
-            <span class="mk-status-badge none"><i class="fas fa-circle"></i> Not Checked In</span>
-        {% endif %}
+        {% if checkin_status == 'approved' %}<span class="mk-status-badge approved"><i class="fas fa-check-circle"></i> Approved</span>
+        {% elif checkin_status == 'pending' %}<span class="mk-status-badge pending"><i class="fas fa-hourglass-half"></i> Pending</span>
+        {% elif checkin_status == 'rejected' %}<span class="mk-status-badge rejected"><i class="fas fa-times-circle"></i> Rejected</span>
+        {% else %}<span class="mk-status-badge none"><i class="fas fa-circle"></i> Not Checked In</span>{% endif %}
     </div>
 </div>
 
-{% if request.args.get('location') == 'ok' %}
-<div class="alert alert-success" style="margin-bottom:16px;">📍 Location sent successfully.</div>
-{% endif %}
-{% if request.args.get('report') == 'ok' %}
-<div class="alert alert-success" style="margin-bottom:16px;">✅ Customer report submitted.</div>
-{% endif %}
+{% if request.args.get('location') == 'ok' %}<div class="alert alert-success">📍 Location sent successfully.</div>{% endif %}
+{% if request.args.get('report') == 'ok' %}<div class="alert alert-success">✅ Customer report submitted.</div>{% endif %}
 
-<!-- ============ QUICK ACTIONS ============ -->
 <div class="mk-quick-actions">
-    <a href="/check-in" class="mk-quick">
-        <div class="mk-quick-icon" style="background:#0b2b4a;"><i class="fas fa-clock"></i></div>
-        <span class="mk-quick-label">Check In / Out</span>
-    </a>
-    <a href="/my-places" class="mk-quick">
-        <div class="mk-quick-icon" style="background:#8e44ad;"><i class="fas fa-map-marker-alt"></i></div>
-        <span class="mk-quick-label">My Places</span>
-    </a>
-    <a href="/marketer/report" class="mk-quick">
-        <div class="mk-quick-icon" style="background:#e67e22;"><i class="fas fa-file-alt"></i></div>
-        <span class="mk-quick-label">Customer Report</span>
-    </a>
-    <a href="#" onclick="sendLocation(event)" class="mk-quick">
-        <div class="mk-quick-icon" style="background:#27ae60;"><i class="fas fa-location-arrow"></i></div>
-        <span class="mk-quick-label">Send Location</span>
-    </a>
+    <a href="/check-in" class="mk-quick"><div class="mk-quick-icon" style="background:#0b2b4a;"><i class="fas fa-clock"></i></div><span class="mk-quick-label">Check In / Out</span></a>
+    <a href="/my-places" class="mk-quick"><div class="mk-quick-icon" style="background:#8e44ad;"><i class="fas fa-map-marker-alt"></i></div><span class="mk-quick-label">My Places</span></a>
+    <a href="/marketer/report" class="mk-quick"><div class="mk-quick-icon" style="background:#e67e22;"><i class="fas fa-file-alt"></i></div><span class="mk-quick-label">Customer Report</span></a>
+    <a href="#" onclick="sendLocation(event)" class="mk-quick"><div class="mk-quick-icon" style="background:#27ae60;"><i class="fas fa-location-arrow"></i></div><span class="mk-quick-label">Send Location</span></a>
 </div>
 
-<!-- ============ KPIs ============ -->
 <div class="mk-kpi-grid">
-    <div class="mk-kpi">
-        <div class="mk-kpi-value">{{ places|length }}</div>
-        <div class="mk-kpi-label">Assigned Places</div>
-    </div>
-    <div class="mk-kpi">
-        <div class="mk-kpi-value">{{ reports_today|length }}</div>
-        <div class="mk-kpi-label">Reports Today</div>
-    </div>
-    {% if target_amount %}
-    <div class="mk-kpi">
-        <div class="mk-kpi-value">{{ "%.0f"|format(target_amount) }}</div>
-        <div class="mk-kpi-label">Monthly Target (Ksh)</div>
-    </div>
+    <div class="mk-kpi"><div class="mk-kpi-value">{{ places|length }}</div><div class="mk-kpi-label">Assigned Places</div></div>
+    <div class="mk-kpi"><div class="mk-kpi-value">{{ reports_today|length }}</div><div class="mk-kpi-label">Reports Today</div></div>
+    <div class="mk-kpi"><div class="mk-kpi-value">{{ my_customers_today|length }}</div><div class="mk-kpi-label">Customers Today</div></div>
+    {% if target_amount %}<div class="mk-kpi"><div class="mk-kpi-value">{{ "%.0f"|format(target_amount) }}</div><div class="mk-kpi-label">Monthly Target (Ksh)</div></div>{% endif %}
+</div>
+
+<!-- ===== MY CUSTOMERS TODAY ===== -->
+<div class="mk-card">
+    <h3>👥 My Customers Today ({{ my_customers_today|length }})</h3>
+    {% if my_customers_today %}
+    <table class="mk-table">
+        <thead><tr><th>Customer</th><th>Phone</th><th>Location</th><th>Visits</th></tr></thead>
+        <tbody>
+        {% for c in my_customers_today %}
+        <tr>
+            <td style="font-weight:700;">{{ c.customer_name }}</td>
+            <td>{{ c.customer_phone or '—' }}</td>
+            <td>{{ c.location or '—' }}</td>
+            <td>{{ c.visit_count or 1 }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--text-secondary); font-style:italic; font-size:13px; margin:0;">No customers added today yet. Submit a customer report to see it here.</p>
     {% endif %}
 </div>
 
-<!-- ============ FOLLOW-UPS ============ -->
+<!-- ===== ALL MY CUSTOMERS ===== -->
+<div class="mk-card">
+    <h3>📇 All My Customers ({{ my_customers|length }})</h3>
+    {% if my_customers %}
+    <div style="max-height:400px; overflow-y:auto;">
+        <table class="mk-table">
+            <thead><tr><th>Customer</th><th>Phone</th><th>Location</th><th>Last Visit</th><th>Total Visits</th></tr></thead>
+            <tbody>
+            {% for c in my_customers %}
+            <tr>
+                <td style="font-weight:700;">{{ c.customer_name }}</td>
+                <td>{{ c.customer_phone or '—' }}</td>
+                <td>{{ c.location or '—' }}</td>
+                <td>{{ c.last_visit_date or '—' }}</td>
+                <td>{{ c.visit_count or 1 }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color:var(--text-secondary); font-style:italic; font-size:13px; margin:0;">You haven't added any customers yet.</p>
+    {% endif %}
+</div>
+
+<!-- ===== FOLLOW-UPS ===== -->
 <div class="mk-card" id="followups">
     <h3>🔔 Follow‑ups</h3>
     {% if followups %}
         {% set overdue = followups | selectattr('expected_order_date', 'lt', today) | list %}
         {% set due_today = followups | selectattr('expected_order_date', 'equalto', today) | list %}
         {% set upcoming = followups | selectattr('expected_order_date', 'gt', today) | list %}
-
         <div class="mk-follow-summary">
             <div class="mk-follow-stat overdue"><strong>{{ overdue|length }}</strong> Overdue</div>
             <div class="mk-follow-stat today"><strong>{{ due_today|length }}</strong> Due Today</div>
             <div class="mk-follow-stat upcoming"><strong>{{ upcoming|length }}</strong> Upcoming</div>
         </div>
-
-        {% if overdue %}
-        <div style="margin-bottom:14px;">
-            <div style="font-size:12px; font-weight:700; color:#dc2626; text-transform:uppercase; margin-bottom:6px;">Overdue</div>
-            {% for f in overdue %}
-            <div class="mk-follow-item overdue">
-                <strong>{{ f.customer_name }}</strong> — Expected: {{ f.expected_order_date }}
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        {% if due_today %}
-        <div style="margin-bottom:14px;">
-            <div style="font-size:12px; font-weight:700; color:#d97706; text-transform:uppercase; margin-bottom:6px;">Due Today</div>
-            {% for f in due_today %}
-            <div class="mk-follow-item today">
-                <strong>{{ f.customer_name }}</strong> — Expected: {{ f.expected_order_date }}
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        {% if upcoming %}
-        <div>
-            <div style="font-size:12px; font-weight:700; color:#2563eb; text-transform:uppercase; margin-bottom:6px;">Upcoming</div>
-            {% for f in upcoming[:10] %}
-            <div class="mk-follow-item upcoming">
-                <strong>{{ f.customer_name }}</strong> — Expected: {{ f.expected_order_date }}
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
+        {% if overdue %}<div style="margin-bottom:14px;"><div style="font-size:12px; font-weight:700; color:#dc2626; text-transform:uppercase; margin-bottom:6px;">Overdue</div>{% for f in overdue %}<div class="mk-follow-item overdue"><strong>{{ f.customer_name }}</strong> — Expected: {{ f.expected_order_date }}</div>{% endfor %}</div>{% endif %}
+        {% if due_today %}<div style="margin-bottom:14px;"><div style="font-size:12px; font-weight:700; color:#d97706; text-transform:uppercase; margin-bottom:6px;">Due Today</div>{% for f in due_today %}<div class="mk-follow-item today"><strong>{{ f.customer_name }}</strong> — Expected: {{ f.expected_order_date }}</div>{% endfor %}</div>{% endif %}
+        {% if upcoming %}<div><div style="font-size:12px; font-weight:700; color:#2563eb; text-transform:uppercase; margin-bottom:6px;">Upcoming</div>{% for f in upcoming[:10] %}<div class="mk-follow-item upcoming"><strong>{{ f.customer_name }}</strong> — Expected: {{ f.expected_order_date }}</div>{% endfor %}</div>{% endif %}
     {% else %}
-        <p style="color:var(--text-secondary); font-style:italic; font-size:13px; margin:0;">No follow‑ups scheduled. Ask your Sales Manager to assign places and set expected order dates.</p>
+        <p style="color:var(--text-secondary); font-style:italic; font-size:13px; margin:0;">No follow‑ups scheduled.</p>
     {% endif %}
 </div>
 
@@ -205,7 +141,6 @@
     async function sendLocation(event) {
         if (event) event.preventDefault();
         if (!navigator.geolocation) { alert('Geolocation not supported on this device.'); return; }
-
         navigator.geolocation.getCurrentPosition(async (pos) => {
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
@@ -215,7 +150,6 @@
                 const data = await response.json();
                 if (data && data.display_name) address = data.display_name;
             } catch (e) {}
-
             try {
                 await fetch('/marketer/submit-location', {
                     method: 'POST',
@@ -223,12 +157,8 @@
                     body: `lat=${lat}&lng=${lng}&location=${encodeURIComponent(address)}`
                 });
                 window.location.href = '/marketer?location=ok';
-            } catch (e) {
-                alert('Failed to send location.');
-            }
-        }, (err) => {
-            alert('Unable to get location: ' + err.message);
-        }, { enableHighAccuracy: true, timeout: 10000 });
+            } catch (e) { alert('Failed to send location.'); }
+        }, (err) => { alert('Unable to get location: ' + err.message); }, { enableHighAccuracy: true, timeout: 10000 });
     }
 </script>
 {% endblock %}
