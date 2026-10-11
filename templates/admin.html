@@ -10,9 +10,11 @@
     <div class="stat-card"><div class="stat-icon">🏢</div><div class="stat-label">Branches</div><div class="stat-value">{{ total_branches }}</div></div>
     <div class="stat-card"><div class="stat-icon">📊</div><div class="stat-label">Checked In Today</div><div class="stat-value">{{ att_today }}</div></div>
 </div>
+
 <div style="display: flex; gap: 12px; flex-wrap: wrap;">
     <a href="/approvals" class="btn">✅ Approvals</a>
     <a href="/employees" class="btn">👥 Employees</a>
     <a href="/branches" class="btn">🏢 Branches</a>
+    <a href="/admin/transfer" class="btn" style="background:#0b2b4a;">🔄 Transfer Employee</a>
 </div>
 {% endblock %}
