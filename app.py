@@ -440,16 +440,32 @@ scheduler.add_job(cleanup_old_records, 'cron', hour=3, minute=0)
 scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
-# ==================== FORCE LOGOUT BLOCKED USERS ====================
+# ==================== FORCE LOGOUT BLOCKED USERS + SYNC SESSION ====================
 @app.before_request
 def block_check():
     if 'user' in session and request.path not in ['/login','/logout','/static','/favicon.ico']:
         emp = safe_data(execute_query(
-            supabase.table('employees').select('blocked').eq('full_name', session['user']).limit(1)
+            supabase.table('employees')
+                   .select('blocked,branch,role,department,shift_start,shift_end')
+                   .eq('full_name', session['user']).limit(1)
         ))
-        if emp and emp[0].get('blocked'):
-            session.clear()
-            return redirect('/login')
+        if emp:
+            e = emp[0]
+            if e.get('blocked'):
+                session.clear()
+                return redirect('/login')
+            if e.get('branch') is not None and e.get('branch') != session.get('branch'):
+                session['branch'] = e.get('branch','')
+            if e.get('role') is not None:
+                norm = normalize_role(e.get('role',''))
+                if norm != session.get('role'):
+                    session['role'] = norm
+            if e.get('department') is not None and e.get('department') != session.get('department'):
+                session['department'] = e.get('department','')
+            if e.get('shift_start'):
+                session['shift_start'] = e.get('shift_start')
+            if e.get('shift_end'):
+                session['shift_end'] = e.get('shift_end')
 
 # ==================== AUTH ====================
 @app.route('/login', methods=['GET','POST'])
@@ -898,6 +914,92 @@ def unblock_employee(eid):
     supabase.table('employees').update({'blocked':False}).eq('id',eid).execute()
     add_audit_log('unblock_employee', target=str(eid))
     return redirect('/employees')
+
+# ==================== ADMIN: TRANSFER EMPLOYEE ====================
+@app.route('/admin/transfer', methods=['GET','POST'])
+@login_required
+@admin_required
+def admin_transfer():
+    if request.method == 'POST':
+        employee_id = request.form.get('employee_id','').strip()
+        new_branch = request.form.get('new_branch','').strip()
+        new_role = request.form.get('new_role','').strip()
+        reason = request.form.get('reason','').strip()
+
+        if not employee_id or not new_branch:
+            return redirect('/admin/transfer?error=1')
+        try:
+            eid = int(employee_id)
+        except ValueError:
+            return redirect('/admin/transfer?error=1')
+
+        if new_branch not in get_branch_names():
+            return redirect('/admin/transfer?error=3')
+
+        emp = safe_data(execute_query(
+            supabase.table('employees').select('*').eq('id', eid).limit(1)
+        ))
+        if not emp:
+            return redirect('/admin/transfer?error=2')
+
+        e = emp[0]
+        old_branch = e.get('branch','') or ''
+        old_role = e.get('role','') or ''
+
+        if old_branch == new_branch and (not new_role or normalize_role(new_role) == old_role):
+            return redirect('/admin/transfer?error=4')
+
+        update_data = {
+            'branch': new_branch,
+            'branch_start_date': str(now_eat().date()),
+            'updated_at': now_eat().isoformat()
+        }
+        if new_role and new_role in ALL_ROLES:
+            update_data['role'] = normalize_role(new_role)
+
+        supabase.table('employees').update(update_data).eq('id', eid).execute()
+
+        try:
+            supabase.table('employee_transfers').insert({
+                'employee_id': eid,
+                'employee_name': e['full_name'],
+                'from_branch': old_branch,
+                'to_branch': new_branch,
+                'from_role': old_role,
+                'to_role': update_data.get('role', old_role),
+                'reason': reason,
+                'transferred_by': session.get('user'),
+            }).execute()
+        except Exception as ex:
+            print(f"Transfer log error: {ex}")
+
+        add_audit_log('transfer_employee', target=e['full_name'], details={
+            'from_branch': old_branch,
+            'to_branch': new_branch,
+            'from_role': old_role,
+            'to_role': update_data.get('role', old_role),
+            'reason': reason
+        })
+
+        return redirect('/admin/transfer?success=1')
+
+    employees_list = safe_data(execute_query(
+        supabase.table('employees')
+               .select('id, full_name, branch, role, department')
+               .eq('status','approved').order('full_name').limit(1000)
+    ))
+    branches = get_branch_names()
+    transfers = safe_data(execute_query(
+        supabase.table('employee_transfers').select('*')
+               .order('transferred_at', desc=True).limit(100)
+    ))
+    return render_template('admin_transfer.html',
+        employees=employees_list,
+        branches=branches,
+        roles=ALL_ROLES,
+        transfers=transfers,
+        today=str(now_eat().date()),
+        company=COMPANY_NAME)
 
 # ==================== APPROVALS ====================
 @app.route('/approvals')
@@ -2579,7 +2681,6 @@ def marketer_dashboard():
         .eq('full_name', un).not_.is_('expected_order_date', 'null')
         .order('expected_order_date', desc=True).limit(100)
     ))
-    # NEW: my customers (today + all)
     my_customers = safe_data(execute_query(
         supabase.table('customers').select('*')
         .eq('marketer_name', un).order('last_visit_date', desc=True).limit(200)
@@ -2624,12 +2725,10 @@ def sales_manager_dashboard():
     assigned = safe_data(execute_query(
         supabase.table('assigned_places').select('*').order('date_assigned',desc=True).limit(100)
     ))
-    # FIXED: order desc + larger limit so recent pings always show
     location_pings = safe_data(execute_query(
         supabase.table('marketer_locations').select('*').eq('date', today)
                .order('time', desc=True).limit(1000)
     ))
-    # Group pings per marketer
     pings_by_marketer = defaultdict(list)
     for p in location_pings:
         pings_by_marketer[p['full_name']].append(p)
@@ -2646,7 +2745,6 @@ def sales_manager_dashboard():
         })
     ping_summary.sort(key=lambda x: x['latest_time'], reverse=True)
 
-    # All customers (for assign picker)
     all_customers = safe_data(execute_query(
         supabase.table('customers').select('*').order('last_visit_date', desc=True).limit(500)
     ))
@@ -2722,7 +2820,6 @@ def assign_place():
     customer_id = request.form.get('customer_id','').strip()
     place = request.form.get('place_name','').strip()
 
-    # If a customer was picked, use their name + marketer
     if customer_id:
         try:
             cust = safe_data(execute_query(
