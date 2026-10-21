@@ -108,6 +108,9 @@ MARKETER_ROLE = 'Marketers'
 SALES_MANAGER_ROLE = 'Sales Manager'
 TARGET_SETTER_ROLES = ['Stock Controller','Assistant Stock Controller','Sales Manager','admin','ceo']
 
+# GM supervises these branches + all marketers
+GM_BRANCHES = ['Kisumu HQ', 'Kisumu Retail', 'Kisumu Head Office', 'Head Office']
+
 MANAGER_LIVE_BRANCHES = ['Kisumu HQ', 'Kisumu Retail']
 MANAGER_ATTENDANCE_ROLES = [
     'Person in Charge','Operations Manager','Assistant Operations Manager','Store Manager',
@@ -205,19 +208,37 @@ def get_branch_employees(branch):
         supabase.table('employees').select('full_name').eq('status','approved').eq('branch', branch).order('full_name')
     ))
 
-def get_manager_live_team_names():
-    employees = safe_data(execute_query(
-        supabase.table('employees').select('full_name').eq('status','approved')
-        .or_('branch.in.("Kisumu HQ","Kisumu Retail"),department.eq.Telesales')
-    ))
-    return [e['full_name'] for e in employees]
+# ============================================================
+# GENERAL MANAGER TEAM — Kisumu branches + all marketers + GM
+# Used by: manager_dashboard, live_status, check_in_page, absent_today, attendance_history
+# ============================================================
+def get_general_manager_team_names():
+    team = set()
+    try:
+        branch_emps = safe_data(execute_query(
+            supabase.table('employees').select('full_name')
+            .eq('status','approved').in_('branch', GM_BRANCHES)
+        ))
+        for e in branch_emps: team.add(e['full_name'])
+    except Exception as e:
+        print(f"GM branch team error: {e}")
+    try:
+        marketer_emps = safe_data(execute_query(
+            supabase.table('employees').select('full_name')
+            .eq('status','approved').eq('role', MARKETER_ROLE)
+        ))
+        for e in marketer_emps: team.add(e['full_name'])
+    except Exception as e:
+        print(f"GM marketer team error: {e}")
+    if session.get('user'):
+        team.add(session.get('user'))
+    return sorted(team)
 
 def get_manager_attendance_team_names():
-    employees = safe_data(execute_query(
-        supabase.table('employees').select('full_name').eq('status','approved')
-        .in_('role', MANAGER_ATTENDANCE_ROLES)
-    ))
-    return [e['full_name'] for e in employees]
+    return get_general_manager_team_names()
+
+def get_manager_live_team_names():
+    return get_general_manager_team_names()
 
 def add_audit_log(action, target=None, details=None):
     try:
@@ -607,7 +628,7 @@ def home():
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant'] or can_view_all():
         team_names = None
     elif role == 'General Manager':
-        team_names = get_manager_attendance_team_names()
+        team_names = get_general_manager_team_names()
     elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
         team_names = [e['full_name'] for e in safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved').in_('role', OPERATIONS_MANAGER_TEAM)
@@ -812,9 +833,11 @@ def manager_dashboard():
         return redirect('/')
     today = str(now_eat().date())
     un = session.get('user')
-    team_names = get_manager_attendance_team_names()
+    team_names = get_general_manager_team_names()
 
     total_emp = len(team_names)
+
+    # SAME working logic as live_status
     working = execute_query(
         supabase.table('attendance').select('id', count='exact')
         .eq('date', today).in_('full_name', team_names)
@@ -1385,7 +1408,7 @@ def check_in_page():
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant']:
         pass
     elif role == 'General Manager':
-        team_names = get_manager_live_team_names()
+        team_names = get_general_manager_team_names()
     elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
         team_names = [e['full_name'] for e in safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved')
@@ -1642,7 +1665,7 @@ def attendance_history():
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant']:
         query = base_query
     elif role == 'General Manager':
-        team_names = get_manager_attendance_team_names()
+        team_names = get_general_manager_team_names()
         query = base_query.in_('full_name', team_names)
     elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
         team_names = [e['full_name'] for e in safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').in_('role',OPERATIONS_MANAGER_TEAM)))]
@@ -2891,7 +2914,7 @@ def live_status():
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant','Stock Controller','Assistant Stock Controller']:
         pass
     elif role == 'General Manager':
-        team_names = get_manager_live_team_names()
+        team_names = get_general_manager_team_names()
     elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
         team_names = [e['full_name'] for e in safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved').in_('role', OPERATIONS_MANAGER_TEAM)
@@ -3485,7 +3508,6 @@ def export_marketer_reports():
     si = io.StringIO()
     cw = csv.writer(si, quoting=csv.QUOTE_MINIMAL, lineterminator='\r\n')
 
-    # ---------- Title Block ----------
     cw.writerow([COMPANY_NAME])
     cw.writerow(['Field Marketing - Customer Reports'])
     cw.writerow(['Period', f'{filter_from} to {filter_to}'])
@@ -3495,7 +3517,6 @@ def export_marketer_reports():
     cw.writerow(['Total Reports', len(reports)])
     cw.writerow([])
 
-    # ---------- Column Headers ----------
     cw.writerow([
         'No.',
         'Date',
@@ -3510,7 +3531,6 @@ def export_marketer_reports():
         'Report ID'
     ])
 
-    # ---------- Data Rows ----------
     for i, r in enumerate(reports, 1):
         details = (r.get('details') or '—')
         if isinstance(details, str):
@@ -3529,7 +3549,6 @@ def export_marketer_reports():
             r.get('id', '')
         ])
 
-    # ---------- Summary Block ----------
     cw.writerow([])
     cw.writerow(['SUMMARY'])
     cw.writerow(['Total Reports', len(reports)])
@@ -3548,7 +3567,7 @@ def export_marketer_reports():
     with_gps = sum(1 for r in reports if r.get('lat') and r.get('lng'))
     cw.writerow(['Reports with GPS Coordinates', with_gps])
 
-    output = '\ufeff' + si.getvalue()  # BOM so Excel opens it correctly
+    output = '\ufeff' + si.getvalue()
     si.close()
 
     filename = f"marketer_reports_{filter_from}_to_{filter_to}.csv"
@@ -3571,7 +3590,7 @@ def absent_today():
     if role in FULL_ACCESS_ROLES or role in ['HR','HR Assistant','Stock Controller','Assistant Stock Controller']:
         pass
     elif role == 'General Manager':
-        team_names = get_manager_live_team_names()
+        team_names = get_general_manager_team_names()
     elif role in ['Store Manager','Operations Manager','Assistant Operations Manager']:
         team_names = [e['full_name'] for e in safe_data(execute_query(
             supabase.table('employees').select('full_name').eq('status','approved').in_('role', OPERATIONS_MANAGER_TEAM)
