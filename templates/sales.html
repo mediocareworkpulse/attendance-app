@@ -8,7 +8,6 @@
 <!-- Submission Forms (Individual & Branch) -->
 <div style="display:flex; flex-wrap:wrap; gap:16px; margin-bottom:20px;">
     {% if session.role in ['Staff','Person in Charge'] %}
-    <!-- Individual Sale Form -->
     <div class="form-card" style="flex:1; min-width:300px; border-left: 5px solid var(--accent);">
         <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">Submit Individual Sale</h2>
         <form method="POST">
@@ -40,7 +39,6 @@
     {% endif %}
 
     {% if session.role == 'Person in Charge' %}
-    <!-- Branch Sale Form -->
     <div class="form-card" style="flex:1; min-width:300px; border-left: 5px solid var(--primary);">
         <h2 style="font-size:16px; font-weight:700; margin-bottom:12px;">Submit Branch Sale</h2>
         <form method="POST">
@@ -131,7 +129,7 @@
     </div>
 </div>
 
-<!-- Target Progress (if user has a target) -->
+<!-- Target Progress -->
 {% if target_progress %}
 <div class="target-progress-card">
     <h3 style="font-size:15px;">My Monthly Target</h3>
@@ -155,6 +153,101 @@
     <span>Total Branch Sales: <strong>Ksh {{ "%.2f"|format(total_branch) }}</strong></span>
     {% endif %}
 </div>
+
+<!-- ========== VARIANCE ANALYSIS ========== -->
+{% if variance_data %}
+<div class="form-card" style="margin-top:20px; border-left:6px solid {% if variance_data.abs_total_variance < 0.01 %}#27ae60{% else %}#e74c3c{% endif %};">
+    <h2 style="font-size:17px; font-weight:800; margin-bottom:6px;">📊 Sales Variance Analysis</h2>
+    <p style="color:var(--text-secondary); font-size:13px; margin-bottom:14px;">
+        Compares branch-submitted totals against the sum of individual staff submissions for each day.
+        {% if variance_data.abs_total_variance < 0.01 %}
+        <strong style="color:#1e7e34;">All submissions are balanced.</strong>
+        {% else %}
+        <strong style="color:#c0392b;">{{ variance_data.difference_days }} day(s) show a difference.</strong>
+        {% endif %}
+    </p>
+
+    <div class="stats" style="margin-bottom:18px;">
+        <div class="stat-card">
+            <div class="stat-label">Total Individual Sales</div>
+            <div class="stat-value" style="font-size:22px;">Ksh {{ "%.2f"|format(variance_data.total_individual) }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Total Branch Sales</div>
+            <div class="stat-value" style="font-size:22px;">Ksh {{ "%.2f"|format(variance_data.total_branch) }}</div>
+        </div>
+        <div class="stat-card" style="border-left:4px solid {% if variance_data.abs_total_variance < 0.01 %}#27ae60{% else %}#e74c3c{% endif %};">
+            <div class="stat-label">Total Variance</div>
+            <div class="stat-value" style="font-size:22px; color:{% if variance_data.abs_total_variance < 0.01 %}#1e7e34{% else %}#c0392b{% endif %};">
+                {% if variance_data.total_variance > 0 %}+{% endif %}Ksh {{ "%.2f"|format(variance_data.total_variance) }}
+            </div>
+        </div>
+    </div>
+
+    {% if variance_data.rows %}
+    <div class="table-container" style="max-height:420px; overflow-y:auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Branch</th>
+                    <th>Individual Total</th>
+                    <th>Entries</th>
+                    <th>Branch Total</th>
+                    <th>Entries</th>
+                    <th>Variance (Branch − Individual)</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for v in variance_data.rows %}
+            <tr>
+                <td>{{ v.date }}</td>
+                <td class="td-name">{{ v.branch }}</td>
+                <td>Ksh {{ "%.2f"|format(v.individual_total) }}</td>
+                <td>{{ v.individual_count }}</td>
+                <td>Ksh {{ "%.2f"|format(v.branch_total) }}</td>
+                <td>{{ v.branch_count }}</td>
+                <td style="font-weight:700; color:{% if v.status == 'balanced' %}#1e7e34{% else %}#c0392b{% endif %};">
+                    {% if v.variance > 0 %}+{% endif %}Ksh {{ "%.2f"|format(v.variance) }}
+                </td>
+                <td>
+                    {% if v.status == 'balanced' %}
+                    <span class="badge badge-success">Balanced</span>
+                    {% else %}
+                    <span class="badge badge-danger">Difference</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="background:#f8fafc; font-weight:800;">
+                    <td colspan="2" style="text-align:right;">TOTALS</td>
+                    <td>Ksh {{ "%.2f"|format(variance_data.total_individual) }}</td>
+                    <td></td>
+                    <td>Ksh {{ "%.2f"|format(variance_data.total_branch) }}</td>
+                    <td></td>
+                    <td style="color:{% if variance_data.abs_total_variance < 0.01 %}#1e7e34{% else %}#c0392b{% endif %};">
+                        {% if variance_data.total_variance > 0 %}+{% endif %}Ksh {{ "%.2f"|format(variance_data.total_variance) }}
+                    </td>
+                    <td>
+                        {% if variance_data.abs_total_variance < 0.01 %}
+                        <span class="badge badge-success">Balanced</span>
+                        {% else %}
+                        <span class="badge badge-danger">Difference</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info" style="margin-bottom:0;">No sales data in the selected period.</div>
+    {% endif %}
+</div>
+{% endif %}
+<!-- ========== END VARIANCE ANALYSIS ========== -->
 
 <!-- Individual Sales Table -->
 {% if view_type == 'individual' or session.role in ['Staff','Person in Charge'] %}
