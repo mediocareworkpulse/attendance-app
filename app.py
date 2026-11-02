@@ -651,16 +651,23 @@ def delete_sale(sid):
 @admin_required
 def edit_sale(sid):
     stype = request.args.get('type', 'individual')
-    mpesa = float(request.form.get('mpesa_sales','0') or 0); cash = float(request.form.get('cash_sales','0') or 0)
+    mpesa = float(request.form.get('mpesa_sales','0') or 0)
+    cash = float(request.form.get('cash_sales','0') or 0)
     notes = request.form.get('notes','')
-    expense_names = request.form.getlist('expense_name[]'); expense_amounts = request.form.getlist('expense_amount[]')
+    expense_names = request.form.getlist('expense_name[]')
+    if not expense_names: expense_names = request.form.getlist('expense_name')
+    expense_amounts = request.form.getlist('expense_amount[]')
+    if not expense_amounts: expense_amounts = request.form.getlist('expense_amount')
     expenses = []; expense_total = 0.0
-    for i in range(len(expense_names)):
-        nm = expense_names[i].strip()
-        amt_str = expense_amounts[i] if i < len(expense_amounts) else '0'
+    row_count = max(len(expense_names), len(expense_amounts))
+    for i in range(row_count):
+        nm = (expense_names[i] or '').strip() if i < len(expense_names) else ''
+        amt_str = (expense_amounts[i] or '').strip() if i < len(expense_amounts) else ''
         try: amt = float(amt_str) if amt_str else 0.0
-        except: amt = 0.0
-        if nm and amt > 0: expenses.append({'name':nm,'amount':amt}); expense_total += amt
+        except (ValueError, TypeError): amt = 0.0
+        if amt > 0:
+            if not nm: nm = 'Expense'
+            expenses.append({'name':nm,'amount':amt}); expense_total += amt
     total = mpesa + cash + expense_total
     table = 'branch_sales' if stype == 'branch' else 'sales'
     supabase.table(table).update({'mpesa_sales':mpesa,'cash_sales':cash,'total_sales':total,'notes':notes,'expenses':expenses}).eq('id', sid).execute()
@@ -974,36 +981,47 @@ def sales_page():
         sales_type = request.form.get('sales_type','individual')
         sale_date = request.form.get('sale_date', today).strip() or today
         if sale_date > today: sale_date = today
-        mpesa = float(request.form.get('mpesa_sales','0') or 0); cash = float(request.form.get('cash_sales','0') or 0)
+        mpesa = float(request.form.get('mpesa_sales','0') or 0)
+        cash = float(request.form.get('cash_sales','0') or 0)
         notes = request.form.get('notes','')
-        expense_names = request.form.getlist('expense_name[]'); expense_amounts = request.form.getlist('expense_amount[]')
+        expense_names = request.form.getlist('expense_name[]')
+        if not expense_names: expense_names = request.form.getlist('expense_name')
+        expense_amounts = request.form.getlist('expense_amount[]')
+        if not expense_amounts: expense_amounts = request.form.getlist('expense_amount')
         expenses = []; expense_total = 0.0
-        for i in range(len(expense_names)):
-            nm = expense_names[i].strip(); amt_str = expense_amounts[i] if i < len(expense_amounts) else '0'
+        row_count = max(len(expense_names), len(expense_amounts))
+        for i in range(row_count):
+            nm = (expense_names[i] or '').strip() if i < len(expense_names) else ''
+            amt_str = (expense_amounts[i] or '').strip() if i < len(expense_amounts) else ''
             try: amt = float(amt_str) if amt_str else 0.0
-            except: amt = 0.0
-            if nm and amt > 0: expenses.append({'name':nm,'amount':amt}); expense_total += amt
+            except (ValueError, TypeError): amt = 0.0
+            if amt > 0:
+                if not nm: nm = 'Expense'
+                expenses.append({'name':nm,'amount':amt}); expense_total += amt
         total = mpesa + cash + expense_total
+        print(f"[SALES POST] type={sales_type} mpesa={mpesa} cash={cash} expenses={expenses} total={total}")
         force = request.form.get('force','0')
         if force != '1':
             if sales_type == 'individual' and role in SALES_SUBMIT_ROLES:
                 existing = safe_data(execute_query(supabase.table('sales').select('*').eq('full_name', un).eq('date', sale_date).limit(1)))
-                if existing: return render_template('sales_confirm.html', existing_sales=existing, form_data={'sales_type':'individual','sale_date':sale_date,'mpesa_sales':mpesa,'cash_sales':cash,'notes':notes,'expenses':expenses,'total':total}, company=COMPANY_NAME)
+                if existing:
+                    return render_template('sales_confirm.html', existing_sales=existing, form_data={'sales_type':'individual','sale_date':sale_date,'mpesa_sales':mpesa,'cash_sales':cash,'notes':notes,'expenses':expenses,'total':total}, company=COMPANY_NAME)
             elif sales_type == 'branch' and role == 'Person in Charge':
                 existing = safe_data(execute_query(supabase.table('branch_sales').select('*').eq('branch', ub).eq('date', sale_date).limit(1)))
-                if existing: return render_template('sales_confirm.html', existing_sales=existing, form_data={'sales_type':'branch','sale_date':sale_date,'mpesa_sales':mpesa,'cash_sales':cash,'notes':notes,'expenses':expenses,'total':total}, company=COMPANY_NAME)
+                if existing:
+                    return render_template('sales_confirm.html', existing_sales=existing, form_data={'sales_type':'branch','sale_date':sale_date,'mpesa_sales':mpesa,'cash_sales':cash,'notes':notes,'expenses':expenses,'total':total}, company=COMPANY_NAME)
         if sales_type == 'individual' and role in SALES_SUBMIT_ROLES:
             try:
                 emp = safe_data(execute_query(supabase.table('employees').select('department,branch').eq('full_name', un)))
                 if emp and total > 0:
                     supabase.table('sales').insert({'full_name':un,'department':emp[0].get('department',''),'branch':emp[0].get('branch',''),'date':sale_date,'mpesa_sales':mpesa,'cash_sales':cash,'total_sales':total,'sales_type':'individual','notes':notes,'expenses':expenses}).execute()
-                    add_audit_log('submit_individual_sale', target=un, details={'date':sale_date,'total':total})
+                    add_audit_log('submit_individual_sale', target=un, details={'date':sale_date,'total':total,'expenses':expenses})
             except Exception as e: print(f"Individual sale error: {e}")
         elif sales_type == 'branch' and role == 'Person in Charge':
             try:
                 if total > 0:
                     supabase.table('branch_sales').insert({'branch':ub,'date':sale_date,'mpesa_sales':mpesa,'cash_sales':cash,'total_sales':total,'submitted_by':un,'notes':notes,'expenses':expenses}).execute()
-                    add_audit_log('submit_branch_sale', target=ub, details={'date':sale_date,'total':total})
+                    add_audit_log('submit_branch_sale', target=ub, details={'date':sale_date,'total':total,'expenses':expenses})
             except Exception as e: print(f"Branch sale error: {e}")
         return redirect('/sales?success=1')
     view_type = request.args.get('view_type','individual')
@@ -1015,8 +1033,7 @@ def sales_page():
     elif not filter_from: filter_from = str(today_date.replace(day=1)); filter_to = str(today_date)
     if not filter_to: filter_to = str(today_date)
     if role == 'Staff':
-        query = supabase.table('sales').select('*').eq('full_name', un).gte('date', filter_from).lte('date', filter_to).order('date', desc=True)
-        individual_sales = safe_data(execute_query(query))
+        individual_sales = safe_data(execute_query(supabase.table('sales').select('*').eq('full_name', un).gte('date', filter_from).lte('date', filter_to).order('date', desc=True)))
         branch_sales = []; employees = []; branches_for_filter = []; filter_branch = ''; filter_employee = ''
         total_individual = sum(float(s['total_sales']) for s in individual_sales); total_branch = 0
     elif role == 'Person in Charge':
@@ -1042,6 +1059,16 @@ def sales_page():
         else: employees = safe_data(execute_query(supabase.table('employees').select('full_name').eq('status','approved').order('full_name')))
         branches_for_filter = allowed_branches
         total_individual = sum(float(s['total_sales']) for s in individual_sales); total_branch = sum(float(s['total_sales']) for s in branch_sales)
+    for row in individual_sales + branch_sales:
+        exp = row.get('expenses')
+        if isinstance(exp, str):
+            try:
+                import json as _json
+                row['expenses'] = _json.loads(exp)
+            except Exception:
+                row['expenses'] = []
+        elif exp is None:
+            row['expenses'] = []
     target_progress = None
     month_str = now_eat().date().strftime('%Y-%m')
     target = safe_data(execute_query(supabase.table('sales_targets').select('target_amount').eq('full_name',un).eq('month',month_str).limit(1)))
@@ -1963,4 +1990,3 @@ def handle_exception(e):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
-    
