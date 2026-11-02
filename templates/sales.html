@@ -5,7 +5,7 @@
 
 {% if success_msg %}<div class="alert alert-success">Sales submitted successfully.</div>{% endif %}
 
-<!-- Submission Forms (Individual & Branch) -->
+<!-- Submission Forms -->
 <div style="display:flex; flex-wrap:wrap; gap:16px; margin-bottom:20px;">
     {% if session.role in ['Staff','Person in Charge'] %}
     <div class="form-card" style="flex:1; min-width:300px; border-left: 5px solid var(--accent);">
@@ -26,7 +26,7 @@
                 <h4 style="font-size:13px;">Expenses</h4>
                 <div id="indExpenseList">
                     <div class="expense-row" style="display:flex; gap:8px; margin-bottom:6px;">
-                        <input type="text" name="expense_name[]" placeholder="Name" style="flex:2;">
+                        <input type="text" name="expense_name[]" placeholder="Name (e.g. Fuel)" style="flex:2;">
                         <input type="number" step="0.01" name="expense_amount[]" placeholder="Amount" style="flex:1;">
                         <button type="button" class="btn btn-sm" style="background:#e74c3c;color:#fff;width:auto;" onclick="removeExpense(this)">✕</button>
                     </div>
@@ -58,7 +58,7 @@
                 <h4 style="font-size:13px;">Branch Expenses</h4>
                 <div id="brExpenseList">
                     <div class="expense-row" style="display:flex; gap:8px; margin-bottom:6px;">
-                        <input type="text" name="expense_name[]" placeholder="Name" style="flex:2;">
+                        <input type="text" name="expense_name[]" placeholder="Name (e.g. Fuel)" style="flex:2;">
                         <input type="number" step="0.01" name="expense_amount[]" placeholder="Amount" style="flex:1;">
                         <button type="button" class="btn btn-sm" style="background:#e74c3c;color:#fff;width:auto;" onclick="removeExpense(this)">✕</button>
                     </div>
@@ -71,7 +71,7 @@
     {% endif %}
 </div>
 
-<!-- Filter & View Section -->
+<!-- Filter -->
 <div class="form-card">
     <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">Filter Sales</h2>
     <form method="GET" class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap:12px;">
@@ -92,35 +92,21 @@
                 <option>{{ session.branch }}</option>
                 {% else %}
                 <option value="">All</option>
-                {% for b in branches %}
-                <option value="{{ b }}" {% if filter_branch == b %}selected{% endif %}>{{ b }}</option>
-                {% endfor %}
+                {% for b in branches %}<option value="{{ b }}" {% if filter_branch == b %}selected{% endif %}>{{ b }}</option>{% endfor %}
                 {% endif %}
             </select>
         </div>
-        {% endif %}
-        {% if session.role != 'Staff' %}
         <div>
             <label>Employee</label>
             <select name="employee">
                 <option value="">All</option>
-                {% for e in employees %}
-                <option value="{{ e.full_name }}" {% if filter_employee == e.full_name %}selected{% endif %}>{{ e.full_name }}</option>
-                {% endfor %}
+                {% for e in employees %}<option value="{{ e.full_name }}" {% if filter_employee == e.full_name %}selected{% endif %}>{{ e.full_name }}</option>{% endfor %}
             </select>
         </div>
         {% endif %}
-        <div>
-            <label>From</label>
-            <input type="date" name="from_date" value="{{ filter_from }}">
-        </div>
-        <div>
-            <label>To</label>
-            <input type="date" name="to_date" value="{{ filter_to }}">
-        </div>
-        <div style="display:flex; align-items:end;">
-            <button type="submit" class="btn" style="width:100%;">Apply</button>
-        </div>
+        <div><label>From</label><input type="date" name="from_date" value="{{ filter_from }}"></div>
+        <div><label>To</label><input type="date" name="to_date" value="{{ filter_to }}"></div>
+        <div style="display:flex; align-items:end;"><button type="submit" class="btn" style="width:100%;">Apply</button></div>
     </form>
     <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
         <a href="?view_type={{ view_type }}&branch={{ filter_branch }}&employee={{ filter_employee }}&period=week" class="filter-btn {% if period == 'week' %}active{% endif %}">This Week</a>
@@ -129,7 +115,6 @@
     </div>
 </div>
 
-<!-- Target Progress -->
 {% if target_progress %}
 <div class="target-progress-card">
     <h3 style="font-size:15px;">My Monthly Target</h3>
@@ -138,15 +123,13 @@
         <span>{{ target_progress.percent }}%</span>
     </div>
     <div class="progress-bar-bg">
-        <div class="progress-bar-fill" style="width:{{ target_progress.percent }}%;">
-            <span class="progress-text">{{ target_progress.percent }}%</span>
-        </div>
+        <div class="progress-bar-fill" style="width:{{ target_progress.percent }}%;"><span class="progress-text">{{ target_progress.percent }}%</span></div>
     </div>
     {% if target_progress.achieved %}<div class="alert alert-success">Target achieved!</div>{% endif %}
 </div>
 {% endif %}
 
-<!-- Total Sales Summary -->
+<!-- Totals -->
 <div class="alert alert-info" style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
     <span>Total Individual Sales: <strong>Ksh {{ "%.2f"|format(total_individual) }}</strong></span>
     {% if session.role in ['Person in Charge','admin','ceo','Stock Controller','Assistant Stock Controller','Accountant','Accountant Assistant'] %}
@@ -154,7 +137,7 @@
     {% endif %}
 </div>
 
-<!-- ========== VARIANCE ANALYSIS ========== -->
+<!-- VARIANCE ANALYSIS -->
 {% if variance_data %}
 <div class="form-card" style="margin-top:20px; border-left:6px solid {% if variance_data.abs_total_variance < 0.01 %}#27ae60{% else %}#e74c3c{% endif %};">
     <h2 style="font-size:17px; font-weight:800; margin-bottom:6px;">📊 Sales Variance Analysis</h2>
@@ -166,16 +149,9 @@
         <strong style="color:#c0392b;">{{ variance_data.difference_days }} day(s) show a difference.</strong>
         {% endif %}
     </p>
-
     <div class="stats" style="margin-bottom:18px;">
-        <div class="stat-card">
-            <div class="stat-label">Total Individual Sales</div>
-            <div class="stat-value" style="font-size:22px;">Ksh {{ "%.2f"|format(variance_data.total_individual) }}</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Total Branch Sales</div>
-            <div class="stat-value" style="font-size:22px;">Ksh {{ "%.2f"|format(variance_data.total_branch) }}</div>
-        </div>
+        <div class="stat-card"><div class="stat-label">Total Individual Sales</div><div class="stat-value" style="font-size:22px;">Ksh {{ "%.2f"|format(variance_data.total_individual) }}</div></div>
+        <div class="stat-card"><div class="stat-label">Total Branch Sales</div><div class="stat-value" style="font-size:22px;">Ksh {{ "%.2f"|format(variance_data.total_branch) }}</div></div>
         <div class="stat-card" style="border-left:4px solid {% if variance_data.abs_total_variance < 0.01 %}#27ae60{% else %}#e74c3c{% endif %};">
             <div class="stat-label">Total Variance</div>
             <div class="stat-value" style="font-size:22px; color:{% if variance_data.abs_total_variance < 0.01 %}#1e7e34{% else %}#c0392b{% endif %};">
@@ -183,22 +159,10 @@
             </div>
         </div>
     </div>
-
     {% if variance_data.rows %}
     <div class="table-container" style="max-height:420px; overflow-y:auto;">
         <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Branch</th>
-                    <th>Individual Total</th>
-                    <th>Entries</th>
-                    <th>Branch Total</th>
-                    <th>Entries</th>
-                    <th>Variance (Branch − Individual)</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Date</th><th>Branch</th><th>Individual Total</th><th>Entries</th><th>Branch Total</th><th>Entries</th><th>Variance (Branch − Individual)</th><th>Status</th></tr></thead>
             <tbody>
             {% for v in variance_data.rows %}
             <tr>
@@ -211,13 +175,7 @@
                 <td style="font-weight:700; color:{% if v.status == 'balanced' %}#1e7e34{% else %}#c0392b{% endif %};">
                     {% if v.variance > 0 %}+{% endif %}Ksh {{ "%.2f"|format(v.variance) }}
                 </td>
-                <td>
-                    {% if v.status == 'balanced' %}
-                    <span class="badge badge-success">Balanced</span>
-                    {% else %}
-                    <span class="badge badge-danger">Difference</span>
-                    {% endif %}
-                </td>
+                <td>{% if v.status == 'balanced' %}<span class="badge badge-success">Balanced</span>{% else %}<span class="badge badge-danger">Difference</span>{% endif %}</td>
             </tr>
             {% endfor %}
             </tbody>
@@ -231,13 +189,7 @@
                     <td style="color:{% if variance_data.abs_total_variance < 0.01 %}#1e7e34{% else %}#c0392b{% endif %};">
                         {% if variance_data.total_variance > 0 %}+{% endif %}Ksh {{ "%.2f"|format(variance_data.total_variance) }}
                     </td>
-                    <td>
-                        {% if variance_data.abs_total_variance < 0.01 %}
-                        <span class="badge badge-success">Balanced</span>
-                        {% else %}
-                        <span class="badge badge-danger">Difference</span>
-                        {% endif %}
-                    </td>
+                    <td>{% if variance_data.abs_total_variance < 0.01 %}<span class="badge badge-success">Balanced</span>{% else %}<span class="badge badge-danger">Difference</span>{% endif %}</td>
                 </tr>
             </tfoot>
         </table>
@@ -247,7 +199,6 @@
     {% endif %}
 </div>
 {% endif %}
-<!-- ========== END VARIANCE ANALYSIS ========== -->
 
 <!-- Individual Sales Table -->
 {% if view_type == 'individual' or session.role in ['Staff','Person in Charge'] %}
@@ -255,18 +206,7 @@
     <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">Individual Sales</h2>
     <div class="table-container">
         <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Employee</th>
-                    <th>Branch</th>
-                    <th>M‑Pesa</th>
-                    <th>Cash</th>
-                    <th>Expenses</th>
-                    <th>Total</th>
-                    <th>Notes</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Date</th><th>Employee</th><th>Branch</th><th>M‑Pesa</th><th>Cash</th><th>Expenses</th><th>Total</th><th>Notes</th></tr></thead>
             <tbody>
             {% for s in individual_sales %}
             <tr>
@@ -277,9 +217,7 @@
                 <td>{{ s.cash_sales }}</td>
                 <td>
                     {% if s.expenses %}
-                        {% for exp in s.expenses %}
-                            {{ exp.name }}: Ksh {{ exp.amount }}<br>
-                        {% endfor %}
+                        {% for exp in s.expenses %}{{ exp.name }}: Ksh {{ exp.amount }}<br>{% endfor %}
                     {% else %}—{% endif %}
                 </td>
                 <td>{{ s.total_sales }}</td>
@@ -298,18 +236,7 @@
     <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">Branch Sales</h2>
     <div class="table-container">
         <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Branch</th>
-                    <th>M‑Pesa</th>
-                    <th>Cash</th>
-                    <th>Expenses</th>
-                    <th>Total</th>
-                    <th>Submitted By</th>
-                    <th>Notes</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Date</th><th>Branch</th><th>M‑Pesa</th><th>Cash</th><th>Expenses</th><th>Total</th><th>Submitted By</th><th>Notes</th></tr></thead>
             <tbody>
             {% for s in branch_sales %}
             <tr>
@@ -319,9 +246,7 @@
                 <td>{{ s.cash_sales }}</td>
                 <td>
                     {% if s.expenses %}
-                        {% for exp in s.expenses %}
-                            {{ exp.name }}: Ksh {{ exp.amount }}<br>
-                        {% endfor %}
+                        {% for exp in s.expenses %}{{ exp.name }}: Ksh {{ exp.amount }}<br>{% endfor %}
                     {% else %}—{% endif %}
                 </td>
                 <td>{{ s.total_sales }}</td>
@@ -344,7 +269,7 @@
         div.className = 'expense-row';
         div.style.cssText = 'display:flex; gap:8px; margin-bottom:6px;';
         div.innerHTML = `
-            <input type="text" name="expense_name[]" placeholder="Name" style="flex:2;">
+            <input type="text" name="expense_name[]" placeholder="Name (e.g. Fuel)" style="flex:2;">
             <input type="number" step="0.01" name="expense_amount[]" placeholder="Amount" style="flex:1;">
             <button type="button" class="btn btn-sm" style="background:#e74c3c;color:#fff;width:auto;" onclick="removeExpense(this)">✕</button>
         `;
@@ -355,14 +280,12 @@
         div.className = 'expense-row';
         div.style.cssText = 'display:flex; gap:8px; margin-bottom:6px;';
         div.innerHTML = `
-            <input type="text" name="expense_name[]" placeholder="Name" style="flex:2;">
+            <input type="text" name="expense_name[]" placeholder="Name (e.g. Fuel)" style="flex:2;">
             <input type="number" step="0.01" name="expense_amount[]" placeholder="Amount" style="flex:1;">
             <button type="button" class="btn btn-sm" style="background:#e74c3c;color:#fff;width:auto;" onclick="removeExpense(this)">✕</button>
         `;
         document.getElementById('brExpenseList').appendChild(div);
     }
-    function removeExpense(btn) {
-        btn.parentElement.remove();
-    }
+    function removeExpense(btn) { btn.parentElement.remove(); }
 </script>
 {% endblock %}
